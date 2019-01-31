@@ -6,12 +6,14 @@ import qualified HSpriteLib
 import BaseTypes (Time)
 import Behavior
 import Event
+import GBehavior
 
 
 data SoundB = SilentS
             | BufferS (HSpriteLib.HDSBuffer)  -- sound buffer
             | MixS    SoundB SoundB
-            | VolumeS RealB SoundB            -- dB.  adds
+            | VolumeS RealB SoundB            -- scale (only <1, sorry!)
+            | PanS    RealB SoundB            -- units?, combines?
             | PitchS  RealB SoundB            -- multiplies
           --| ImageS  ImageB                  -- listen to an image
             | UntilS  SoundB (Event SoundB)
@@ -39,12 +41,15 @@ volume = VolumeS
 pitch :: RealB -> SoundB -> SoundB
 pitch = PitchS
 
+-- In dB, and so combines additively.  What's best??
+pan :: RealB -> SoundB -> SoundB
+pan = PanS
+
 
 instance  GBehavior SoundB  where
-  untilB     = UntilS
-  afterTimes = afterTimesS
-
-instance TimeTransformable SoundB where timeTransform = TimeTransS
+  untilB        = UntilS
+  afterTimes	= afterTimesS
+  timeTransform = TimeTransS
 
 afterTimesS :: SoundB -> [Time] -> [SoundB]
 
@@ -60,6 +65,9 @@ VolumeS v snd `afterTimesS` ts =
 
 PitchS p snd `afterTimesS` ts =
   zipWith PitchS (p `afterTimes` ts) (snd `afterTimesS` ts)
+
+PanS p snd `afterTimesS` ts =
+  zipWith PanS (p `afterTimes` ts) (snd `afterTimesS` ts)
 
 -- ## This guy is wrong!!
 (snd `UntilS` e) `afterTimesS` ts =

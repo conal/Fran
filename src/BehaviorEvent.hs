@@ -1,7 +1,7 @@
 -- Event combinators that involve events.  Separated out from Event.hs to
 -- avoid a mutual module recursion.
 --
--- Last modified Thu Oct 09 15:58:18 1997
+-- Last modified Mon Nov 03 13:18:29 1997
 
 module BehaviorEvent where
 
@@ -9,12 +9,11 @@ import BaseTypes (pair)
 import Event
 import User
 import Behavior
-import Interaction
 import Maybe (isJust)
 
 import Trace
 
-infixl 9 `snapshot`, `snapshot_`, `whenE`
+infixl 3 `snapshot`, `snapshot_`, `whenE`
 
 -- The event "e `snapshot` b" occurs at the time te when e occurs.  Its
 -- value is e's value together with a snapshot of b at te.  A counterpart
@@ -62,11 +61,11 @@ occTimes (Event possOccs) = loop possOccs
 -- Shortcut when ignoring the given event's data
 snapshot_ :: Event a -> Behavior b -> Event b
 
-e `snapshot_` b = (e `snapshot` b) ==> snd
+e `snapshot_` b = e `snapshot` b ==> snd
 
 
 whenSnap :: Event a -> Behavior b -> (a -> b -> Bool) -> Event a
-whenSnap e b pred = (e `snapshot` b `suchThat` uncurry pred) ==> fst
+whenSnap e b pred = e `snapshot` b `suchThat` uncurry pred ==> fst
 
 whenE :: Event a -> BoolB -> Event a
 
@@ -96,7 +95,7 @@ be2 t0 = e2 t0 `whenE` wholeTime
  where wholeTime = abs (sndB (properFractionB (timeSince t0))) <* 0.01
 
 -- Another formulation. (Try "tstE be2 == tstE be2'")
-be2' t0 = (e3 t0 `suchThat` wholeTime) -=> ()
+be2' t0 = e3 t0 `suchThat` wholeTime -=> ()
  where wholeTime dt = abs (snd (properFraction dt)) < 0.001
 
 be3 t0 = e2 t0 `snapshot_` sin (timeSince t0)

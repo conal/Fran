@@ -1,24 +1,23 @@
 -- Test the sprite engine from Haskell
 
-module ShowImageB (
-  updatePeriodGoal,
-  showSpriteTree,
-  initialWindowSize
-  ) where
+module ShowImageB ( updatePeriodGoal
+                  , showSpriteTree
+                  , initialViewSizeVar, setViewSize
+                  ) where
 
 import HSpriteLib
 import BaseTypes
 import Transform2
 import Vector2
+import VectorSpace
 import Point2
 import qualified Win32
-import MutVar		-- GSL for unified Var interface
+import MutVar
 import Monad (when)
-import Channel (Channel, putChan)
+import Concurrent (putChan)
 import Event (EventChannel, newChannelEvent)
 import User
-import ImageB (importPixelsPerLength, screenPixelsPerLength)
--- import IOExtensions( garbageCollect )
+import RenderImage (importPixelsPerLength, screenPixelsPerLength)
 
 type UserChannel = EventChannel UserAction
 
@@ -45,10 +44,11 @@ makeWindow createIO resizeIO updateIO closeIO
         --putStrLn ("User event " ++ show (t, userEvent))
         --putStr ("ue " ++ show t ++ " ")
         putChan userChan (t, Just userEvent)
+	return 0
 
       -- Map lParam mouse point to a Point2
       posn hwnd lParam =
-	do (winWidth,winHeight) <- windowSize hwnd
+	do (winWidth,winHeight) <- getViewSize hwnd
 	   -- putStrLn ("posn " ++ show (w',h'))
 	   ( return $
 	     let -- Turn window coords into logical coords.
@@ -67,19 +67,16 @@ makeWindow createIO resizeIO updateIO closeIO
 	do p <- posn hwnd lParam
 	   --putStrLn ("Button " ++ show (isLeft,isDown) ++ " at pos " ++ show p)
 	   send (Button isLeft isDown p)
-	   return 0
 
       fireKeyEvent wParam isDown =
 	do --putStrLn ("fireKeyEvent " ++ show (wParam, char, isDown, t))
 	   send (Key isDown wParam) -- (Win32.VKey wParam)) -- GSL
-	   return 0
 
       wndProc2 hwnd msg wParam lParam
 
 	| msg == Win32.wM_DESTROY =
 	  do -- Win32.set_hugsQuitFlag True -- GSL
 	     send Quit
-	     return 0
 
 	| msg == Win32.wM_LBUTTONDOWN || msg == Win32.wM_LBUTTONDBLCLK =
 	  fireButtonEvent hwnd lParam True True
@@ -96,7 +93,6 @@ makeWindow createIO resizeIO updateIO closeIO
 	| msg == Win32.wM_MOUSEMOVE =
 	  do p <- posn hwnd lParam
 	     send (MouseMove p)
-	     return 0
 
 	| msg == Win32.wM_KEYDOWN =
 	  fireKeyEvent wParam True
@@ -104,42 +100,40 @@ makeWindow createIO resizeIO updateIO closeIO
 	| msg == Win32.wM_KEYUP =
 	  fireKeyEvent wParam False
 
-	| msg == Win32.wM_SIZE =
-	  do (x,y) <- map point2XYCoords (posn hwnd lParam)
-	     -- putStrLn "Resized"
-	     -- (x,y) is the lower-right corner, so we must flip y
-	     -- and double both coordinates to get the width and height
-	     send (Resize (vector2XY (2*x) (-2*y)))
-	     resizeIO
-	     return 0
+	| msg == Win32.wM_CHAR =
+	  send (CharKey (toEnum (Win32.wordToInt wParam)))
+
+	| msg == Win32.wM_SIZE = do
+          let (hPix,wPix) = lParam `divMod` 65536
+          send (Resize (vector2XY (fromInt wPix / screenPixelsPerLength)
+                                  (fromInt hPix / screenPixelsPerLength)))
+          resizeIO
+          return 0
 
 	-- Timer.  Do the sprite tree updates.
-	| msg == Win32.wM_TIMER =
-	  do -- putStrLn "WM_TIMER"
-	     -- putStrLn "Timer: sending UserNoOp"
-	     -- send UserNoOp		-- filler
-	     -- putStrLn "Timer: doing updateIO"
-	     updateIO
-	     return 0
+	| msg == Win32.wM_TIMER = do
+	  -- putStrLn "WM_TIMER"
+	  updateIO
+	  return 0
 
-	| msg == Win32.wM_CLOSE =
-	  do -- putStrLn "WM_CLOSE"
-	     closeIO
-	     return 0
+	| msg == Win32.wM_CLOSE = do
+	  -- putStrLn "WM_CLOSE"
+	  closeIO
+	  return 0
 
 	| otherwise
-	= Win32.defWindowProc (Just hwnd) msg wParam lParam
+	= return (-1)  -- Win32.defWindowProc (Just hwnd) msg wParam lParam
 
       demoClass = Win32.mkClassName "Fran"
 
       -- this is to replace the old Win32.eventLoop; GSL
       eventLoop :: Win32.HWND -> IO ()
-      eventLoop hwnd = (do
-	lpmsg <- Win32.getMessage (Just hwnd)
-	Win32.translateMessage lpmsg
-	Win32.dispatchMessage  lpmsg
-	eventLoop hwnd
-	) `catch` (\ _ -> return ())
+      eventLoop hwnd =
+        (do lpmsg <- Win32.getMessage (Just hwnd)
+	    Win32.translateMessage lpmsg
+	    Win32.dispatchMessage  lpmsg
+	    eventLoop hwnd)
+	`catch` (\ _ -> return ())
 	
   in do
 	icon <- Win32.loadIcon   Nothing Win32.iDI_APPLICATION
@@ -164,34 +158,40 @@ makeWindow createIO resizeIO updateIO closeIO
 	-- putStrLn ("Update rate set for " ++ show updateInterval ++ " ms")
 
 	Win32.showWindow w Win32.sW_SHOWNORMAL
-	-- In Win95, this bringWindowToTop doesn't.
 	Win32.bringWindowToTop w
-	-- Strangely, if I don't print something before invoking
-	-- ddraw functions, Hugs bombs on the AST notebook.  (12/6/96)
-	--putStrLn ""
-	-- There should be a send Resize here
 	eventLoop w
 	(Win32.unregisterClass demoClass mainInstance `catch` \_ -> return ())
 
 
-makeWindowNormal demoClass mainInstance wndProc2 =
- Win32.createWindow demoClass
-              "Fran"
-              Win32.wS_OVERLAPPEDWINDOW
-              -- Nothing    Nothing    -- x y
-              (Just 300) (Just 26)
-              (Just initialWindowSize) (Just initialWindowSize)
-              Nothing               -- parent
-              Nothing               -- menu
-              mainInstance
-              wndProc2
+makeWindowNormal demoClass mainInstance wndProc2 = do
+  (sizeX,sizeY) <- map vector2XYCoords (readVar initialViewSizeVar)
+  let sizePixX = round (sizeX * screenPixelsPerLength)
+      sizePixY = round (sizeY * screenPixelsPerLength)
+  Win32.createWindow demoClass
+               "Fran"
+               Win32.wS_OVERLAPPEDWINDOW
+               -- The next two are position.  Use Nothing to let Windows
+               -- decide, and Just to specify explicitly, which is useful
+               -- when recording.
+               Nothing    Nothing
+               --(Just 200) (Just 200)
+               (Just $ sizePixX + extraW)
+               (Just $ sizePixY + extraH)
+               Nothing               -- parent
+               Nothing               -- menu
+               mainInstance
+               wndProc2
+ where
+  -- Extra space for window border.  Is there a better way??
+  extraW = 8
+  extraH = extraW + 20
 
 
 -- Get the width and height of a window's client area, in pixels.
 
-windowSize :: Win32.HWND -> IO (Win32.LONG,Win32.LONG)
+getViewSize :: Win32.HWND -> IO (Win32.LONG,Win32.LONG)
 
-windowSize hwnd =
+getViewSize hwnd =
  Win32.getClientRect hwnd >>= \ (l',t',r',b') ->
  return (r' - l', b' - t')
 
@@ -291,4 +291,16 @@ showStats t0 frameCount updateCount =
 -- Program parameters
 ----------------------------------------------------------------
 
-initialWindowSize = 200 :: Int
+-- Initial window size.  Find a better way...
+
+-- Given in Fran units, not pixels.  For instance, to exactly fit a unit
+-- circle, use vector2XY 2 2.  Below, we include some extra space.
+
+initialViewSizeVar :: MutVar Vector2
+initialViewSizeVar = Win32.unsafePerformIO $ newVar $
+                     (1 + extra) *^ vector2XY 2 2
+ where
+   extra = 0.1                          -- breathing space
+
+setViewSize :: RealVal -> RealVal -> IO ()
+setViewSize w h = writeVar initialViewSizeVar (vector2XY w h)

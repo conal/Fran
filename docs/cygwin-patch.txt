@@ -1,0 +1,131 @@
+Conal Elliott
+From:	Sigbjorn Finne [sof@dcs.gla.ac.uk]
+Sent:	Tuesday, October 21, 1997 2:24 PM
+To:	Gary Ling
+Cc:	Conal Elliott
+Subject:	RE: libFran.a
+
+
+> [...]
+
+> 	(3) timeGetTime
+
+You'll need to patch your cygwin32 windows.h header files to use the
+MS MM API. Patches appended. (I'll tidy this up in the Win32 GC stubs
+so that you don't need to patch.)
+
+--Sigbjorn
+
+*** H-i386-cygwin32/i386-cygwin32/include/windows32/Defines.h.~1~	Thu May 08 18:25:45 1997
+--- H-i386-cygwin32/i386-cygwin32/include/windows32/Defines.h	Sat Jul 05 21:06:54 1997
+***************
+*** 5049,5052 ****
+--- 5049,5068 ----
+  #define PACKED __attribute__((packed))
+  
++ /* Added by sof 1/2/97 */
++ /* Multimedia timer API */
++ #define TIME_ONESHOT     0
++ #define TIME_PERIODIC    1
++ 
++ #define TIMERR_NOERROR   0
++ #define TIMERR_NOCANDO   97
++ #define TIMERR_STRUCT    130
++ 
++ #define TIME_BYTES       4
++ #define TIME_MIDI        16
++ #define TIME_MS          1
++ #define TIME_SAMPLES     2
++ #define TIME_SMPTE       8
++ #define TIME_TICKS       32
++ 
+  #define FILTER_TEMP_DUPLICATE_ACCOUNT       (0x0001)
+  #define FILTER_NORMAL_ACCOUNT               (0x0002)
+
+*** H-i386-cygwin32/i386-cygwin32/include/windows32/Functions.h.~1~	Thu May 08 18:25:49 1997
+--- H-i386-cygwin32/i386-cygwin32/include/windows32/Functions.h	Sat Jul 05 21:09:04 1997
+***************
+*** 7611,7614 ****
+--- 7611,7626 ----
+  				LPDWORD, LPDWORD);
+  
++ /* Added by sof 1/2/97 */
++ /* Multimedia timer API */
++ MMRESULT STDCALL  timeGetPeriod(UINT);
++ MMRESULT STDCALL  timeBeginPeriod(UINT);
++ MMRESULT STDCALL  timeEndPeriod(UINT);
++ MMRESULT STDCALL  timeGetDevCaps(LPTIMECAPS, UINT);
++ MMRESULT STDCALL  timeGetSystemTime(LPMMTIME, UINT);
++ DWORD    STDCALL  timeGetTime(VOID);
++ MMRESULT STDCALL  timeKillEvent(UINT);
++ VOID     CALLBACK TimeProc(UINT, UINT, DWORD, DWORD, DWORD);	
++ MMRESULT STDCALL  timeSetEvent(UINT, UINT, LPTIMECALLBACK, DWORD, UINT);
++ 
+  #ifdef __cplusplus
+  }
+
+*** H-i386-cygwin32/i386-cygwin32/include/windows32/Structures.h.~1~	Thu May 08 18:25:53 1997
+--- H-i386-cygwin32/i386-cygwin32/include/windows32/Structures.h	Wed Jul 09 05:43:57 1997
+***************
+*** 200,208 ****
+  
+  typedef struct tagBITMAPFILEHEADER {
+!   WORD    bfType; 
+!   DWORD   bfSize; 
+!   WORD    bfReserved1; 
+!   WORD    bfReserved2; 
+!   DWORD   bfOffBits; 
+  } BITMAPFILEHEADER; 
+  
+--- 200,208 ----
+  
+  typedef struct tagBITMAPFILEHEADER {
+!   WORD    bfType        PACKED; 
+!   DWORD   bfSize        PACKED; 
+!   WORD    bfReserved1   PACKED; 
+!   WORD    bfReserved2   PACKED; 
+!   DWORD   bfOffBits     PACKED; 
+  } BITMAPFILEHEADER; 
+  
+***************
+*** 4522,4525 ****
+--- 4522,4560 ----
+    LPWSTR   lgrpi0_name;
+  } LOCALGROUP_INFO_0, *PLOCALGROUP_INFO_0, *LPLOCALGROUP_INFO_0;
++ 
++ /* Added by sof 1/2/97 */
++ /* Multimedia timer structures */
++   
++ typedef UINT MMRESULT;
++ typedef void CALLBACK (*TIMECALLBACK) (UINT, UINT, DWORD, DWORD, DWORD);
++ typedef TIMECALLBACK *LPTIMECALLBACK;
++ 
++ typedef struct mmtime_tag {  
++     UINT wType; 
++     union { 
++         DWORD ms; 
++         DWORD sample; 
++         DWORD cb; 
++         DWORD ticks; 
++         struct { 
++             BYTE hour; 
++             BYTE min; 
++             BYTE sec; 
++             BYTE frame; 
++             BYTE fps; 
++             BYTE dummy; \
++             BYTE pad[2];
++         } smpte; 
++         struct { 
++             DWORD songptrpos; 
++         } midi; 
++     } u; 
++ } MMTIME, *LPMMTIME;
++   
++  
++ typedef struct {  
++     UINT wPeriodMin;
++     UINT wPeriodMax;
++ } TIMECAPS, *LPTIMECAPS;
+  
+  #ifdef __cplusplus

@@ -1,8 +1,18 @@
 -- Some basic types
 --
--- Last modified Tue Aug 05 11:33:20 1997
+-- Last modified Tue Nov 04 09:13:19 1997
 
-module BaseTypes where
+module BaseTypes
+       ( RealVal
+       , Length
+       , Radians
+       , Fraction
+       , Scalar
+       , Time
+       , DTime
+       , minTime
+       , pair
+       ) where
 
 type RealVal  = Double
 type Length   = RealVal
@@ -20,10 +30,6 @@ minTime = - 1.0e30
 -- type relations, rather than having Double hardwired.
 
 type Scalar = Double
-
-fromScalar :: Fractional a => Scalar -> a
-
-fromScalar = fromDouble
 
 -- For lifting and sections
 pair x y = (x,y)

@@ -1,6 +1,6 @@
                            Ideas for Fran Demos
 
-             Last modified Thu Aug 07 11:46:33 1997 by conal
+             Last modified Mon Nov 10 17:09:48 1997 by conal
 
 
 There are two main purposes for choosing good demos.  First, they will
@@ -13,6 +13,11 @@ Make sure to show well-factored (hierarchical and parametric) state
 machines that exhibits complex behavior.
 
 The demo ideas:
+
+  - 3D rolodex-style information access.  Or file folder.  When selected,
+    bring smoothly out of container, while opening up to reveal more
+    information.  Closes and returns to container when told to.  What
+    information?
 
   - Fifteen puzzle and generalizations.  See Fifteen*.hs and Mover.hs.
     Shows the idea of an environment/world containing individuals, and

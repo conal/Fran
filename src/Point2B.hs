@@ -5,9 +5,8 @@ module Point2B where
 import qualified Point2 as P
 import Behavior
 
--- Hugs bug (?) workaround.  See comment in VectorSpaceB.
 -- Set binding strength to that of + and -.
--- infix 4 `pointPlusVector2`, `pointMinusVector2`, `pointMinusPoint2`
+infix 4 .+^, .-^, .-.
 
 type Point2B = Behavior P.Point2
 
@@ -19,6 +18,11 @@ point2PolarCoordsB = lift1 P.point2PolarCoords
 distance2          = lift2 P.distance2
 distance2Squared   = lift2 P.distance2Squared
 linearInterpolate2 = lift3 P.linearInterpolate2
+p2v		   = lift1 P.p2v
+v2p		   = lift1 P.v2p
+mirrorX		   = lift1 P.mirrorX
+mirrorY		   = lift1 P.mirrorY
+mirrorXY	   = lift1 P.mirrorXY
 (.+^)              = lift2 (P..+^)
 (.-^)              = lift2 (P..-^)
 (.-.)              = lift2 (P..-.)

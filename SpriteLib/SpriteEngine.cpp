@@ -6,15 +6,15 @@
 // C interfaces for Haskell
 
 
-EXT_API HSpriteEngine newSpriteEngine(HWND hWnd, HSpriteTree pTree)
+EXT_API(HSpriteEngine) newSpriteEngine(HWND hWnd, HSpriteTree pTree)
 { return new SpriteEngine(hWnd, pTree); }
 
 
-EXT_API void onResizeSpriteEngine(HSpriteEngine pEngine)
+EXT_API(void) onResizeSpriteEngine(HSpriteEngine pEngine)
 { pEngine->OnResize(); }
 
 // Have deletion function return the frame count.
-EXT_API int deleteSpriteEngine(HSpriteEngine pEngine)
+EXT_API(int) deleteSpriteEngine(HSpriteEngine pEngine)
 { 
     int frameCount = pEngine->GetFrameCount();
     delete pEngine; 

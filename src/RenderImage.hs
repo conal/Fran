@@ -1,6 +1,6 @@
 -- Various routines to create and draw into surfaces.
 --
--- Last modified Wed Oct 08 16:59:06 1997
+-- Last modified Mon Nov 03 16:28:44 1997
 
 module RenderImage where
 
@@ -18,10 +18,10 @@ import HSpriteLib
 
 import Trace
 
--- The RealVals are the x and y motion, and the pixels are the sprite
--- upperLeft w.r.t. the origin
-
-type SurfaceUL = (HDDSurface, Pixels, Pixels, RealVal, RealVal)
+data SurfaceUL =
+  SurfaceUL HDDSurface
+            RealVal RealVal             -- upperLeft w.r.t. the origin
+            RealVal RealVal             -- x and y motion
 
 -- text, angle, color, stretch
 
@@ -76,11 +76,13 @@ renderText (TextT (Font.Font fam bold italic) str) color
 	   ", esc " ++ show escapement ++
 	   "" ) >>
 -}
- return (hSurface, - fromInt surfWidth `div` 2,
-		   - fromInt surfHeight `div` 2, x, y)
+ return (SurfaceUL hSurface
+                   (- fromInt surfWidth  / screenPixelsPerLength / 2)
+                   (  fromInt surfHeight / screenPixelsPerLength / 2)
+                   x y)
  where
-  backColor | color /= black =  black
-	    | otherwise      =  white
+  backColor | color == black =  white
+	    | otherwise      =  black
   backColorREF = asColorRef backColor
   -- The "20" was empirically determined
   fontWidth  = round (screenPixelsPerLength * stretch / 5.0)
@@ -166,7 +168,7 @@ renderCircle color (Transform2 (Vector2XY x y) sc _) =
         -- ## WithColor seems pretty heavyweight to use here
         withColor hdc color $
 	ellipse hdc 0 0 pixWidth pixHeight)
-    >>= \ hDDSurface -> return (hDDSurface, - pixRadius, - pixRadius, x, y)
+    >>= \ hDDSurface -> return (SurfaceUL hDDSurface (- radius) radius x y)
   where
     radius    = abs sc
     pixRadius = round (radius * screenPixelsPerLength)
@@ -190,11 +192,10 @@ renderPoly :: (HDC -> [POINT] -> IO ()) -> [Point2] -> Color ->
 renderPoly polyF pts color xf@(Transform2 (Vector2XY motX motY) sc rot) =
   unsafePerformIO $
     withNewHDDSurfaceHDC
-      (toPixel width) (toPixel height) (asColorRef black) (\ hdc ->
+      (toPixel width) (toPixel height) (asColorRef backColor) (\ hdc ->
         withColor hdc color $
 	polyF hdc (map toPixelPoint2 pts''))
-    >>= \ hDDSurface -> return (hDDSurface, toPixel minimumX,
-			        toPixel (-maximumY), motX, motY)
+    >>= \ hDDSurface -> return (SurfaceUL hDDSurface minimumX maximumY motX motY)
   where
     pts' = map (Transform2 zeroVector sc rot *%) pts
     ptsTuples = map point2XYCoords pts'
@@ -205,6 +206,8 @@ renderPoly polyF pts color xf@(Transform2 (Vector2XY motX motY) sc rot) =
     pts'' = map (swapCoordSys4Pt (point2XY minimumX maximumY)) pts'
     minimumX = minimum xs
     maximumY = maximum ys
+    backColor | color == black  = white
+              | otherwise       = black
 
 -----------------------------------------------------------------
 -- renderLine: takes 2 points
@@ -214,13 +217,11 @@ renderLine :: Point2 -> Point2 -> Color -> Transform2 -> SurfaceUL
 renderLine p0 p1 color (Transform2 (Vector2XY motX motY) sc rot) =
   unsafePerformIO $
     withNewHDDSurfaceHDC
-      (toPixel width) (toPixel height) (asColorRef black) (\ hdc ->
+      (toPixel width) (toPixel height) (asColorRef backColor) (\ hdc ->
         withColor hdc color $ do
 	  moveToEx hdc x0' y0'
 	  lineTo   hdc x1' y1')
-    >>= \ hDDSurface -> return (hDDSurface,
-			        toPixel (ulx), toPixel (-uly),
-			        motX, motY)
+    >>= \ hDDSurface -> return (SurfaceUL hDDSurface ulx uly motX motY)
   where
     p0' = (Transform2 zeroVector sc rot) *% p0
     p1' = (Transform2 zeroVector sc rot) *% p1
@@ -233,6 +234,9 @@ renderLine p0 p1 color (Transform2 (Vector2XY motX motY) sc rot) =
     ulx    = x0 `min` x1
     uly	   = y0 `max` y1
     newOrigin = point2XY ulx uly
+    backColor | color == black  = white
+              | otherwise       = black
+
 
 -----------------------------------------------------------------
 -- utility functions
@@ -267,11 +271,11 @@ toPixelPoint2 pt = let (x, y) = point2XYCoords pt
 -----------------------------------------------------------------
 
 -- Should really be two constants -- horizontal and vertical.
-importPixelsPerLength = 100 :: RealVal
+importPixelsPerLength = 75 :: RealVal
 
 -- Note that screen pixels per world length and bitmap pixels per world
 -- length do not have to agree.  If they do, however, the scalings will
 -- cancel out in the absence of explicit scaling, which makes for much
 -- faster display on video cards that don't do hardware scaling.
 
-screenPixelsPerLength = importPixelsPerLength * (2/3) :: RealVal
+screenPixelsPerLength = importPixelsPerLength :: RealVal

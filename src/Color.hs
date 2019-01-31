@@ -1,6 +1,6 @@
 -- Simple color type.
 --
--- Last modified Mon Oct 13 13:55:17 1997
+-- Last modified Fri Oct 24 08:49:50 1997
 
 module Color(
 	Color(..),
@@ -13,15 +13,17 @@ module Color(
 	white, black, red, green, blue,
 	lightBlue, royalBlue, yellow, brown,
 	transformHSL, stronger, duller, darker, brighter, shade
+        , colorToD3DColor
 	) where
 
 import BaseTypes
 import qualified Win32 (COLORREF, rgb)
+import HSpriteLib (d3dColorRGB, D3DColor)
+
 
 -- Representation uses RGB
 data Color = ColorRGB Fraction Fraction Fraction -- all in [0,1]
    deriving (Eq, Show)
-
 
 colorRGBCoords :: Color -> (Fraction,Fraction,Fraction)
 colorRGBCoords (ColorRGB r g b) = (r,g,b)
@@ -189,3 +191,7 @@ brighter d = transformHSL 0 (-d) 0
 
 shade :: Fraction -> Color -> Color
 shade d = transformHSL 0 1 (-d)
+
+
+colorToD3DColor :: Color -> D3DColor
+colorToD3DColor (ColorRGB r g b) = d3dColorRGB r g b

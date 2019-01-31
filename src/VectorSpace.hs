@@ -1,16 +1,17 @@
 -- Vector spaces
 -- 
--- Last modified Wed Apr 16 07:29:48 1997
+-- Last modified Tue Nov 04 09:37:19 1997
 -- 
 -- Doesn't work as well as we'd like.  Lacking type relations, we have to
 -- hardwire the scalar type, which means we can't use behaviors, so we
 -- can't lift a VectorSpace instance into another one.
 --
 -- When we do have type relations, introduce an AffineSpace class as well
--- and make Point2 and Behavior Point2 be instances.
+-- and make Point2, Point3, Point2B, and Point3B be instances.
 
 module VectorSpace where
 
+import Compatibility
 import BaseTypes
 
 infixr 7 *^, ^/, `dot`
@@ -70,19 +71,7 @@ instance  VectorSpace Double  where
 
 instance VectorSpace Float where
   zeroVector  =  0.0
-  d  *^ f     =  (fromDouble d) * f
+  d  *^ f     =  (double2Float d) * f
   (^+^)       =  (+)
   a `dot` b   =  fromRealFrac (a * b)
 
-
-{- We'd like to use +, -, and negate on vector spaces.  As above, we
-   can't.  Note: there would seem to be a circularity with the floating
-   instance above.
-   Workaround: define the Vector2 instance specifically (in Vector2.hs).
-
-instance  VectorSpace a => Num a  where
-  (+)      = ^+^
-  negate v = (-1) *^ v
-  -- (-) follows from negate and +
-
--}

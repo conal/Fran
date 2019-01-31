@@ -16,7 +16,7 @@ static char* ErrorMsgRT(char* where, char* what);
 static char* ErrorMsgRT(char* where, char* what)
 {
     static char buffer[1000];
-    _snprintf(buffer, 1000, "Error %s raised in function %s", what, where);
+    sprintf(buffer, "Error %s raised in function %s", what, where);
     buffer[999] = '\0'; /* paranoia! */
     return buffer;
 }
@@ -27,19 +27,13 @@ static char* ErrorMsgRT(char* where, char* what)
 
 #endif
 
-static char* CouldNotOpen(char* file)
-{
-    static char buffer[1000];
-    _snprintf(buffer, 1000, "Could not open file \"%s\"", file);
-    buffer[999] = '\0'; /* paranoia! */
-    return buffer;
-}
+extern char* CouldNotOpen(char*);
 
 #define ErrorString(where) "Error raised in function " where
 
 #define MallocError(where) "malloc failed inside " where
 
-
+#if 0
 static char* ErrorWin(char* where);
 
 static char* ErrorWin(char* where)
@@ -57,10 +51,11 @@ static char* ErrorWin(char* where)
 	1000,
 	NULL 
 	);
-    _snprintf(buffer, 1000, "Error %s raised in function %s", what, where);
+    sprintf(buffer, "Error %s raised in function %s", what, where);
     buffer[999] = '\0'; /* paranoia! */
     return buffer;
 }
+#endif
 
 #define BadRgnTest(x) (x == 0 || x == GDI_ERROR)
 

@@ -49,15 +49,12 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 /nologo /subsystem:windows /dll /debug /machine:I386
-# ADD LINK32 ddraw.lib dsound.lib d3drm.lib winmm.lib /nologo /subsystem:windows /dll /profile /debug /machine:I386
-# Begin Custom Build - Copying SpriteLib.dll %windir%
-InputPath=.\Debug\SpriteLib.dll
+# ADD LINK32 ddraw.lib dsound.lib d3drm.lib winmm.lib /nologo /base:"0x8000000" /subsystem:windows /dll /profile /debug /machine:I386
+# Begin Special Build Tool
 SOURCE=$(InputPath)
-
-"c:\winnt\SpriteLib.dll" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	copy Debug\SpriteLib.dll  %windir%
-
-# End Custom Build
+PostBuild_Desc=Copying SpriteLib.dll %windir%
+PostBuild_Cmds=copy Debug\SpriteLib.dll  %windir% 
+# End Special Build Tool
 # Begin Target
 
 # Name "SpriteLib - Win32 Debug"
@@ -160,6 +157,10 @@ SOURCE=.\DDrawEnv.h
 # Begin Source File
 
 SOURCE=.\ddutil.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\GlobalVar.h
 # End Source File
 # Begin Source File
 

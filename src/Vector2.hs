@@ -1,6 +1,6 @@
 {- RBMH 2D (static) Vectors
 
- Last modified Fri Oct 10 15:50:44 1997
+ Last modified Wed Nov 05 16:25:19 1997
 -}
 module Vector2 
         (
@@ -20,7 +20,7 @@ import BaseTypes
 import VectorSpace
 import Force
 
-data Vector2 = Vector2XY Double Double   deriving (Eq,Show)
+data Vector2 = Vector2XY Double Double   deriving (Eq,Show,Read)
 
 vector2XY :: RealVal -> RealVal -> Vector2
 vector2XY = Vector2XY

@@ -1,0 +1,1248 @@
+
+<title>Fran Users Manual</title>
+<body bgcolor="#ffffff">
+<p>
+<div align=center><font size=4 >Fran Users Manual<br>
+John Peterson<br>
+Conal Elliott<br>
+Gary Shu Ling<br>
+</font></div><p>
+<a name="sect1"></a>
+<h2>1<tt>&nbsp;&nbsp;</tt>Introduction</h2>
+Fran (Function Reactive Animation) is a collection of data types
+and functions for composing interactive multimedia animations.  It is
+implemented in Haskell and runs under the Hugs and ghc Haskell systems.<p>
+The Fran project has been carried out jointly by Microsoft Research
+and other Haskell researchers.  Currently Fran runs under the
+Microsoft Windows '95/NT systems.  This is research in progress;
+it is very likely that Fran will continue to change in the near
+future.  We have tested all of the examples distributed with Fran but
+there are sure to be bugs in the current system.  Please report any
+problems to <tt>fran-bugs@haskell.org</tt>.  This document is associated
+with version 1.04 of Fran, distributed with Hugs 1.4.
+Newer versions of Fran will appear at
+<a href="http://www.research.microsoft.com/~conal/Fran"><tt>http://www.research.microsoft.com/~conal/Fran</tt></a>.
+Information about the this version of Fran, including manuals and more
+animations, is at 
+<a href="http://haskell.org/fran"><tt>http://haskell.org/fran</tt></a>. <p>
+This manual contains a short introduction to Fran and an overview of
+the pre-defined types and functions available in Fran.  A more detailed Fran
+tutorial is also included in the file <tt>tutorial.lhs</tt>.<p>
+All of the examples used in this manual are found in the
+<tt>hugs/lib/fran/demos/examples.hs</tt>.  If you are unfamiliar with Fran, the
+best way to use this manual is to open (double click) <tt>examples.hs
+</tt>in the <tt>hugs/lib/fran/demos</tt> directory.  An individual example can be executed
+using the <tt>run</tt> function: <tt>run</tt> <I>n</I> executes the <I>n</I>th 
+example.  The animation window may initially be hidden when you
+run an animation -- just click it on the task bar to make it
+visible.  Terminate the animation by closing the animation window.
+Exit Hugs using <tt>:q</tt> when you are done.  If you encounter a program
+error while an animation is running you may need to exit and restart Hugs.
+Running <tt>main</tt> displays all of the examples in sequence.  Use the
+arrow keys to step through the examples.<p>
+Fran is based on two concepts: <I>behaviors</I> and <I>events</I>.  
+A behavior is a value that varies over time; an event is
+an occurance at a specific time that generates a value.  The
+interplay between behaviors and events is the essence of Fran.  While
+this implementation of Fran is used for animations, the same
+model serves for other reactive systems.  Indeed, this
+implementation cleanly separates the core behavior -- event interaction
+and the graphics library layered on top of it.<p>
+<a name="sect2"></a>
+<h2>2<tt>&nbsp;&nbsp;</tt>Behaviors</h2>
+In Fran, a value of type <tt>Behavior&nbsp;T</tt> is a time-varying value of type
+<tt>T</tt>.   Behaviors are similar to functions over time: operationally,
+the type <tt>Behavior&nbsp;T</tt> is the same as <tt>Time&nbsp;-&gt;&nbsp;T</tt> in that it maps time
+values onto values of type <tt>T</tt>.  For example, this behavior
+oscillates between -1 and 1: 
+<tt><br>
+
+<br>
+wiggle&nbsp;::&nbsp;Behavior&nbsp;Double<br>
+wiggle&nbsp;=&nbsp;sin&nbsp;(pi&nbsp;*&nbsp;time)<br>
+
+<br>
+
+</tt>This definition of <tt>wiggle</tt> uses a pre-defined behavior: <tt>time</tt>.  The
+type of <tt>time</tt> is <tt>Behavior&nbsp;Double</tt> (or <tt>TimeB</tt>, as defined by a
+synonym) and its value is the current time in seconds.  Thus the
+<tt>wiggle</tt> behavior cycles from -1 to 1 with a 
+period of 2 seconds.  Here the <tt>sin</tt> and <tt>(*)</tt> functions are applied to
+behaviors  instead of ordinary numeric values.  This is possible since
+Fran defines an instance of the <tt>Behavior</tt> type for many built-in
+classes; in this case the <tt>Num</tt> and 
+<tt>Floating</tt> classes are overloaded in the type <tt>Behavior</tt>.  Much more
+will be said of this later.<p>
+Since behaviors change over time, a behavior is observed by playing it
+in some manner.  That is, the user watches and listens to an object as
+it changes and reacts to input.  Fran includes functions for
+constructing animations that are played in a graphics window.  
+Full details of this library are presented later; here we will introduce
+just enough of it so that we can explore events and behaviors.  Here
+is a small subset of the graphics library:
+<tt><br>
+
+<br>
+--&nbsp;Basic&nbsp;data&nbsp;types<br>
+data&nbsp;&nbsp;&nbsp;Color&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;data&nbsp;type&nbsp;of&nbsp;colors<br>
+type&nbsp;&nbsp;&nbsp;RealVal&nbsp;=&nbsp;Double<br>
+type&nbsp;&nbsp;&nbsp;Time&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Double&nbsp;<br>
+data&nbsp;&nbsp;&nbsp;Point2&nbsp;&nbsp;=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;2D&nbsp;point<br>
+data&nbsp;&nbsp;&nbsp;Vector2&nbsp;=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;a&nbsp;2D&nbsp;vector<br>
+data&nbsp;&nbsp;&nbsp;ImageB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Reactive&nbsp;images<br>
+<br>
+--&nbsp;synonyms&nbsp;that&nbsp;abbreviate&nbsp;common&nbsp;behavioral&nbsp;types<br>
+type&nbsp;&nbsp;&nbsp;RealB&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;RealVal<br>
+type&nbsp;&nbsp;&nbsp;ColorB&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Color<br>
+type&nbsp;&nbsp;&nbsp;Point2B&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Point2<br>
+type&nbsp;&nbsp;&nbsp;Vector2B&nbsp;=&nbsp;Behavior&nbsp;Point2<br>
+type&nbsp;&nbsp;&nbsp;TimeB&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Time<br>
+<br>
+--&nbsp;Graphics&nbsp;operations&nbsp;<br>
+--&nbsp;A&nbsp;behavioral&nbsp;point&nbsp;constructor<br>
+point2XY&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;Point2B&nbsp;&nbsp;&nbsp;--&nbsp;Construct&nbsp;a&nbsp;2D&nbsp;point<br>
+vector2XY&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;Vector2B&nbsp;&nbsp;--&nbsp;Construct&nbsp;a&nbsp;2D&nbsp;vector<br>
+origin2&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;The&nbsp;origin&nbsp;(maps&nbsp;to&nbsp;screen&nbsp;center)<br>
+circle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ImageB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;A&nbsp;circle&nbsp;at&nbsp;(0,0)&nbsp;with&nbsp;unit&nbsp;radius<br>
+withColor&nbsp;&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB&nbsp;&nbsp;--&nbsp;Paint&nbsp;with&nbsp;a&nbsp;solid&nbsp;color<br>
+move&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Vector2B&nbsp;-&gt;&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB&nbsp;--&nbsp;Move&nbsp;an&nbsp;image&nbsp;<br>
+red,&nbsp;blue,green&nbsp;&nbsp;::&nbsp;ColorB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Some&nbsp;built-in&nbsp;colors<br>
+over&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB&nbsp;&nbsp;--&nbsp;Place&nbsp;one&nbsp;image&nbsp;over&nbsp;another<br>
+bigger&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB&nbsp;&nbsp;&nbsp;--&nbsp;Enlarge&nbsp;(or&nbsp;reduce)&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;size&nbsp;of&nbsp;an&nbsp;image<br>
+--&nbsp;Display&nbsp;routine.&nbsp;&nbsp;Initial&nbsp;screen&nbsp;scaled&nbsp;to&nbsp;(-1,-1)&nbsp;,&nbsp;(1,1)<br>
+disp&nbsp;&nbsp;&nbsp;::&nbsp;(User&nbsp;-&gt;&nbsp;ImageB)&nbsp;-&gt;&nbsp;IO&nbsp;()&nbsp;&nbsp;--&nbsp;display&nbsp;an&nbsp;image&nbsp;behavior<br>
+
+<br>
+
+</tt>To avoid clutter in type signatures involving <tt>Behavior</tt> many types
+have pre-defined synonyms for their behavioral 
+counterparts.  The <tt>type</tt> declarations above show some of these
+synonyms.  Some behavioral types, such as <tt>ImageB</tt>, are implemented
+directly instead of using the <tt>Behavior</tt> type constructor.<p>
+The <tt>disp</tt> function takes a reactive animation and plays it in a
+graphics window.  Fran uses the type <tt>User</tt> to represent external
+events generated by the user.  Images which don't react user input can
+usually ignore the <tt>User</tt> value that <tt>disp</tt> passes to the animation. <p>
+Here are a few of the built-in behaviors in Fran:
+<tt><br>
+
+<br>
+time&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;TimeB<br>
+constantB&nbsp;&nbsp;&nbsp;::&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;&nbsp;create&nbsp;a&nbsp;constant&nbsp;behavior<br>
+mouseMotion&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Vector2B&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;&nbsp;tracks&nbsp;the&nbsp;position&nbsp;of&nbsp;the&nbsp;mouse<br>
+
+<br>
+<p>
+</tt>Here is a very simple program to display a pulsing circle:
+<tt><br>
+
+<br>
+module&nbsp;Examples&nbsp;where<br>
+<br>
+import&nbsp;Fran&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Basic&nbsp;Fran&nbsp;functionality<br>
+<br>
+circ&nbsp;::&nbsp;ImageB<br>
+circ&nbsp;=&nbsp;bigger&nbsp;(sin&nbsp;time)&nbsp;(withColor&nbsp;red&nbsp;circle)<br>
+<br>
+example1&nbsp;u&nbsp;=&nbsp;circ<br>
+
+<br>
+
+</tt>Execute this example using either <tt>disp&nbsp;example1</tt> or <tt>run&nbsp;1</tt>, for short.
+The <tt>Fran</tt> module is found on the standard Hugs search path. <p>
+Here is a slightly more complex behavior:
+<tt><br>
+
+<br>
+ball1,&nbsp;ball2,&nbsp;movingBall1,&nbsp;movingBall2&nbsp;::&nbsp;ImageB<br>
+ball1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;bigger&nbsp;0.3&nbsp;(withColor&nbsp;red&nbsp;circle)<br>
+movingBall1&nbsp;&nbsp;&nbsp;=&nbsp;move&nbsp;(vector2XY&nbsp;0&nbsp;wiggle)&nbsp;ball1<br>
+ball2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;bigger&nbsp;0.4&nbsp;(withColor&nbsp;blue&nbsp;circle)<br>
+movingBall2&nbsp;&nbsp;&nbsp;=&nbsp;move&nbsp;(vector2XY&nbsp;wiggle&nbsp;0)&nbsp;ball2<br>
+<br>
+example2&nbsp;u&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;movingBall1&nbsp;`over`&nbsp;movingBall2<br>
+
+<br>
+
+</tt>Some behaviors are generated by user interaction.  For example,
+the mouse motion is represented by the following behavior: 
+<tt><br>
+
+<br>
+mouseMotion&nbsp;&nbsp;&nbsp;::&nbsp;&nbsp;User&nbsp;-&gt;&nbsp;Vector2B<br>
+
+<br>
+
+</tt>As mouse motion is part of the user input, the <tt>User</tt> value 
+passed into the animation by the <tt>disp</tt> function must then be passed
+on to <tt>mouseMotion</tt>.  This program displays a ball which follows the
+mouse: 
+<tt><br>
+
+<br>
+example3&nbsp;u&nbsp;=&nbsp;move&nbsp;(mouseMotion&nbsp;u)&nbsp;ball1<br>
+
+<br>
+<p>
+</tt><a name="sect3"></a>
+<h2>3<tt>&nbsp;&nbsp;</tt>Events</h2>
+Behaviors are continuous, defined over a continuous range of time
+values.  Events, in contrast, are instantaneous: an event occurs at a
+specific time. Each event occurance produces a value;  the type
+<tt>Event&nbsp;T</tt> denotes an  event that generates a value of type <tt>T</tt> when it
+happens.  Events that do not generate interesting values have type
+<tt>Event&nbsp;()</tt>.  Events in Fran are concrete values rather than ephemeral
+happenings and may be treated as any other data object.<p>
+Events are grouped into <I>event streams</I>.  Every occurance of an event
+yields both a value and a new event containing 
+the remainder of the stream.  Thus a value of type <tt>Event&nbsp;T
+</tt>denotes a series of events, each generating a value of type <tt>T</tt>.  The type
+<tt>Event&nbsp;T</tt> can be understood as <tt>[(Time,T)]</tt>: a (sorted) list of occurances
+containing the time and event value for each occurance.  For example,
+this list represents a possible sequence of keyboard events:
+<tt><br>
+
+<br>
+[(1,'a'),&nbsp;(3,'b'),&nbsp;(7,'c')]<br>
+
+<br>
+
+</tt>The residual stream of events yielded by an event occurance is the
+<I>aged</I> event.  In the above example, after the first key event is
+detected at time 1, the aged event stream becomes:
+<tt><br>
+
+<br>
+[(3,'b'),&nbsp;(7,'c')]<br>
+
+<br>
+
+</tt>The next keypress event at time 3 must be obtained from the aged event
+stream.  <p>
+A Fran program reacts to external events; each kind of external
+event is represented by constructor in the data type <tt>UserAction</tt>.
+The stream of incoming events has the type <tt>Event&nbsp;UserAction</tt>.  This
+synonym:
+<tt><br>
+
+<br>
+type&nbsp;User&nbsp;=&nbsp;Event&nbsp;UserAction<br>
+
+<br>
+
+</tt>gives a shorter name to the program input.  Specific kinds of
+events, such as `resize window' or `keyboard press' are extracted
+from the <tt>User</tt> type.  For example, these events are associated with
+the mouse buttons:
+<tt><br>
+
+<br>
+lbpU,rbpU&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;(User)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Mouse&nbsp;button&nbsp;presses<br>
+
+<br>
+
+</tt>These events yield a new <tt>User</tt> value which holds the aged user event
+stream.  (The <tt>lbpU</tt> and <tt>rbpU</tt> functions are not formally a part of
+Fran but can be defined trivially from built in Fran functions.)  <p>
+Here are some other basic events:
+<tt><br>
+
+<br>
+neverE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+constE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Time&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+timeIs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Time&nbsp;-&gt;&nbsp;Event&nbsp;()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+timeIs&nbsp;t&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;constE&nbsp;()&nbsp;t&nbsp;<br>
+alarmE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Time&nbsp;-&gt;&nbsp;Time&nbsp;-&gt;&nbsp;Event&nbsp;()<br>
+
+<br>
+
+</tt>The <tt>neverE</tt> event never happens.  The <tt>constE</tt> and <tt>timeIs</tt> events
+have a given occurence time; when aged they become <tt>neverE</tt>.  The
+<tt>alarmE</tt> event goes off at regular intervals: the arguments are the
+start time and the time between events.<p>
+<a name="sect4"></a>
+<h2>4<tt>&nbsp;&nbsp;</tt>Reactive Behaviors</h2>
+Events are used to build <I>reactive behaviors</I> which 
+change course in response to events.  Reactive behaviors
+are defined using the <tt>untilB</tt> function:
+<tt><br>
+
+<br>
+untilB&nbsp;::&nbsp;GBehavior&nbsp;bv&nbsp;=&gt;&nbsp;bv&nbsp;-&gt;&nbsp;Event&nbsp;bv&nbsp;-&gt;&nbsp;bv<br>
+
+<br>
+
+</tt>The class <tt>GBehavior</tt> defines reactive data types.  Some reactive
+types, such as <tt>RealB</tt> or <tt>ColorB</tt> are formed by applying the <tt>Behavior
+</tt>type constructor to an existing type.  Other types, such as <tt>ImageB</tt>,
+have `built-in' reactivity.  The <tt>untilB</tt> function 
+changes the course of a behavior when an event occurs; the event
+occurance generates the new behavior to be followed after it happens. <p>
+Before we can use <tt>untilB</tt> in an example, we need to transform an
+event such as <tt>lbpU</tt> of type <tt>Event&nbsp;User</tt> into an event which generates
+a behavior.  This function transforms an event:
+<tt><br>
+
+<br>
+(==&gt;)&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;(a&nbsp;-&gt;&nbsp;b)&nbsp;-&gt;&nbsp;Event&nbsp;b<br>
+
+<br>
+
+</tt>Note the similarity between <tt>(==&gt;)</tt> and the <tt>map</tt> function.  
+Using <tt>(==&gt;)</tt>, we can now write a simple reactive behavior:
+<tt><br>
+
+<br>
+example4&nbsp;u&nbsp;=&nbsp;withColor&nbsp;(doRed&nbsp;u)&nbsp;circle&nbsp;where<br>
+&nbsp;&nbsp;doRed,&nbsp;doBlue&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;ColorB<br>
+&nbsp;&nbsp;doRed&nbsp;&nbsp;u&nbsp;=&nbsp;red&nbsp;&nbsp;`untilB`&nbsp;(lbpU&nbsp;u&nbsp;==&gt;&nbsp;doBlue)<br>
+&nbsp;&nbsp;doBlue&nbsp;u&nbsp;=&nbsp;blue&nbsp;`untilB`&nbsp;(lbpU&nbsp;u&nbsp;==&gt;&nbsp;doRed)<br>
+
+<br>
+
+</tt>The circle changes between red and blue with each left button
+press.  The parenthesis around the <tt>==&gt;</tt> expressions have been added
+for clarity; they are not needed since <tt>`untilB`</tt> has a lower fixity
+than <tt>==&gt;</tt> .  The <tt>(==&gt;)</tt> operator passes the new <tt>User</tt> value
+generated by <tt>lbp</tt> on to the next cycle.  <p>
+<a name="sect5"></a>
+<h2>5<tt>&nbsp;&nbsp;</tt>Using Events and Behaviors</h2>
+Fran contains a rich library of functions involving events and
+behaviors.
+<a name="sect5.1"></a>
+<h3>5.1<tt>&nbsp;&nbsp;</tt>Event Transformations and Utilities</h3>
+The choice operator combines two event streams:
+<tt><br>
+
+<br>
+(.|.)&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;a<br>
+anyE&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;[Event&nbsp;a&nbsp;-&gt;]&nbsp;-&gt;&nbsp;Event&nbsp;a<br>
+anyE&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;foldr&nbsp;(.|.)&nbsp;neverE<br>
+
+<br>
+
+</tt>For example, the definition 
+<tt><br>
+
+<br>
+click&nbsp;u&nbsp;=&nbsp;lbpU&nbsp;u&nbsp;.|.&nbsp;rbpU&nbsp;u<br>
+
+<br>
+
+</tt>defines <tt>click</tt> to be a stream of either left or right mouse button
+events.  In the following example, the circle may turn either red or
+blue, depending on which mouse button is pressed first:
+<tt><br>
+
+<br>
+example5&nbsp;u&nbsp;=&nbsp;withColor&nbsp;(c&nbsp;red&nbsp;u)&nbsp;circle&nbsp;where<br>
+&nbsp;&nbsp;c&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;ColorB<br>
+&nbsp;&nbsp;c&nbsp;cl&nbsp;u&nbsp;=&nbsp;cl&nbsp;`untilB`&nbsp;((lbpU&nbsp;u&nbsp;==&gt;&nbsp;c&nbsp;blue)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.|.&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(rbpU&nbsp;u&nbsp;==&gt;&nbsp;c&nbsp;green))<br>
+
+<br>
+
+</tt>Again, the parenthesis are not really needed.  Note the use of
+currying to pass the updated <tt>User</tt> value generated by <tt>lbpU</tt> or
+<tt>rbpU</tt> to the next iteration of the loop.   <p>
+The <tt>(==&gt;)</tt> operator is a special case of a more general event
+handler, <tt>handleE</tt>.  Using <tt>handleE</tt>, the event time, event value, and
+next event in the event stream are all revealed.
+<tt><br>
+
+<br>
+handleE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;(Time&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;b)&nbsp;-&gt;&nbsp;Event&nbsp;b<br>
+(==&gt;)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;(a&nbsp;-&gt;&nbsp;b)&nbsp;-&gt;&nbsp;Event&nbsp;b<br>
+e&nbsp;==&gt;&nbsp;f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;e&nbsp;`handleE`&nbsp;(\_&nbsp;x&nbsp;_&nbsp;-&gt;&nbsp;f&nbsp;x)<br>
+(-=&gt;)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;b&nbsp;-&gt;&nbsp;Event&nbsp;b<br>
+e&nbsp;-=&gt;&nbsp;v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;e&nbsp;==&gt;&nbsp;const&nbsp;v<br>
+withRestE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;(a,&nbsp;Event&nbsp;a)<br>
+withRestE&nbsp;e&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;e&nbsp;`handleE`&nbsp;(\_&nbsp;v&nbsp;e'&nbsp;-&gt;&nbsp;(v,e'))<br>
+withTimeE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;(a,&nbsp;Time)<br>
+withTimeE&nbsp;e&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;e&nbsp;`handleE`&nbsp;(\t&nbsp;v&nbsp;_&nbsp;-&gt;&nbsp;(v,t))<br>
+nextE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;(Event&nbsp;a)<br>
+nextE&nbsp;e&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;e&nbsp;`handleE`&nbsp;\&nbsp;te&nbsp;x&nbsp;e'&nbsp;-&gt;&nbsp;e'<br>
+
+<br>
+<p>
+</tt>These functions associate the events in an event stream with values in
+a list:
+<tt><br>
+
+<br>
+withElemE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;[b]&nbsp;-&gt;&nbsp;Event&nbsp;(a,b)<br>
+withElemE_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;[b]&nbsp;-&gt;&nbsp;Event&nbsp;b<br>
+e&nbsp;`withElemE_`&nbsp;l&nbsp;=&nbsp;&nbsp;(e&nbsp;`withElemE`&nbsp;l)&nbsp;==&gt;&nbsp;snd<br>
+
+<br>
+<p>
+</tt>Finally, these utilities convert event streams into behaviors: 
+<tt><br>
+
+<br>
+--&nbsp;Assemble&nbsp;a&nbsp;behavior&nbsp;piecewise&nbsp;from&nbsp;a&nbsp;series&nbsp;of&nbsp;events<br>
+switcher&nbsp;::&nbsp;GBehavior&nbsp;bv&nbsp;=&gt;&nbsp;bv&nbsp;-&gt;&nbsp;Event&nbsp;bv&nbsp;-&gt;&nbsp;bv<br>
+switcher&nbsp;b0&nbsp;e&nbsp;=&nbsp;b0&nbsp;`untilB`&nbsp;(e&nbsp;`handleE`&nbsp;(\_&nbsp;e'&nbsp;b'&nbsp;-&gt;&nbsp;switcher&nbsp;b'&nbsp;e'))<br>
+<br>
+--&nbsp;A&nbsp;switcher&nbsp;for&nbsp;constant&nbsp;behaviors<br>
+<br>
+stepper&nbsp;::&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+stepper&nbsp;x0&nbsp;e&nbsp;=&nbsp;switcher&nbsp;(constantB&nbsp;x0)&nbsp;(e&nbsp;==&gt;&nbsp;constantB)<br>
+
+<br>
+<p>
+</tt>This example uses <tt>withElemE_</tt> to map the left button presses onto a
+series of numbers then uses <tt>stepper</tt> to convert the event series into
+a behavior.
+<tt><br>
+
+<br>
+example6&nbsp;u&nbsp;=&nbsp;move&nbsp;(vector2XY&nbsp;l&nbsp;l)&nbsp;ball<br>
+&nbsp;&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ball&nbsp;=&nbsp;bigger&nbsp;0.3&nbsp;(withColor&nbsp;red&nbsp;circle)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;l&nbsp;=&nbsp;stepper&nbsp;0&nbsp;(lbpCounter&nbsp;u)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lbpCounter&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;(RealVal)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lbpCounter&nbsp;u&nbsp;=&nbsp;withElemE_&nbsp;(lbpU&nbsp;u)&nbsp;[0.1,&nbsp;0.2&nbsp;..]<br>
+
+<br>
+<p>
+</tt>These functions filter a selected set of events out of an event stream:
+<tt><br>
+
+<br>
+filterE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;(a&nbsp;-&gt;&nbsp;Maybe&nbsp;b)&nbsp;-&gt;&nbsp;Event&nbsp;b<br>
+suchThat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;(a&nbsp;-&gt;&nbsp;Bool)&nbsp;-&gt;&nbsp;Event&nbsp;a<br>
+suchThat&nbsp;ev&nbsp;pred&nbsp;&nbsp;=&nbsp;&nbsp;filterE&nbsp;ev&nbsp;(\a&nbsp;-&gt;&nbsp;if&nbsp;pred&nbsp;a&nbsp;then&nbsp;Just&nbsp;a&nbsp;else&nbsp;Nothing)&nbsp;<br>
+
+<br>
+
+</tt>For example, the event which recognizes a particular character is:
+<tt><br>
+
+<br>
+keyPress&nbsp;&nbsp;::&nbsp;&nbsp;&nbsp;&nbsp;VKey&nbsp;-&gt;&nbsp;Event&nbsp;-&gt;&nbsp;Event&nbsp;User<br>
+keyPress&nbsp;k&nbsp;u&nbsp;=&nbsp;keyPressAny&nbsp;u&nbsp;`filterE`&nbsp;(\(k',u')&nbsp;-&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;k&nbsp;==&nbsp;k'&nbsp;then&nbsp;Just&nbsp;u'&nbsp;else&nbsp;Nothing<br>
+
+<br>
+<p>
+</tt><a name="sect5.2"></a>
+<h3>5.2<tt>&nbsp;&nbsp;</tt>User Interaction</h3>
+These events and behaviors are derived from user input.
+<tt><br>
+
+<br>
+--&nbsp;mouse&nbsp;button&nbsp;press&nbsp;and&nbsp;release&nbsp;events<br>
+lbp,&nbsp;rbp,&nbsp;lbr,&nbsp;rbr&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;()<br>
+--&nbsp;keyboard&nbsp;stuff.&nbsp;&nbsp;VKey&nbsp;is&nbsp;defined&nbsp;in&nbsp;the&nbsp;Win32&nbsp;module<br>
+keyPressAny&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;VKey<br>
+keyPress&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;VKey&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;()<br>
+keyReleaseAny&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;VKey<br>
+keyRelease&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;VKey&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;()<br>
+--&nbsp;These&nbsp;use&nbsp;Char&nbsp;instead&nbsp;of&nbsp;VKey<br>
+asciiKey&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;Char<br>
+oneAsciiKey&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Char&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;()<br>
+--&nbsp;Returns&nbsp;size&nbsp;of&nbsp;resized&nbsp;window<br>
+resize&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;Vector2<br>
+viewSize&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Vector2B<br>
+--&nbsp;Mouse&nbsp;motion<br>
+mouseMove&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;Point2<br>
+mouse&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Point2B<br>
+mouseMotion&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Vector2B<br>
+--&nbsp;Allows&nbsp;synchronization&nbsp;with&nbsp;display&nbsp;events<br>
+updateDone&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;Time<br>
+updatePeriod&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Behavior&nbsp;Double<br>
+--&nbsp;Time&nbsp;since&nbsp;User&nbsp;was&nbsp;last&nbsp;aged<br>
+userTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;TimeB<br>
+userTimeIs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Time&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;()<br>
+
+<br>
+<p>
+</tt><a name="sect5.3"></a>
+<h3>5.3<tt>&nbsp;&nbsp;</tt>Integration</h3>
+The <tt>integral</tt> function integrates numeric behaviors over time.  Both 
+reals and vectors can be integrated.  The type of <tt>integral</tt> is:
+<tt><br>
+
+<br>
+integral&nbsp;::&nbsp;(VectorSpace&nbsp;v)&nbsp;=&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;Behavior&nbsp;v<br>
+atRate&nbsp;&nbsp;&nbsp;::&nbsp;(VectorSpace&nbsp;v)&nbsp;=&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;Behavior&nbsp;v<br>
+
+<br>
+
+</tt>Function <tt>atRate</tt> is another name for <tt>integral</tt>.
+The types in <tt>VectorSpace</tt> include <tt>Real</tt>, <tt>Vector2</tt>, and <tt>Vector3</tt>.
+The <tt>Point2</tt> and <tt>Point3</tt> types cannot be integrated directly -- they
+must be converted to vectors first.<p>
+The <tt>User</tt> argument supplies the integration start time and a
+sampling clock which determines the step size used by the underlying
+numerical method.<p>
+This example uses integration to express the motion of a falling ball:
+<tt><br>
+
+<br>
+example7&nbsp;u&nbsp;=&nbsp;withColor&nbsp;red&nbsp;(moveXY&nbsp;0&nbsp;(position&nbsp;u)&nbsp;(bigger&nbsp;0.1&nbsp;circle))&nbsp;<br>
+&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;gravity&nbsp;::&nbsp;RealB<br>
+&nbsp;&nbsp;&nbsp;gravity&nbsp;=&nbsp;-0.1<br>
+<br>
+&nbsp;&nbsp;&nbsp;velocity,&nbsp;position&nbsp;::&nbsp;RealB<br>
+&nbsp;&nbsp;&nbsp;velocity&nbsp;u&nbsp;=&nbsp;integral&nbsp;gravity&nbsp;u<br>
+<br>
+&nbsp;&nbsp;&nbsp;position&nbsp;u&nbsp;=&nbsp;integral&nbsp;(velocity&nbsp;u)<br>
+
+<br>
+
+</tt>Integrals may be mutually recursive.<p>
+<a name="sect5.4"></a>
+<h3>5.4<tt>&nbsp;&nbsp;</tt>Snapshots</h3>
+A snapshot samples the value of a behavior at an event occurance.  The
+snapshot functions are:
+<tt><br>
+
+<br>
+snapshot&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b&nbsp;-&gt;&nbsp;Event&nbsp;(a,&nbsp;b)<br>
+snapshot_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b&nbsp;-&gt;&nbsp;Event&nbsp;b<br>
+snapshot_&nbsp;e&nbsp;b&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;(e&nbsp;`snapshot`&nbsp;b)&nbsp;==&gt;&nbsp;snd<br>
+whenSnap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b&nbsp;-&gt;&nbsp;(a&nbsp;-&gt;&nbsp;b&nbsp;-&gt;&nbsp;Bool)&nbsp;-&gt;&nbsp;Event&nbsp;a<br>
+whenSnap&nbsp;e&nbsp;b&nbsp;pred&nbsp;=&nbsp;&nbsp;(e&nbsp;`snapshot`&nbsp;b&nbsp;`suchThat`&nbsp;uncurry&nbsp;pred)&nbsp;==&gt;&nbsp;fst<br>
+whenE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;Bool&nbsp;-&gt;&nbsp;Event&nbsp;a<br>
+e&nbsp;`whenE`&nbsp;b&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;whenSnap&nbsp;e&nbsp;b&nbsp;(curry&nbsp;snd)<br>
+
+<br>
+
+</tt>This program captures the mouse position when the left button is
+pressed and moves the ball to that position:
+<tt><br>
+
+<br>
+mouseEvs&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;Point2B<br>
+mouseEvs&nbsp;u&nbsp;=&nbsp;lbp&nbsp;u&nbsp;`snapshot_`&nbsp;mouse&nbsp;u<br>
+<br>
+example8&nbsp;u&nbsp;=&nbsp;withColor&nbsp;red&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(move&nbsp;(stepper&nbsp;origin2&nbsp;(mouseEvs&nbsp;u)&nbsp;(bigger&nbsp;0.1&nbsp;circle))&nbsp;<br>
+
+<br>
+<p>
+</tt><a name="sect5.5"></a>
+<h3>5.5<tt>&nbsp;&nbsp;</tt>Predicates</h3>
+The <tt>predicate</tt> function creates an event which monitors a boolean
+behavior: 
+<tt><br>
+
+<br>
+predicate&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;Bool&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;(User)<br>
+
+<br>
+
+</tt>The <tt>User</tt> argument is used as a sampling clock.
+Care must be taken since sampling may miss occurances of the boolean
+behavior.  Consider the following program: 
+<tt><br>
+
+<br>
+example9&nbsp;u&nbsp;=&nbsp;withColor&nbsp;red&nbsp;(moveXY&nbsp;0&nbsp;(position&nbsp;u&nbsp;0&nbsp;(-0.1))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(bigger&nbsp;0.1&nbsp;circle))<br>
+&nbsp;&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;&nbsp;gravity&nbsp;::&nbsp;RealB<br>
+&nbsp;&nbsp;&nbsp;&nbsp;gravity&nbsp;=&nbsp;-0.6<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;velocity&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;RealB<br>
+&nbsp;&nbsp;&nbsp;&nbsp;velocity&nbsp;v0&nbsp;u&nbsp;=&nbsp;v0&nbsp;+&nbsp;integral&nbsp;gravity&nbsp;u&nbsp;t0<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Assume&nbsp;floor&nbsp;is&nbsp;at&nbsp;y&nbsp;=&nbsp;-1<br>
+&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Bounces&nbsp;with&nbsp;only&nbsp;0.9&nbsp;of&nbsp;the&nbsp;velocity&nbsp;each&nbsp;time<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;position&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;RealB<br>
+&nbsp;&nbsp;&nbsp;&nbsp;position&nbsp;x0&nbsp;v0&nbsp;u&nbsp;=&nbsp;p&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v&nbsp;=&nbsp;velocity&nbsp;v0&nbsp;u<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;p&nbsp;=&nbsp;x0&nbsp;+&nbsp;integral&nbsp;v&nbsp;u&nbsp;`untilB`<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(predicate&nbsp;(p&nbsp;&lt;=*&nbsp;(-1))&nbsp;u)&nbsp;`snapshot`&nbsp;v&nbsp;==&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\(u',v')&nbsp;-&gt;&nbsp;position&nbsp;(-1)&nbsp;(constantB&nbsp;(-v'&nbsp;*&nbsp;0.9))&nbsp;u'<br>
+
+<br>
+
+</tt>The <tt>&lt;=*</tt> operator is a behavioral version of <tt>&lt;=</tt>, as explained in the
+next section.  The predicate checks that the position is less or equal
+to the floor height rather than simply checking for equality since
+sampling may miss the instant at which the position is exactly at the floor.<p>
+<a name="sect5.6"></a>
+<h3>5.6<tt>&nbsp;&nbsp;</tt>Time Transformation</h3>
+A <I>time transform</I> alters the time frame within a behavior.  
+<tt><br>
+
+<br>
+timeTransform&nbsp;&nbsp;::&nbsp;GBehavior&nbsp;bv&nbsp;=&gt;&nbsp;bv&nbsp;-&gt;&nbsp;Behavior&nbsp;Time&nbsp;-&gt;&nbsp;bv<br>
+<br>
+later,&nbsp;earlier&nbsp;::&nbsp;GBehavior&nbsp;bv&nbsp;=&gt;&nbsp;TimeB&nbsp;-&gt;&nbsp;bv&nbsp;-&gt;&nbsp;bv<br>
+later&nbsp;dt&nbsp;b&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;b&nbsp;`timeTransform`&nbsp;(time&nbsp;-&nbsp;dt)<br>
+earlier&nbsp;dt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;later&nbsp;(-dt)<br>
+faster,&nbsp;slower&nbsp;::&nbsp;GBehavior&nbsp;bv&nbsp;=&gt;&nbsp;TimeB&nbsp;-&gt;&nbsp;bv&nbsp;-&gt;&nbsp;bv<br>
+faster&nbsp;x&nbsp;b&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;b&nbsp;`timeTransform`&nbsp;(time&nbsp;*&nbsp;x)<br>
+slower&nbsp;x&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;faster&nbsp;(1/x)<br>
+
+<br>
+
+</tt>The expression <tt>timeTransform&nbsp;b1&nbsp;tb</tt> yields a new behavior 
+which is evaluated in a transformed  time-frame according to behavior
+<tt>tb</tt>.  For example: 
+<tt><br>
+
+<br>
+example10&nbsp;u&nbsp;=&nbsp;move&nbsp;(mouseMotion&nbsp;u)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(bigger&nbsp;0.2&nbsp;(withColor&nbsp;red&nbsp;circle))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`over`&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;move&nbsp;(later&nbsp;2&nbsp;(mouseMotion&nbsp;u))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(bigger&nbsp;0.3&nbsp;(withColor&nbsp;blue&nbsp;circle))<br>
+<br>
+
+<br>
+<p>
+</tt><a name="sect5.7"></a>
+<h3>5.7<tt>&nbsp;&nbsp;</tt>Utilities</h3>
+These are some miscellaneous utilities:
+<tt><br>
+
+<br>
+--&nbsp;explicit&nbsp;behavior&nbsp;aging:<br>
+afterE&nbsp;::&nbsp;GBehavior&nbsp;bv&nbsp;=&gt;&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;bv&nbsp;-&gt;&nbsp;Event&nbsp;(a,&nbsp;bv)&nbsp;<br>
+afterE_&nbsp;::&nbsp;GBehavior&nbsp;bv&nbsp;=&gt;&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;bv&nbsp;-&gt;&nbsp;Event&nbsp;bv<br>
+<br>
+--&nbsp;Ties&nbsp;switcher&nbsp;to&nbsp;an&nbsp;event&nbsp;stream<br>
+repeatE&nbsp;::&nbsp;GBehavior&nbsp;bv&nbsp;=&gt;&nbsp;Event&nbsp;bv&nbsp;-&gt;&nbsp;Event&nbsp;bv<br>
+repeatE&nbsp;e&nbsp;=&nbsp;withRestE&nbsp;e&nbsp;==&gt;&nbsp;uncurry&nbsp;switcher<br>
+<br>
+--&nbsp;An&nbsp;event&nbsp;based&nbsp;version&nbsp;of&nbsp;scanl:<br>
+scanlE&nbsp;::&nbsp;(a&nbsp;-&gt;&nbsp;b&nbsp;-&gt;&nbsp;a)&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;b&nbsp;-&gt;&nbsp;Event&nbsp;a<br>
+<br>
+countE&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;Int<br>
+countE&nbsp;e&nbsp;=&nbsp;stepper&nbsp;0&nbsp;(scanlE&nbsp;(\&nbsp;c&nbsp;_&nbsp;-&gt;&nbsp;c&nbsp;+&nbsp;1)&nbsp;0&nbsp;e)<br>
+<br>
+--&nbsp;Maps&nbsp;a&nbsp;pair&nbsp;of&nbsp;events&nbsp;onto&nbsp;a&nbsp;boolean&nbsp;behavior.&nbsp;&nbsp;Initially&nbsp;false.&nbsp;&nbsp;<br>
+toggle&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;b&nbsp;-&gt;&nbsp;BoolB<br>
+toggle&nbsp;go&nbsp;stop&nbsp;=<br>
+&nbsp;&nbsp;stepper&nbsp;False&nbsp;(&nbsp;&nbsp;go&nbsp;&nbsp;&nbsp;-=&gt;&nbsp;True<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.|.&nbsp;stop&nbsp;-=&gt;&nbsp;False)<br>
+<br>
+--&nbsp;Adds&nbsp;the&nbsp;previous&nbsp;value&nbsp;to&nbsp;the&nbsp;current&nbsp;event&nbsp;value:<br>
+withPrevE&nbsp;&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;(a,a)<br>
+withPrevE_&nbsp;::&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;a<br>
+<br>
+timeSince&nbsp;::&nbsp;Time&nbsp;-&gt;&nbsp;Behavior&nbsp;DTime<br>
+timeSince&nbsp;t0&nbsp;=&nbsp;time&nbsp;-&nbsp;constantB&nbsp;t0<br>
+<br>
+--&nbsp;modify&nbsp;an&nbsp;ongoing&nbsp;behavior&nbsp;using&nbsp;event&nbsp;stream&nbsp;values<br>
+accumB&nbsp;::&nbsp;GBehavior&nbsp;bv&nbsp;=&gt;&nbsp;(bv&nbsp;-&gt;&nbsp;b&nbsp;-&gt;&nbsp;bv)&nbsp;-&gt;&nbsp;bv&nbsp;-&gt;&nbsp;Event&nbsp;b&nbsp;-&gt;&nbsp;bv<br>
+<br>
+nextUser&nbsp;::&nbsp;(User&nbsp;-&gt;&nbsp;Event&nbsp;a)&nbsp;-&gt;&nbsp;(User&nbsp;-&gt;&nbsp;Event&nbsp;(a,User))<br>
+nextUser&nbsp;f&nbsp;u&nbsp;=&nbsp;f&nbsp;u&nbsp;`afterE`&nbsp;u<br>
+nextUser_&nbsp;::&nbsp;(User&nbsp;-&gt;&nbsp;Event&nbsp;a)&nbsp;-&gt;&nbsp;(User&nbsp;-&gt;&nbsp;Event&nbsp;User)<br>
+nextUser_&nbsp;f&nbsp;u&nbsp;=&nbsp;nextUser&nbsp;f&nbsp;u&nbsp;==&gt;&nbsp;snd<br>
+<br>
+leftButton,&nbsp;rightButton&nbsp;::&nbsp;User&nbsp;-&gt;&nbsp;BoolB<br>
+leftButton&nbsp;&nbsp;u&nbsp;=&nbsp;toggle&nbsp;(lbp&nbsp;u)&nbsp;(lbr&nbsp;u)<br>
+rightButton&nbsp;u&nbsp;=&nbsp;toggle&nbsp;(rbp&nbsp;u)&nbsp;(rbr&nbsp;u)<br>
+<br>
+--&nbsp;Debugging&nbsp;support<br>
+data&nbsp;TraceEFlag&nbsp;=&nbsp;TraceOccsE&nbsp;|&nbsp;TraceAllE&nbsp;&nbsp;&nbsp;deriving&nbsp;(Show,&nbsp;Eq)<br>
+traceE&nbsp;::&nbsp;Show&nbsp;a&nbsp;=&gt;&nbsp;String&nbsp;-&gt;&nbsp;TraceEFlag&nbsp;-&gt;&nbsp;Event&nbsp;a&nbsp;-&gt;&nbsp;Event&nbsp;a<br>
+
+<br>
+<a name="lifting"></a><p>
+</tt><a name="sect6"></a>
+<h2>6<tt>&nbsp;&nbsp;</tt>Lifted Behaviors</h2>
+
+We say a type or function which has been raised from the domain of
+ordinary Haskell values to behaviors is "lifted".   For example, a
+function such as
+<tt><br>
+
+<br>
+(&amp;&amp;)&nbsp;&nbsp;&nbsp;::&nbsp;&nbsp;&nbsp;&nbsp;Bool&nbsp;-&gt;&nbsp;Bool&nbsp;-&gt;&nbsp;Bool<br>
+
+<br>
+
+</tt>can be promoted to a corresponding function over behaviors:
+<tt><br>
+
+<br>
+(&amp;&amp;*)&nbsp;&nbsp;&nbsp;::&nbsp;&nbsp;&nbsp;&nbsp;BoolB&nbsp;-&gt;&nbsp;BoolB&nbsp;-&gt;&nbsp;BoolB<br>
+
+<br>
+
+</tt>The type <tt>BoolB</tt> is a synonym for <tt>Behavior&nbsp;Bool</tt>; most commonly used
+types have a behavioral synonym defined in Fran.  The name <tt>&amp;&amp;*
+</tt>arises from a simple naming convention in Fran: lifted operators are
+appended with a <tt>*</tt> and lifted vars are appended with <tt>B</tt>.  <p>
+The renaming required by <tt>&amp;&amp;</tt> can sometimes be avoided using type
+classes.  For example, an instance declaration such as the following
+<tt><br>
+
+<br>
+instance&nbsp;&nbsp;Num&nbsp;a&nbsp;=&gt;&nbsp;Num&nbsp;(Behavior&nbsp;a)&nbsp;<br>
+
+<br>
+
+</tt>allows all of the methods in <tt>Num</tt> to be applied directly to behaviors
+without renaming.  Constant types in the class definition cannot be
+lifted by such a declaration.  In the <tt>Num</tt> instance
+above, the type of <tt>fromInteger</tt> is 
+<tt><br>
+
+<br>
+fromInteger&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;&nbsp;Num&nbsp;a&nbsp;=&gt;&nbsp;Integer&nbsp;-&gt;&nbsp;(Behavior&nbsp;a)<br>
+
+<br>
+
+</tt>The argument to <tt>fromInteger</tt> is not lifted - only the result.  This
+allows integer constants to be treated as constant behaviors.  While
+<tt>fromInteger</tt> works in the expected way, other class methods cannot be
+used.  In the declaration
+<tt><br>
+
+<br>
+instance&nbsp;Ord&nbsp;a&nbsp;=&gt;&nbsp;Ord&nbsp;(Behavior&nbsp;a)&nbsp;<br>
+
+<br>
+
+</tt>is not useful since it defines operations such as
+<tt><br>
+
+<br>
+(&gt;)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Bool<br>
+
+<br>
+
+</tt>Unfortunately, Fran needs a <tt>&gt;</tt> function which returns <tt>Behavior&nbsp;Bool
+</tt>instance of just <tt>Bool</tt>.  The <tt>Eq</tt> and <tt>Ord</tt> classes are not lifted
+using instance declarations.  Rather, each method is individually
+renamed and lifted.
+ 
+These are the lifting functions: they transform a non-behavioral
+function into its behavioral counterpart:
+<tt><br>
+
+<br>
+constantB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+($*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;(a&nbsp;-&gt;&nbsp;b)&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b<br>
+lift0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+lift0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;constantB<br>
+lift1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(a&nbsp;-&gt;&nbsp;b)&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b<br>
+lift1&nbsp;f&nbsp;b1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lift0&nbsp;f&nbsp;$*&nbsp;b1<br>
+lift2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(a&nbsp;-&gt;&nbsp;b&nbsp;-&gt;&nbsp;c)&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b&nbsp;-&gt;&nbsp;Behavior&nbsp;c<br>
+lift2&nbsp;f&nbsp;b1&nbsp;b2&nbsp;&nbsp;&nbsp;=&nbsp;lift1&nbsp;f&nbsp;b1&nbsp;$*&nbsp;b2<br>
+lift3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(a&nbsp;-&gt;&nbsp;b&nbsp;-&gt;&nbsp;c&nbsp;-&gt;&nbsp;d)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b&nbsp;-&gt;&nbsp;Behavior&nbsp;c&nbsp;-&gt;&nbsp;Behavior&nbsp;d<br>
+lift3&nbsp;f&nbsp;b1&nbsp;b2&nbsp;b3&nbsp;=&nbsp;lift2&nbsp;f&nbsp;b1&nbsp;b2&nbsp;$*&nbsp;b3<br>
+...<br>
+lift7&nbsp;&nbsp;...<br>
+
+<br>
+
+</tt>Using these functions, the definition of <tt>(&gt;*)</tt> is
+<tt><br>
+
+<br>
+(&gt;*)&nbsp;&nbsp;=&nbsp;lift2&nbsp;(&gt;)<br>
+
+<br>
+<p>
+</tt>Many Prelude functions have been lifted in Fran via overloading:
+<tt><br>
+
+<br>
+(+)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Num&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+(*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Num&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+negate&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Num&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;<br>
+abs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Num&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;<br>
+fromInteger&nbsp;::&nbsp;Num&nbsp;a&nbsp;=&gt;&nbsp;Integer&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;<br>
+fromInt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Num&nbsp;a&nbsp;=&gt;&nbsp;Int&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;<br>
+<br>
+quot&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Integral&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+rem&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Integral&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+div&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Integral&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+mod&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Integral&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+quotRem&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Integral&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Behavior&nbsp;a,&nbsp;Behavior&nbsp;a)<br>
+divMod&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Integral&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Behavior&nbsp;a,&nbsp;Behavior&nbsp;a)<br>
+<br>
+fromDouble&nbsp;&nbsp;&nbsp;::&nbsp;Fractional&nbsp;a&nbsp;=&gt;&nbsp;Double&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+fromRational&nbsp;::&nbsp;Fractional&nbsp;a&nbsp;=&gt;&nbsp;Rational&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+(/)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Fractional&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+<br>
+sin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+cos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+tan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+asin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+acos&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+atan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+sinh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+cosh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+tanh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+asinh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+acosh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+atanh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+pi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a<br>
+exp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+log&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+sqrt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+(**)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+logBase&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Floating&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+
+<br>
+
+</tt>These operations correspond to functions which cannot be overloaded
+for behaviors.  The convention is to use the <tt>B</tt> suffix for vars and a
+<tt>*</tt> suffix for ops.
+<tt><br>
+
+<br>
+fromIntegerB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Num&nbsp;a&nbsp;=&gt;&nbsp;IntegerB&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+toRationalB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Real&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;Rational<br>
+toIntegerB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Integral&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;IntegerB<br>
+evenB,&nbsp;oddB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Integral&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;BoolB<br>
+toIntB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Integral&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;IntB<br>
+properFractionB&nbsp;&nbsp;::&nbsp;(RealFrac&nbsp;a,&nbsp;Integral&nbsp;b)&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;(b,a)<br>
+truncateB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(RealFrac&nbsp;a,&nbsp;Integral&nbsp;b)&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b<br>
+roundB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(RealFrac&nbsp;a,&nbsp;Integral&nbsp;b)&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b<br>
+ceilingB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(RealFrac&nbsp;a,&nbsp;Integral&nbsp;b)&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b<br>
+floorB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(RealFrac&nbsp;a,&nbsp;Integral&nbsp;b)&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b<br>
+(^*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(Num&nbsp;a,&nbsp;Integral&nbsp;b)&nbsp;=&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+(^^*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(Fractional&nbsp;a,&nbsp;Integral&nbsp;b)&nbsp;=&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+(==*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Eq&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;BoolB<br>
+(/=*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Eq&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;BoolB<br>
+(&lt;*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Ord&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;BoolB<br>
+(&lt;=*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Ord&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;BoolB<br>
+(&gt;=*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Ord&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;BoolB<br>
+(&gt;*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Ord&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;BoolB<br>
+cond&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;BoolB&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+notB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;BoolB&nbsp;-&gt;&nbsp;BoolB<br>
+(&amp;&amp;*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;BoolB&nbsp;-&gt;&nbsp;BoolB&nbsp;-&gt;&nbsp;BoolB<br>
+(||*)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;BoolB&nbsp;-&gt;&nbsp;BoolB&nbsp;-&gt;&nbsp;BoolB<br>
+pairB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;b&nbsp;-&gt;&nbsp;Behavior&nbsp;(a,b)<br>
+fstB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;(a,b)&nbsp;-&gt;&nbsp;Behavior&nbsp;a<br>
+sndB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;(a,b)&nbsp;-&gt;&nbsp;Behavior&nbsp;b<br>
+pairBSplit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;(a,b)&nbsp;-&gt;&nbsp;(Behavior&nbsp;a,&nbsp;Behavior&nbsp;b)<br>
+showB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;(Show&nbsp;a)&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;String<br>
+
+<br>
+
+</tt>A few list-based functions are lifted, although most of the functions
+in <tt>PreludeList</tt> are not lifted.
+<tt><br>
+
+<br>
+nilB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;[a]<br>
+consB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;Behavior&nbsp;[b]&nbsp;-&gt;&nbsp;Behavior&nbsp;[b]&nbsp;<br>
+headB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;[a]&nbsp;-&gt;&nbsp;Behavior&nbsp;a&nbsp;<br>
+tailB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;[a]&nbsp;-&gt;&nbsp;Behavior&nbsp;[a]&nbsp;<br>
+liftLs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;[Behavior&nbsp;a]&nbsp;-&gt;&nbsp;Behavior&nbsp;[a]<br>
+
+<br>
+<p>
+</tt><a name="sect7"></a>
+<h2>7<tt>&nbsp;&nbsp;</tt>Numeric Types</h2>
+The numeric types and functions are available both a static values
+and as behaviors.  Since the same name is generally used for both the
+static and behavioral version of a function, only the behavioral names are
+exported by the <tt>Fran</tt> module.  If the non-behavioral functions are
+needed, the convention is to add
+<tt><br>
+
+<br>
+import&nbsp;qualified&nbsp;StaticTypes&nbsp;as&nbsp;S<br>
+
+<br>
+
+</tt>to the program and qualify static names with <tt>S.</tt>, as in <tt>S.origin2</tt>.<p>
+<a name="sect7.1"></a>
+<h3>7.1<tt>&nbsp;&nbsp;</tt>Basic Numeric Types</h3>
+All scalar types are essentially the same in Fran.  Synonyms allow
+type signatures to contain extra descriptive information such as
+<tt>Fraction</tt> for values between 0 and 1 but no explicit type conversions
+are required between the various scalar types.  
+<tt><br>
+
+<br>
+type&nbsp;RealVal&nbsp;&nbsp;=&nbsp;Double<br>
+type&nbsp;Length&nbsp;&nbsp;&nbsp;=&nbsp;RealVal&nbsp;&nbsp;--&nbsp;non-negative<br>
+type&nbsp;Radians&nbsp;&nbsp;=&nbsp;RealVal&nbsp;&nbsp;--&nbsp;0&nbsp;..&nbsp;2pi&nbsp;(when&nbsp;generated)<br>
+type&nbsp;Fraction&nbsp;=&nbsp;RealVal&nbsp;&nbsp;--&nbsp;0&nbsp;to&nbsp;1&nbsp;(inclusive)<br>
+type&nbsp;Scalar&nbsp;&nbsp;&nbsp;=&nbsp;Double<br>
+<br>
+type&nbsp;Time&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Double<br>
+type&nbsp;DTime&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Time&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Time&nbsp;deltas,&nbsp;i.e.,&nbsp;durations<br>
+<br>
+data&nbsp;Point2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;2D&nbsp;point<br>
+data&nbsp;Vector2&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;2D&nbsp;vector<br>
+data&nbsp;Transform2&nbsp;--&nbsp;2D&nbsp;transformation<br>
+<br>
+data&nbsp;Point3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;3D&nbsp;point<br>
+data&nbsp;Vector3&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;3D&nbsp;vector<br>
+data&nbsp;Transform3&nbsp;--&nbsp;3D&nbsp;transformation<br>
+<br>
+type&nbsp;RealB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;RealVal<br>
+type&nbsp;FractionB&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Fraction<br>
+type&nbsp;RadiansB&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Radians<br>
+type&nbsp;LengthB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Length<br>
+type&nbsp;TimeB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Time<br>
+type&nbsp;IntB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Int<br>
+<br>
+type&nbsp;Point2B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Point2<br>
+type&nbsp;Vector2B&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Vector2<br>
+type&nbsp;Transform2B&nbsp;=&nbsp;Behavior&nbsp;Transform2<br>
+<br>
+type&nbsp;Point3B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Point3<br>
+type&nbsp;Vector3B&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;Vector3<br>
+type&nbsp;Transform3B&nbsp;=&nbsp;Behavior&nbsp;Transform3<br>
+<p>
+<br>
+<p>
+</tt><a name="sect7.2"></a>
+<h3>7.2<tt>&nbsp;&nbsp;</tt>Points and Vectors</h3> 
+<tt><br>
+
+<br>
+origin2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+point2XY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;Point2B<br>
+point2Polar&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;LengthB&nbsp;&nbsp;-&gt;&nbsp;RadiansB&nbsp;-&gt;&nbsp;Point2B<br>
+point2XYCoords&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;Behavior&nbsp;(RealVal,&nbsp;RealVal)<br>
+point2PolarCoords&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;Behavior&nbsp;(Radians,&nbsp;Length&nbsp;)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+distance2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;LengthB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+distance2Squared&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;LengthB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+linearInterpolate2&nbsp;&nbsp;::&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;Point2B&nbsp;&nbsp;<br>
+(.+^)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;Vector2B&nbsp;-&gt;&nbsp;Point2B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+(.-^)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;Vector2B&nbsp;-&gt;&nbsp;Point2B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+(.-.)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;Point2B&nbsp;&nbsp;-&gt;&nbsp;Vector2B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+<br>
+origin3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point3B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+point3XYZ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;Point3B<br>
+point3XYZCoords&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;Behavior&nbsp;(RealVal,&nbsp;RealVal,&nbsp;RealVal)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+distance3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;LengthB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+distance3Squared&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;LengthB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+linearInterpolate3&nbsp;&nbsp;::&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;Point3B&nbsp;&nbsp;<br>
+(.+^#)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;Vector3B&nbsp;-&gt;&nbsp;Point3B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+(.-^#)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;Vector3B&nbsp;-&gt;&nbsp;Point3B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+(.-.#)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;Point3B&nbsp;&nbsp;-&gt;&nbsp;Vector3B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+<br>
+xVector2,&nbsp;yVector2&nbsp;::&nbsp;Vector2B&nbsp;&nbsp;&nbsp;--&nbsp;unit&nbsp;vectors<br>
+vector2XY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;Vector2B<br>
+vector2Polar&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;LengthB&nbsp;&nbsp;-&gt;&nbsp;RadiansB&nbsp;-&gt;&nbsp;Vector2B<br>
+vector2XYCoords&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Vector2B&nbsp;-&gt;&nbsp;Behavior&nbsp;(RealVal,&nbsp;RealVal)<br>
+vector2PolarCoords&nbsp;::&nbsp;Vector2B&nbsp;-&gt;&nbsp;Behavior&nbsp;(Length,&nbsp;&nbsp;Radians)<br>
+rotateVector2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;Vector2B&nbsp;-&gt;&nbsp;Vector2B<br>
+instance&nbsp;Num&nbsp;Vector2&nbsp;--&nbsp;fromInteger,&nbsp;*&nbsp;not&nbsp;allowed<br>
+<br>
+xVector3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Vector3B&nbsp;&nbsp;&nbsp;--&nbsp;unit&nbsp;vector<br>
+yVector3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Vector3B&nbsp;&nbsp;&nbsp;--&nbsp;unit&nbsp;vector<br>
+zVector3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Vector3B&nbsp;&nbsp;&nbsp;--&nbsp;unit&nbsp;vector<br>
+vector3XYZ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;Vector3B<br>
+vector3XYZCoords&nbsp;&nbsp;&nbsp;::&nbsp;Vector3B&nbsp;-&gt;&nbsp;Behavior&nbsp;(RealVal,&nbsp;RealVal,&nbsp;RealVal)<br>
+vector3Spherical&nbsp;&nbsp;&nbsp;::&nbsp;LengthB&nbsp;&nbsp;-&gt;&nbsp;RadiansB&nbsp;-&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RadiansB&nbsp;-&gt;&nbsp;Vector3B<br>
+vector3PolarCoords&nbsp;::&nbsp;Vector3B&nbsp;-&gt;&nbsp;Behavior&nbsp;(Length,&nbsp;&nbsp;Radians)<br>
+instance&nbsp;Num&nbsp;Vector3&nbsp;--&nbsp;fromInteger,&nbsp;*&nbsp;not&nbsp;allowed<br>
+
+<br>
+
+</tt>Note that vectors and points have distinct types.  You cannot use <tt>+</tt> to
+add a point to a vector.  Vectors are a member of the <tt>Num</tt> class
+while points are not; thus <tt>+</tt> works with vectors but not points.
+Although it is in class <tt>Num</tt>, the <tt>*</tt> operator cannot be used for
+vectors. <p>
+Read the `<tt>.</tt>' in the operators above as `point' and `<tt>^</tt>' as
+`vector'.  Thus <tt>.+^</tt> means `point plus vector'.  
+<a name="sect7.3"></a>
+<h3>7.3<tt>&nbsp;&nbsp;</tt>Vector Spaces</h3>
+<tt><br>
+
+<br>
+zeroVector&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;VectorSpace&nbsp;v&nbsp;=&gt;&nbsp;Behavior&nbsp;v<br>
+(*^)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;VectorSpace&nbsp;v&nbsp;=&gt;&nbsp;ScalarB&nbsp;-&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;Behavior&nbsp;v<br>
+(^/)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;VectorSpace&nbsp;v&nbsp;=&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;ScalarB&nbsp;-&gt;&nbsp;Behavior&nbsp;v<br>
+(^+^),(^-^)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;VectorSpace&nbsp;v&nbsp;=&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;Behavior&nbsp;v<br>
+dot&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;VectorSpace&nbsp;v&nbsp;=&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;ScalarB<br>
+magnitude&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;VectorSpace&nbsp;v&nbsp;=&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;ScalarB<br>
+magnitudeSquared&nbsp;::&nbsp;VectorSpace&nbsp;v&nbsp;=&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;ScalarB<br>
+normalize&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;VectorSpace&nbsp;v&nbsp;=&gt;&nbsp;Behavior&nbsp;v&nbsp;-&gt;&nbsp;Behavior&nbsp;v<br>
+<br>
+instance&nbsp;VectorSpace&nbsp;Double<br>
+instance&nbsp;VectorSpace&nbsp;Float<br>
+instance&nbsp;VectorSpace&nbsp;Vector2<br>
+instance&nbsp;VectorSpace&nbsp;Vector3<br>
+
+<br>
+<p>
+</tt><a name="sect7.4"></a>
+<h3>7.4<tt>&nbsp;&nbsp;</tt>Transformations</h3>
+The types <tt>Transformation2B</tt> and <tt>Transformation3B</tt> represent
+geometric transformation on images, points, or vectors.  The basic transformations are
+translation, rotation, and scaling.   Complex transformations are
+created by composing basic transformations.  The class
+<tt>Transformable2</tt> contains 2-D transformable objects.<p>
+These are the transformation operations:
+<tt><br>
+
+<br>
+class&nbsp;Tranformable2B&nbsp;a&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;(*%)&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Transform2B&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;a&nbsp;&nbsp;&nbsp;--&nbsp;Applies&nbsp;a&nbsp;transform<br>
+<br>
+identity2&nbsp;&nbsp;::&nbsp;Transform2B<br>
+translate2&nbsp;::&nbsp;Vector2B&nbsp;-&gt;&nbsp;Transform2B<br>
+rotate2&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;Transform2B<br>
+compose2&nbsp;&nbsp;&nbsp;::&nbsp;Transform2B&nbsp;-&gt;&nbsp;Transform2B&nbsp;-&gt;&nbsp;Transform2B<br>
+inverse2&nbsp;&nbsp;&nbsp;::&nbsp;Transform2B&nbsp;-&gt;&nbsp;Transform2B<br>
+uscale2&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;Transform2B&nbsp;&nbsp;--&nbsp;only&nbsp;uniform&nbsp;scaling<br>
+factorTransform2&nbsp;::&nbsp;Transform2B&nbsp;-&gt;&nbsp;Behavior&nbsp;(Vector2,&nbsp;RealVal,&nbsp;RealVal)<br>
+<br>
+instance&nbsp;Transformable2B&nbsp;Point2B<br>
+instance&nbsp;Transformable2B&nbsp;Vector2B<br>
+<br>
+class&nbsp;Tranformable3B&nbsp;a&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;(**%)&nbsp;&nbsp;::&nbsp;Transform3B&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;a&nbsp;&nbsp;&nbsp;--&nbsp;not&nbsp;currently&nbsp;used<br>
+class&nbsp;Translateable3B&nbsp;a&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;translate3&nbsp;::&nbsp;a&nbsp;-&gt;&nbsp;Transform3<br>
+class&nbsp;Scaleable3B&nbsp;a&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;scale3&nbsp;::&nbsp;a&nbsp;-&gt;&nbsp;Transform3<br>
+identity3&nbsp;&nbsp;::&nbsp;Transform3B<br>
+rotate3&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Vector3B&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;Transform3B<br>
+compose3&nbsp;&nbsp;&nbsp;::&nbsp;Transform3B&nbsp;-&gt;&nbsp;Transform3B&nbsp;-&gt;&nbsp;Transform3B<br>
+uscale3&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;Trabsform3<br>
+factorTransform3&nbsp;::&nbsp;Transform3B&nbsp;-&gt;&nbsp;Behavior&nbsp;(Vector3,&nbsp;RealVal,&nbsp;RealVal)<br>
+<br>
+instance&nbsp;Translatable3B&nbsp;Point3B<br>
+instance&nbsp;Translatable3B&nbsp;Vector3B<br>
+instance&nbsp;Scaleable3B&nbsp;Point3B<br>
+instance&nbsp;Scaleable3B&nbsp;Vector3B<br>
+
+<br>
+
+</tt>A transformation which doubles the size of an object and then rotates
+it 90 degrees would be <tt>rotate2&nbsp;(pi/2)&nbsp;`compose2`&nbsp;uscale2&nbsp;2</tt>.  Note that
+the first transform applied is the one on the right, as with Haskell's
+function composition operator <tt>(.)</tt>.<p>
+<a name="sect8"></a>
+<h2>8<tt>&nbsp;&nbsp;</tt>Rendered Objects</h2>
+Fran is capable of rendering 2-D images, 3-D images, and sounds.  <p>
+<a name="sect8.1"></a>
+<h3>8.1<tt>&nbsp;&nbsp;</tt>Fonts</h3>
+Fonts are defined as follows:
+<tt><br>
+data&nbsp;Font&nbsp;&nbsp;&nbsp;=&nbsp;Font&nbsp;Family&nbsp;Bool&nbsp;Bool&nbsp;--&nbsp;family&nbsp;isBold&nbsp;isItalic<br>
+data&nbsp;Family&nbsp;=&nbsp;System&nbsp;|&nbsp;TimesRoman&nbsp;|&nbsp;Courier&nbsp;|&nbsp;Arial&nbsp;|&nbsp;Symbol<br>
+system,&nbsp;timesRoman,&nbsp;courier,&nbsp;arial,&nbsp;symbol&nbsp;::&nbsp;Font<br>
+bold&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Font&nbsp;-&gt;&nbsp;Font<br>
+italic&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Font&nbsp;-&gt;&nbsp;Font<br>
+<br>
+data&nbsp;TextT&nbsp;&nbsp;&nbsp;=&nbsp;TextT&nbsp;Font&nbsp;String<br>
+type&nbsp;TextB&nbsp;&nbsp;&nbsp;=&nbsp;Behavior&nbsp;TextT<br>
+<br>
+simpleText&nbsp;&nbsp;&nbsp;::&nbsp;StringB&nbsp;-&gt;&nbsp;TextB<br>
+boldT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;TextB&nbsp;-&gt;&nbsp;TextB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+italicT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;TextB&nbsp;-&gt;&nbsp;TextB<br>
+textFont&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Font&nbsp;&nbsp;-&gt;&nbsp;TextB&nbsp;-&gt;&nbsp;TextB<br>
+
+<br>
+
+</tt>The <tt>simpleText</tt> function creates a text object using a default font.
+The other operators transform text objects by changing their font.  
+<a name="sect8.2"></a>
+<h3>8.2<tt>&nbsp;&nbsp;</tt>Colors</h3>
+These functions define Fran colors:
+<tt><br>
+
+<br>
+colorRGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;FractionB&nbsp;-&gt;&nbsp;FractionB&nbsp;-&gt;&nbsp;FractionB&nbsp;-&gt;&nbsp;ColorB<br>
+colorHSL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;FractionB&nbsp;-&gt;&nbsp;FractionB&nbsp;-&gt;&nbsp;ColorB<br>
+colorRGBCoordsB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;Behavior&nbsp;(Fraction,&nbsp;Fraction,&nbsp;Fraction)<br>
+colorHSLCoordsB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;Behavior&nbsp;(RealVal,&nbsp;Fraction,&nbsp;Fraction)<br>
+colorRGBCoords&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;(FractionB,&nbsp;FractionB,&nbsp;FractionB)<br>
+colorHSLCoords&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;(RealB,&nbsp;FractionB,&nbsp;FractionB)<br>
+interpolateColorRGB&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;ColorB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;ColorB<br>
+interpolateColorHSL&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;ColorB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;ColorB<br>
+grey&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;FractionB&nbsp;-&gt;&nbsp;ColorB<br>
+<br>
+stronger&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;FractionB&nbsp;-&gt;&nbsp;ColorB&nbsp;-&gt;&nbsp;ColorB<br>
+duller&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;FractionB&nbsp;-&gt;&nbsp;ColorB&nbsp;-&gt;&nbsp;ColorB<br>
+darker&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;FractionB&nbsp;-&gt;&nbsp;ColorB&nbsp;-&gt;&nbsp;ColorB<br>
+brighter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;FractionB&nbsp;-&gt;&nbsp;ColorB&nbsp;-&gt;&nbsp;ColorB<br>
+shade&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;FractionB&nbsp;-&gt;&nbsp;ColorB&nbsp;-&gt;&nbsp;ColorB<br>
+<br>
+white,&nbsp;black,&nbsp;red,&nbsp;green,&nbsp;blue&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ColorB<br>
+lightBlue,&nbsp;royalBlue,&nbsp;yellow,&nbsp;brown&nbsp;::&nbsp;ColorB<br>
+<br>
+asColorRef&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;Win32.COLORREF&nbsp;<br>
+
+<br>
+
+</tt><a name="sect8.3"></a>
+<h3>8.3<tt>&nbsp;&nbsp;</tt>2-D Images</h3>
+The type <tt>ImageB</tt> represents reactive 2-D images.  
+<tt><br>
+
+<br>
+emptyImage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ImageB<br>
+solidImage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ImageB<br>
+flipImage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;HFlipBook&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;ImageB<br>
+soundImage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;SoundB&nbsp;-&gt;&nbsp;ImageB<br>
+over&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB<br>
+overs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;[ImageB]&nbsp;-&gt;&nbsp;ImageB<br>
+withColor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB<br>
+line&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;-&gt;&nbsp;Point2B&nbsp;-&gt;&nbsp;ImageB<br>
+circle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ImageB<br>
+polygon&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;[Point2B]&nbsp;-&gt;&nbsp;ImageB<br>
+polyline&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;[Point2B]&nbsp;-&gt;&nbsp;ImageB<br>
+polyBezier&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;[Point2B]&nbsp;-&gt;&nbsp;ImageB<br>
+polygonB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;[Point2]&nbsp;-&gt;&nbsp;ImageB<br>
+polylineB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;[Point2]&nbsp;-&gt;&nbsp;ImageB<br>
+polyBezierB&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;[Point2]&nbsp;-&gt;&nbsp;ImageB<br>
+bezier&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Point2B&nbsp;-&gt;&nbsp;Point2B&nbsp;-&gt;&nbsp;Point2B&nbsp;-&gt;&nbsp;Point2B&nbsp;-&gt;&nbsp;ImageB<br>
+textImage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;TextB&nbsp;-&gt;&nbsp;ImageB<br>
+importBitmap&nbsp;&nbsp;&nbsp;::&nbsp;String&nbsp;-&gt;&nbsp;ImageB<br>
+importBitmapWithSize&nbsp;::&nbsp;String&nbsp;-&gt;&nbsp;(ImageB,&nbsp;RealVal,&nbsp;RealVal)<br>
+<br>
+instance&nbsp;Transformable2&nbsp;ImageB<br>
+instance&nbsp;GBehavior&nbsp;ImageB&nbsp;&nbsp;<br>
+
+<br>
+
+</tt>Most of these operations are self-explanitory.  The <tt>line</tt>,
+<tt>polyline</tt>, and <tt>bezier</tt> functions form lines and curves of a fixed
+system-determined width.  Polygon filling uses a odd-even rule to
+determine whether a region is inside the polygon.   All but the
+bitmaps are painted with a solid color, as selected by <tt>withColor</tt>.
+Most of these objects are centered at the origin.  Text is centered
+just below the origin. <p>
+Bitmaps are centered at the origin and are displayed actual size
+unless scaled.  Bitmaps must be stored in <tt>.bmp</tt> files.  <p>
+These are some simple utilities for 2-D images.  The <tt>Transformable2B
+</tt>context denotes images as well as 2-D points and vectors.<p>
+<tt><br>
+
+<br>
+--&nbsp;Star&nbsp;figure.&nbsp;&nbsp;Arguments:&nbsp;skip&nbsp;and&nbsp;vertices.&nbsp;&nbsp;<br>
+star&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;IntB&nbsp;-&gt;&nbsp;IntB&nbsp;-&gt;&nbsp;ImageB<br>
+regularPolygon&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;IntB&nbsp;-&gt;&nbsp;ImageB<br>
+regularPolygon&nbsp;vs&nbsp;=&nbsp;&nbsp;star&nbsp;1&nbsp;vs<br>
+square&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ImageB<br>
+square&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;regularPolygon&nbsp;4<br>
+<br>
+move&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Transformable2B&nbsp;a&nbsp;=&gt;&nbsp;Vector2B&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;a<br>
+move&nbsp;dp&nbsp;thing&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;translate2&nbsp;dp&nbsp;*%&nbsp;thing<br>
+moveXY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Transformable2B&nbsp;a&nbsp;=&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;a<br>
+moveXY&nbsp;dx&nbsp;dy&nbsp;thing&nbsp;=&nbsp;&nbsp;move&nbsp;(vector2XY&nbsp;dx&nbsp;dy)&nbsp;thing<br>
+<br>
+bigger,&nbsp;smaller&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB<br>
+bigger&nbsp;sc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;(uscale2&nbsp;sc&nbsp;*%)<br>
+smaller&nbsp;sc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;bigger&nbsp;(1/sc)<br>
+stretch&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB<br>
+stretch&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;bigger<br>
+<br>
+--&nbsp;1.0&nbsp;=&nbsp;180&nbsp;degrees<br>
+turnLeft,&nbsp;turnRight&nbsp;::&nbsp;Transformable2B&nbsp;a&nbsp;=&gt;&nbsp;FractionB&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;a<br>
+turnLeft&nbsp;frac&nbsp;im&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;rotate2&nbsp;(frac&nbsp;*&nbsp;pi)&nbsp;*%&nbsp;im<br>
+turnRight&nbsp;frac&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;turnLeft&nbsp;(-frac)<br>
+<br>
+--&nbsp;Oscillates&nbsp;between&nbsp;-1&nbsp;and&nbsp;1<br>
+wiggle,&nbsp;waggle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB<br>
+wiggle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;sin&nbsp;(pi&nbsp;*&nbsp;time)<br>
+waggle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;cos&nbsp;(pi&nbsp;*&nbsp;time)&nbsp;&nbsp;--&nbsp;90&nbsp;degrees&nbsp;out&nbsp;of&nbsp;phase&nbsp;<br>
+wiggleRange&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;RealB&nbsp;-&gt;&nbsp;RealB<br>
+wiggleRange&nbsp;lo&nbsp;hi&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;lo&nbsp;+&nbsp;(hi-lo)&nbsp;*&nbsp;(wiggle+1)/2<br>
+<br>
+stringBIm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;String&nbsp;-&gt;&nbsp;ImageB<br>
+stringIm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;String&nbsp;-&gt;&nbsp;ImageB<br>
+stringBIm&nbsp;str&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;textImage&nbsp;(simpleText&nbsp;str)<br>
+stringIm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;stringBIm&nbsp;.&nbsp;constantB<br>
+<br>
+showBIm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Show&nbsp;a&nbsp;=&gt;&nbsp;Behavior&nbsp;a&nbsp;-&gt;&nbsp;ImageB<br>
+showIm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Show&nbsp;a&nbsp;=&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;-&gt;&nbsp;ImageB<br>
+showBIm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;stringBIm&nbsp;.&nbsp;showB<br>
+showIm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;showBIm&nbsp;.&nbsp;constantB<br>
+<br>
+--&nbsp;Given&nbsp;an&nbsp;image&nbsp;and&nbsp;a&nbsp;canonical&nbsp;size,&nbsp;stretch&nbsp;the&nbsp;image&nbsp;uniformly&nbsp;so<br>
+--&nbsp;that&nbsp;the&nbsp;size&nbsp;maps&nbsp;exactly&nbsp;onto&nbsp;the&nbsp;window&nbsp;view&nbsp;size.<br>
+viewStretch&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Vector2B&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;ImageB&nbsp;-&gt;&nbsp;ImageB<br>
+<br>
+
+<br>
+<p>
+</tt><a name="sect8.4"></a>
+<h3>8.4<tt>&nbsp;&nbsp;</tt>3-D Geometry</h3>
+<tt><br>
+
+<br>
+emptyG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;GeometryB<br>
+unionG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;GeometryB&nbsp;-&gt;&nbsp;GeometryB&nbsp;-&gt;&nbsp;GeometryB<br>
+withColorG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;ColorB&nbsp;-&gt;&nbsp;GeometryB&nbsp;-&gt;&nbsp;GeometryB<br>
+ambientLightG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;GeometryB<br>
+pointLightG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;GeometryB<br>
+spotLightG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;GeometryB<br>
+directionalLightG&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;GeometryB<br>
+parallelPointLightG&nbsp;&nbsp;::&nbsp;GeometryB<br>
+--&nbsp;Import&nbsp;geometry&nbsp;from&nbsp;a&nbsp;file<br>
+importX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;String&nbsp;-&gt;&nbsp;GeometryB<br>
+<br>
+instance&nbsp;&nbsp;GBehavior&nbsp;GeometryB&nbsp;&nbsp;where<br>
+instance&nbsp;&nbsp;Transformable3B&nbsp;GeometryB&nbsp;&nbsp;where<br>
+
+<br>
+<p>
+</tt><a name="sect8.5"></a>
+<h3>8.5<tt>&nbsp;&nbsp;</tt>Sound</h3>
+<B>Conal: I don't see any function to load sound files  -- jcp</B> <p>
+<tt><br>
+
+<br>
+silence&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;SoundB<br>
+mix&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;SoundB&nbsp;-&gt;&nbsp;SoundB&nbsp;-&gt;&nbsp;SoundB<br>
+volume&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;SoundB&nbsp;-&gt;&nbsp;SoundB<br>
+pitch&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;SoundB&nbsp;-&gt;&nbsp;SoundB<br>
+<br>
+instance&nbsp;&nbsp;GBehavior&nbsp;SoundB&nbsp;&nbsp;<br>
+
+<br>
+<p>
+</tt><a name="sect9"></a>
+<h2>9<tt>&nbsp;&nbsp;</tt>Fixities</h2>
+Here are all fixities defined in Fran:
+<tt><br>
+
+<br>
+infixr&nbsp;0&nbsp;&nbsp;$*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;lifted&nbsp;$&nbsp;<br>
+<br>
+infixr&nbsp;1&nbsp;`untilB`<br>
+<br>
+infixl&nbsp;2&nbsp;.|.<br>
+infixr&nbsp;2&nbsp;||*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;lifted&nbsp;||<br>
+<br>
+infixl&nbsp;3&nbsp;==&gt;<br>
+infixl&nbsp;3&nbsp;-=&gt;<br>
+infixr&nbsp;3&nbsp;&amp;&amp;*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;lifted&nbsp;&amp;&amp;<br>
+<br>
+infix&nbsp;4&nbsp;==*,&nbsp;&lt;*,&nbsp;&lt;=*&nbsp;,&nbsp;&gt;=*,&nbsp;&gt;*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Lifted&nbsp;comparisons<br>
+infix&nbsp;4&nbsp;.+^,&nbsp;.-^,&nbsp;.-.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;point&nbsp;/&nbsp;vector&nbsp;addition/subtraction<br>
+infix&nbsp;4&nbsp;.+^#,&nbsp;.-^#,&nbsp;.-.#&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;3D&nbsp;points<br>
+infix&nbsp;4&nbsp;`pointPlusVector2`,&nbsp;`pointMinusVector2`,&nbsp;`pointMinusPoint2`<br>
+<br>
+infixl&nbsp;6&nbsp;`unionG`<br>
+infixl&nbsp;6&nbsp;`over`<br>
+infixl&nbsp;6&nbsp;^+^,&nbsp;^-^&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;vector&nbsp;add&nbsp;and&nbsp;subtract<br>
+<br>
+infixr&nbsp;7&nbsp;`dot`,&nbsp;*^,&nbsp;^/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;scalar&nbsp;*&nbsp;vector,&nbsp;vector&nbsp;/&nbsp;scalar<br>
+infixr&nbsp;7&nbsp;*%,&nbsp;`compose2`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;2D&nbsp;transforms<br>
+infixr&nbsp;7&nbsp;**%,&nbsp;`compose3`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;3D&nbsp;transforms<br>
+<br>
+infixr&nbsp;8&nbsp;&nbsp;^*,&nbsp;^^*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;lifted&nbsp;^,&nbsp;^^<br>
+<br>
+infixl&nbsp;9&nbsp;`snapshot`,&nbsp;`snapshot_`,&nbsp;`whenE`<br>
+infixl&nbsp;9&nbsp;`handleE`,&nbsp;`filterE`<br>
+
+<br>
+<p>
+</tt>

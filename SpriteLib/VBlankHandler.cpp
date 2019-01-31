@@ -1,5 +1,7 @@
 // Vertical blank synchronization support
 
+#include "GlobalVar.h"
+
 #include "StdAfx.h"
 #include "VBlankHandler.h"
 #include "ddhelp.h"
@@ -29,7 +31,7 @@ static CWinThread* pVBlankThread = NULL;
 
 static int vblankThreadPriority = THREAD_PRIORITY_NORMAL;
 
-void SetVblankThreadPriority(int priority)
+EXT_API(void) SetVblankThreadPriority(int priority)
 {
     vblankThreadPriority = priority;
     if (pVBlankThread)
@@ -77,7 +79,7 @@ void RemoveVBlankJob(int jobNum)
 }
 
 // See note in .h file
-int vblankPeriodMS = 29;
+define_global(int, vblankPeriodMS, 29);
 
 // #define VBTRACE TRACE
 #define VBTRACE if (FALSE) TRACE

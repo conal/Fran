@@ -1,5 +1,5 @@
 -----------------------------------------------------------------
--- Last modified Mon Oct 06 17:16:55 1997 by t-garyl
+-- Last modified Tue Oct 28 10:51:59 1997 by t-garyl
 --
 -- This approach does not quite work in that the computing element
 -- hang on to all the old data (event occurrence) and when doing
@@ -140,7 +140,7 @@ sokoban floor initInhabs ev = (inhabBs, board, finalB)
     	trigger p e d =
     	  let evPush = (push e ! p) ! d
     	      resistB = (resist ! p) ! d
-    	  in  (evPush `snapshot` resistB `suchThat` \ (p, r) ->
+    	  in  evPush `snapshot` resistB `suchThat` (\ (p, r) ->
 	      p > 0 && p >= r) -=> fromJust (getNeighborPos p d)
 
     -------------------------------------------------------------

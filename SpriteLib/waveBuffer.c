@@ -5,7 +5,7 @@ Abstract:
   Make a DSound buffer from a Wave file.
   Adapted from DirectX sdk\samples\dsshow\shell.c
 
-  Last modified Thu May 15 09:28:25 1997 by conal
+  Last modified Fri Nov 07 11:59:33 1997 by conal
 
 */
 
@@ -13,6 +13,18 @@ Abstract:
 #include <windowsx.h>
 #include <stdio.h>
 #include <dsound.h>
+
+/* In DirectSound, sounds are associated with windows.  In version 2, if
+   the window lost visual focus, it went quiet.  This flag, introduced in
+   version 3, fixes that problem.  We need the fix, because we don't have
+   a real window when DirectSound is initialized.  However, Visual C++,
+   version 5 ships with version 2 DirectSound headers, so we have to add
+   this one by hand.  (Otherwise, you need to also have the DirectX SDK
+   installed, and you must override VC's search order.)
+*/
+#ifndef DSBCAPS_GLOBALFOCUS
+#define DSBCAPS_GLOBALFOCUS         0x00008000 
+#endif
 
 #include "wassert.h"
 #include "wave.h"

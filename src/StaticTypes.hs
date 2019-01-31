@@ -1,6 +1,6 @@
 -- Envelope module for static modeling types.
 -- 
--- Last modified Thu Oct 02 16:38:05 1997
+-- Last modified Mon Oct 27 15:31:30 1997
 -- 
 -- Recommended use: "import qualified StaticTypes as S" (as in ImageBTest.hs).
 
@@ -10,6 +10,7 @@ module StaticTypes
     module VectorSpace,
     module Vector2,
     module Point2,
+    module Rect,
     module Transform2,
     module Vector3,
     module Point3,
@@ -29,6 +30,7 @@ import Point2
 import Transform2
 import Vector3
 import Point3
+import Rect
 import Transform3
 import Color
 import Font

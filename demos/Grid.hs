@@ -3,14 +3,16 @@
 --------------------------------------------------------------------------
 
 module Grid (Loc, LocB, locRange, minLoc, maxLoc, allLocs, validLoc
+            , pieceSize, pieceHalfSize
             , LocMove, moveWest, moveEast, moveNorth, moveSouth, stayPut
             , addLocMove 
             , locToMotionB, motionToLocB
-            , rows, cols
+            , rows, cols, locCrop
             ) where
 
 import Fran
 import qualified StaticTypes as S
+import Ix
 
 type Loc     = (Int, Int)                 -- Board location (column, row)
 type LocB    = Behavior Loc
@@ -44,9 +46,9 @@ puzzleHeight = 2
 pieceHeight = puzzleHeight / cols
 pieceWidth  = puzzleWidth  / rows
 
-pieceSize :: Vector2B
-pieceSize     = vector2XY pieceWidth pieceHeight
-pieceHalfSize = pieceSize ^/ 2
+pieceSize :: S.Vector2
+pieceSize     = S.vector2XY pieceWidth pieceHeight
+pieceHalfSize = pieceSize S.^/ 2
 
 
 -- Conversion between locations and vectors.  We can either define via
@@ -98,6 +100,14 @@ motionToLoc pos = (col, row)
    row' = round ((y + puzzleHeight/2) / pieceHeight - 0.5)
    row  = rows - 1 - row'
 
+locCrop :: Loc -> ImageB -> ImageB
+locCrop loc = move (constantB (- motion)) . crop (constantB rect)
+ where
+   rect   = S.rectLLUR ll ur
+   ll     = center S..-^ pieceHalfSize
+   ur     = center S..+^ pieceHalfSize
+   center = S.origin2 S..+^ motion
+   motion = locToMotion loc
 
 rows, cols :: Num a => a
 rows = 4

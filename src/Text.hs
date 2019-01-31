@@ -1,9 +1,9 @@
 -- Text type
 --
--- Last modified Mon Oct 28 16:52:51 1996
+-- Last modified Mon Oct 20 15:54:15 1997
 
 module Text(
-	TextT,
+	TextT(..),
 	simpleText, boldT, italicT, textFont
 	) where
 

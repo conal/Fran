@@ -1,0 +1,5 @@
+REGEDIT4
+
+[HKEY_CURRENT_USER\Software\Haskell\Hugs\Version 970719]
+"Options"="-s -t +f -g -l +e +. +q -w -k +u +i -h1000000 -p\"%s> \" -r\"$$\" -P\"..\\\\src;..\\\\..\\\\src;..\\\\gc;..\\\\..\\\\gc;c:\\\\Haskell\\\\green-card\\\\lib\\\\hugs;c:\\\\Haskell\\\\green-card\\\\win32;{Hugs}\\\\lib;{Hugs}\\\\lib\\\\hugs;{Hugs}\\\\lib\\\\Graphics;{Hugs}\\\\lib\\\\ghc;{Hugs}\\\\lib\\\\glaExts\" -E\"gnuclient\" "
+

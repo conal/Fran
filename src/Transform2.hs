@@ -1,6 +1,6 @@
 -- 2D transforms.
 -- 
--- Last modified Wed Oct 01 22:50:49 1997
+-- Last modified Mon Oct 27 14:42:58 1997
 module Transform2 
         (
            Transform2(..)
@@ -65,6 +65,13 @@ inverse2 (Transform2 mot sc rot) =
 
 class Transformable2 a where
   (*%)  ::  Transform2 -> a -> a
+
+instance (Transformable2 a, Transformable2 b) => Transformable2 (a,b) where
+  xf *% (a,b) = (xf *% a, xf *% b)
+
+instance (Transformable2 a, Transformable2 b, Transformable2 c)
+  => Transformable2 (a,b,c) where
+  xf *% (a,b,c) = (xf *% a, xf *% b, xf *% c)
 
 instance Transformable2 Point2 where
  Transform2 (Vector2XY dx dy) scale angle *% Point2XY x y =

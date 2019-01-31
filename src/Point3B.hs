@@ -19,9 +19,7 @@ import Behavior
 import BaseTypes
 import Vector3B(Vector3B)
 
--- Hugs bug (?) workaround.  See comment in VectorSpaceB.
--- Set binding strength to that of + and -.
--- infix 4 .+^ , .-^ ,  .-.
+infix 4 .+^#, .-^#, .-.#
 
 type Point3B = Behavior P.Point3
 

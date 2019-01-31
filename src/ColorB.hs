@@ -1,12 +1,13 @@
 -- Color behaviors
 --
--- Last modified Tue Oct 07 13:55:24 1997
+-- Last modified Fri Oct 24 08:51:20 1997
 
 module ColorB where
 
 import BaseTypes
 import qualified Color as C
 import Behavior
+import HSpriteLib (D3DColor)
 
 type ColorB = Behavior C.Color
 
@@ -41,3 +42,6 @@ colorRGBCoords = tripleBSplit . colorRGBCoordsB
 
 colorHSLCoords :: ColorB -> (RealB, FractionB, FractionB)
 colorHSLCoords = tripleBSplit . colorHSLCoordsB
+
+colorToD3DColor :: ColorB -> Behavior D3DColor
+colorToD3DColor = lift1 C.colorToD3DColor

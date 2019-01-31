@@ -32,10 +32,7 @@ import Win32 (HWND, HDC, DWORD, LONG, Word32, COLORREF, SIZE)
 
 %#include "VBlankHandler.h"
 %fun get_vblankPeriodMS :: IO Int
-%{ res1 = vblankPeriodMS %}
-
 %fun set_vblankPeriodMS :: Int -> IO ()
-%{ vblankPeriodMS = arg1 %}
 
 -- Priority of the vblank handler thread.
 
@@ -67,28 +64,24 @@ type SpriteTime = Double
 -- False.
 
 %fun get_behaviorMakeContinuous :: IO Bool
-%{ res1 = behaviorMakeContinuous %}
-
 %fun set_behaviorMakeContinuous :: Bool -> IO ()
-%{ behaviorMakeContinuous = arg1 %}
 
 -- When a behavior is sampled past its end, should it continue sampling
 -- its linear function (true) or stop (false)?  Default False.
 
 %fun get_behaviorSamplePastGoal :: IO Bool
-%{ res1 = behaviorSamplePastGoal %}
 
 %fun set_behaviorSamplePastGoal :: Bool -> IO ()
-%{ behaviorSamplePastGoal = arg1 %}
 
-%#include "d3drm.h"
+-- GHC needs gcc, which cannot handle some of the .h files transitively
+-- included by d3drmdefs.h, so instead, use DXSubst.h, which contains
+-- copies of the minimum requirement.
+--%#include "d3drmdefs.h"
+%#include "DXSubst.h"
 %#include "ddhelp.h"
 
 %fun get_ddhelpTimeTrace :: IO Bool
-%{ res1 = ddhelpTimeTrace %}
-
 %fun set_ddhelpTimeTrace :: Bool -> IO ()
-%{ ddhelpTimeTrace = arg1 %}
 
 type HDDSurface = Word32
 %dis hDDSurface h = word32 h
@@ -109,10 +102,7 @@ type HFrame = Word32
 %dis hFrame h = word32 h
 
 %fun get_g_pScratchSurf :: IO HDDSurface
-%{ res1 = g_pScratchSurf %}
-
 %fun set_g_pScratchSurf :: HDDSurface -> IO ()
-%{ if (arg1) g_pScratchSurf = arg1 %}
 
 %fun GetDDrawHDC :: HDDSurface -> IO HDC
 %fun ReleaseDDrawHDC :: HDDSurface -> HDC -> IO ()
@@ -158,7 +148,7 @@ meshBuilder fileName = unsafePerformIO $ newMeshBuilder fileName
 type D3DColor = DWORD
 %dis d3DColor d = dWORD d
 
-%fun CreateColorRGB :: Double -> Double -> Double -> D3DColor
+%fun d3dColorRGB :: Double -> Double -> Double -> D3DColor
 
 type LightType = Int
 %dis lightType l = int l
@@ -197,9 +187,9 @@ type HRMRenderer = Word32
 %dis hRMRenderer h = word32 h
 
 %fun newRMRenderer :: HFrame -> HFrame -> Double -> IO HRMRenderer
-%{ h = newRMRenderer(arg1, arg2, arg3) %}
-%fail { h == 0 } { ErrorString("newRMRenderer") }
-%result (hRMRenderer h)
+--%{ h = newRMRenderer(arg1, arg2, arg3) %}
+--%fail { h == 0 } { ErrorString("newRMRenderer") }
+--%result (hRMRenderer h)
 
 %fun doRMRenderer :: HRMRenderer -> IO HDDSurface
 
@@ -248,68 +238,41 @@ type SpriteTreeChain = HSpriteTree
 -- %fun paintAndFlip :: HSpriteTree -> HDDRawEnv -> SpriteTime -> IO ()
 %fun deleteSpriteTree :: HSpriteTree -> IO ()
 
-type HSprite = Word32
-%dis hSprite h = word32 h
-
--- Arguments: sprite, posX, posY, goalTime
-
-%fun setGoalPos :: HSprite -> Double -> Double -> SpriteTime -> IO ()
-%fun setGoalScale :: HSprite -> Double -> Double -> SpriteTime -> IO ()
-%fun spriteToSpriteTree :: HSprite -> HSpriteTree
 
 type HFlipSprite = Word32
 %dis hFlipSprite h = word32 h
 
--- Arguments flip book, posX0, posY0, scaleX0, scaleY0, page0, rest
+-- Arguments flip book, cropRegion0, pos0, scale0, page0, rest
 
-%fun newFlipSprite :: HFlipBook -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HFlipSprite
-%{ h = newFlipSprite(arg1, arg2, arg3, arg4, arg5, arg6, arg7) %}
-%fail { h == 0 } { ErrorString("newFlipSprite") }
-%result (hFlipSprite h)
+%fun newFlipSprite :: HFlipBook -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HFlipSprite
 
-%fun flipSpriteToSprite :: HFlipSprite -> HSprite
+%fun flipSpriteToSpriteTree :: HFlipSprite -> HSpriteTree
 
--- Arguments: flip sprite, goal page, goal time
---%fun setGoalPage :: HFlipSprite -> Double -> SpriteTime -> IO ()
-
--- Arguments: flip sprite, time, ulX, ulY, scaleX, scaleY
-%fun updateFlipSprite :: HFlipSprite -> SpriteTime -> Double -> Double -> Double -> Double -> Double -> IO ()
+-- Arguments: flip sprite, time, crop, pos, scale, page
+%fun updateFlipSprite :: HFlipSprite -> SpriteTime -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
 
 type HSimpleSprite = Word32
 %dis hSimpleSprite h = word32 h
 
--- Arguments surface, ulX, ulY, posX0, posY0, scaleX0, scaleY0, page0, rest
+-- Arguments surface, ul, crop0, pos0, scale0, rest
 
-%fun newSimpleSprite :: HDDSurface -> Pixels -> Pixels -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HSimpleSprite
-%{ h = newSimpleSprite(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) %}
-%fail { h == 0 } { ErrorString("newSimpleSprite") }
-%result (hSimpleSprite h)
+%fun newSimpleSprite :: HDDSurface -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HSimpleSprite
 
-%fun simpleSpriteToSprite :: HSimpleSprite -> HSprite
+%fun simpleSpriteToSpriteTree :: HSimpleSprite -> HSpriteTree
 
--- Arguments: simple sprite, goal time, new surface, ulX, ulY, posX, posY,
--- scaleX, scaleY
-%fun updateSimpleSprite :: HSimpleSprite -> SpriteTime -> HDDSurface -> Pixels -> Pixels -> Double -> Double -> Double -> Double -> IO ()
+%fun updateSimpleSprite :: HSimpleSprite -> SpriteTime -> HDDSurface -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
 
 %fun get_MinSpriteSize :: IO Int
-%{ res1 = MinSpriteSize %}
-
 %fun set_MinSpriteSize :: Int -> IO ()
-%{ MinSpriteSize = arg1 %}
-
 
 type HMonochromeSprite = Word32
 %dis hMonochromeSprite h = word32 h
 
--- Arguments: color and rest
+-- Arguments: crop, color and rest
 
-%fun newMonochromeSprite :: Double -> Double -> Double -> SpriteTreeChain -> IO HMonochromeSprite
-%{ h = newMonochromeSprite(arg1, arg2, arg3, arg4) %}
-%fail { h == 0 } { ErrorString("newMonochromeSprite") }
-%result (hMonochromeSprite h)
+%fun newMonochromeSprite :: Double -> Double -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HMonochromeSprite
 
--- Arguments: time, r, g, b
-%fun updateMonochromeSprite :: HSimpleSprite -> SpriteTime -> Double -> Double -> Double -> IO ()
+%fun updateMonochromeSprite :: HSimpleSprite -> SpriteTime -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
 
 
 type HSoundSprite = Word32
@@ -318,9 +281,9 @@ type HSoundSprite = Word32
 -- Arguments orig buffer, vol, pan, freq, rest
 
 %fun newSoundSprite :: HDSBuffer -> Double -> Double -> Double -> SpriteTreeChain -> IO HSoundSprite
-%{ h = newSoundSprite(arg1, arg2, arg3, arg4, arg5) %}
-%fail { h == 0 } { ErrorString("newSoundSprite") }
-%result (hSoundSprite h)
+--%{ h = newSoundSprite(arg1, arg2, arg3, arg4, arg5) %}
+--%fail { h == 0 } { ErrorString("newSoundSprite") }
+--%result (hSoundSprite h)
 
 %fun soundSpriteToSpriteTree :: HSoundSprite -> HSpriteTree
 
@@ -350,9 +313,9 @@ type HSpriteEngine = Word32
 %dis hSpriteEngine h = word32 h
 
 %fun newSpriteEngine :: HWND -> HSpriteTree -> IO HSpriteEngine
-%{ h = newSpriteEngine(arg1, arg2) %}
-%fail { h == 0 } { ErrorString("newSpriteEngine") }
-%result (hSpriteEngine h)
+--%{ h = newSpriteEngine(arg1, arg2) %}
+--%fail { h == 0 } { ErrorString("newSpriteEngine") }
+--%result (hSpriteEngine h)
 
 %fun onResizeSpriteEngine :: HSpriteEngine -> IO ()
 %fun deleteSpriteEngine :: HSpriteEngine -> IO Int
@@ -362,18 +325,9 @@ type HSpriteEngine = Word32
 class  AkoSpriteTree a  where
   toSpriteTree :: a -> HSpriteTree
 
-class  AkoSprite a  where
-  toSprite :: a -> HSprite
-
 
 -- instance  AkoSprite HFlipSprite  where
 --   toSprite = flipSpriteToSprite
--- 
--- instance  AkoSprite HSimpleSprite where
---   toSprite = simpleSpriteToSprite
--- 
--- instance  AkoSpriteTree HSprite  where
---   toSpriteTree = spriteToSpriteTree
 -- 
 -- instance  AkoSpriteTree HSpriteGroup  where
 --   toSpriteTree = spriteGroupToSpriteTree
@@ -392,11 +346,5 @@ class  AkoSprite a  where
 %fun wordToSpriteTree :: Word -> HSpriteTree
 %{ res1 = arg1 %}
 
-%fun wordToSprite     :: Word -> HSprite
-%{ res1 = arg1 %}
-
 instance AkoSpriteTree Word where
   toSpriteTree = wordToSpriteTree
-
-instance AkoSprite     Word where
-  toSprite     = wordToSprite

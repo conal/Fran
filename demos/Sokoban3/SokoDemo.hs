@@ -3,7 +3,7 @@ module SokoDemo where
 import SokoType
 import Sokoban
 import SokoDraw
-import "../Sokoban1/SokoBoard.hs" as SokoBoard
+import SokoBoard
 import Fran
 import Array
 import Win32(vK_ESCAPE)
@@ -18,11 +18,11 @@ import List(transpose)
 -- To play all levels, type "main ()".
 -----------------------------------------------------------------
 
-main :: () -> IO ()
-main _ = disp $ makeAll levels
+main :: IO ()
+main = displayU $ makeAll levels
 
 demo :: (User -> (ImageB, BoolB)) -> IO ()
-demo level = disp $ fst . level `untilF` \ u -> keyPress vK_ESCAPE u -=>
+demo level = displayU $ fst . level `untilF` \ u -> keyPress vK_ESCAPE u -=>
              const (uscale2 2 *% stringIm "C H E A T E R !")
 
 levels = [level0, level1, level2, level3, level4, level5, level6]
@@ -31,7 +31,7 @@ makeAll :: [User -> (ImageB, BoolB)] -> User -> ImageB
 makeAll []     = const (uscale2 2 *% stringIm "T H E    E N D")
 makeAll (l:ls) = \ u ->
   (uscale2 2 *% stringIm "Loading  next  level  ...") `untilB`
-  timeIs (startTime u ) -=>
+  userTimeIs 2 u -=>
   let (imgB, finalB) = l u in imgB `untilB`
   (keyPress vK_ESCAPE u .|.		-- ESC to next level
   predicate finalB u) `afterE_` u ==> makeAll ls

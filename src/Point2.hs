@@ -1,6 +1,6 @@
 -- RBMH 2d point abstraction.
 --
--- Last modified Tue Sep 30 15:39:13 1997
+-- Last modified Wed Nov 05 16:24:57 1997
 --
 -- When Haskell has type relations (multi-parameter type classes), move most
 -- of stuff to an AffineSpace type relation.
@@ -23,6 +23,13 @@ module Point2
 	 ,swapCoordSys4Pt	 -- :: Point2 -> Point2 -> Point2; GSL
 	 ,swapCoordSysInv4Pt	 -- :: Point2 -> Point2 -> Point2; GSL
 
+	 ,p2v			 -- :: Point2 -> Vector2
+	 ,v2p			 -- :: Vector2 -> Point2; GSL
+
+	 ,mirrorX		 -- :: Point2 -> Point2
+	 ,mirrorY		 -- :: Point2 -> Point2
+	 ,mirrorXY		 -- :: Point2 -> Point2
+
          ,(.+^)                  -- :: Point2 -> Vector2 -> Point2
          ,(.-^)                  -- :: Point2 -> Vector2 -> Point2
          ,(.-.)                  -- :: Point2 -> Point2  -> Vector2
@@ -37,7 +44,7 @@ import Force
 -- Set binding strength to that of + and -.
 infix 4 .+^, .-^, .-.
 
-data Point2 = Point2XY RealVal RealVal   deriving (Eq, Show)
+data Point2 = Point2XY RealVal RealVal   deriving (Eq, Show, Read)
 
 origin2 :: Point2
 origin2 = Point2XY 0 0
@@ -96,3 +103,26 @@ swapCoordSys4Pt newOrigin pt =
 swapCoordSysInv4Pt :: Point2 -> Point2 -> Point2
 swapCoordSysInv4Pt oldOrigin (Point2XY x y) =
   oldOrigin .+^ Vector2XY x (-y)
+
+-----------------------------------------------------------------
+-- convert between Point2 and Vector2
+-----------------------------------------------------------------
+
+p2v :: Point2 -> Vector2
+p2v p = p .-. origin2
+
+v2p :: Vector2 -> Point2
+v2p v = origin2 .+^ v
+
+-----------------------------------------------------------------
+-- mirroring
+-----------------------------------------------------------------
+
+mirrorX :: Point2 -> Point2
+mirrorX (Point2XY x y) = Point2XY x (-y)
+
+mirrorY :: Point2 -> Point2
+mirrorY (Point2XY x y) = Point2XY (-x) y
+
+mirrorXY :: Point2 -> Point2
+mirrorXY = mirrorX . mirrorY

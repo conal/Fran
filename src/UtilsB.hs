@@ -2,7 +2,7 @@
 -- to make it easier to do some simple things. I'd like to make it so that
 -- kids can use this simple vocabulary.
 --
--- Last modified Fri Oct 10 09:00:28 1997
+-- Last modified Wed Nov 05 15:31:29 1997
 
 module UtilsB where
 
@@ -10,55 +10,74 @@ import qualified StaticTypes as S
 import Force
 import BaseTypes
 import Behavior
+import GBehavior
 import VectorSpaceB
 import Event
 import Vector2B
+import Vector3B
 import Point2B
 import ColorB
 import TextB
 import Transform2B
+import Transform3B
 import ImageB
+import SoundB
 import GeometryB
 import User
 import Integral
-import Interaction
+import RenderImage (screenPixelsPerLength, importPixelsPerLength)
 import HSpriteLib
-
+import Spritify
 
 -- Move
 
+move :: Transformable2B bv => Vector2B -> bv -> bv
 move dp thing = translate2 dp *% thing
+
+moveXY :: Transformable2B bv => RealB -> RealB -> bv -> bv
 moveXY dx dy thing = move (vector2XY dx dy) thing
 
 -- Resize
 
-stretch, bigger, smaller :: RealB -> ImageB -> ImageB
+stretch :: Transformable2B bv => RealB -> bv -> bv
+stretch sc = (uscale2 sc *%)
 
-stretch = bigger
-bigger sc = (uscale2 sc *%)
-smaller sc = bigger (1/sc)
+-- Removed
+--bigger = stretch
+--smaller sc = bigger (1/sc)
 
 -- Currently only uniform scaling.  Sorry.
 
 -- biggerXY scx scy im = scale2 (vector2XY scx scy) *% im
 -- smallerXY scx scy = biggerXY (1/scx) (1/scy)
 
-turnLeft frac im = rotate2 (frac * pi) *% im
-turnRight frac = turnLeft (-frac)
+turn :: Transformable2B bv => RealB -> bv -> bv
+turn angle = (rotate2 angle *%)
+
+-- Eliminated
+--turnLeft = turn
+--turnRight frac = turnLeft (-frac)
+
+-- Implementation note: because wiggle and waggle are global behavior
+-- definitions ("CAFs"), we would get a very nasty space leak if we didn't
+-- say "dontMemoizeB" here.  See the proposed fix by the definition of
+-- dontMemoizeB in Behavior.lhs.
+
+-- Didn't work, so making primitive.
 
 -- Oscillates between -1 and 1
-wiggle  = sin (pi * time)
+-- wiggle = dontMemoizeB $ sin (pi * time)
 
 -- Ditto, but off phase
 -- waggle = later 0.5 wiggle
-waggle  = cos (pi * time)
+-- waggle = dontMemoizeB $ cos (pi * time)
 
 wiggleRange lo hi =
  lo + (hi-lo) * (wiggle+1)/2
 
 -- Shift a behavior to be later or earlier, faster or slower
 
-later, earlier :: TimeTransformable bv => TimeB -> bv -> bv
+later, earlier :: GBehavior bv => TimeB -> bv -> bv
 
 later dt b = b `timeTransform` (time - dt)
 earlier dt = later (-dt)
@@ -84,6 +103,8 @@ importBitmap :: String -> ImageB
 importBitmap fileName = imB
  where (imB, width, height) = importBitmapWithSize fileName
 
+importWave :: String -> SoundB
+importWave = bufferSound . waveDSBuffer
 
 
 -- Continuous show, rendered into an image
@@ -113,18 +134,6 @@ mouseMotion :: User -> Vector2B
 
 mouseMotion u = mouse u .-. origin2
 
--- Toggle between true and false on event occurrences.
-
-toggle :: Event a -> Event b -> BoolB
-toggle go stop =
-  stepper False (  go   -=> True
-               .|. stop -=> False)
-
--- Button states
-leftButton, rightButton :: User -> BoolB
-leftButton  u = toggle (lbp u) (lbr u)
-rightButton u = toggle (rbp u) (rbr u)
-
 -- More specialized 
 
 -- Given an image and a canonical size, stretch the image uniformly so
@@ -133,7 +142,7 @@ rightButton u = toggle (rbp u) (rbr u)
 viewStretch :: Vector2B -> User -> ImageB -> ImageB
 
 viewStretch size u =
-  bigger ((wWidth  / iWidth ) `min` (wHeight / iHeight))
+  stretch ((wWidth  / iWidth ) `min` (wHeight / iHeight))
   where
     (wWidth, wHeight) = vector2XYCoords (viewSize u)
     (iWidth, iHeight) = vector2XYCoords size
@@ -157,3 +166,31 @@ countE e = stepper 0 (scanlE (\ c _ -> c + 1) 0 e)
 -- X file is a simple mesh.
 importX :: String -> GeometryB
 importX = meshG . meshBuilder
+
+-- Move, stretch and turn in 3D
+move3 :: Vector3B -> GeometryB -> GeometryB
+move3 dp = (translate3 dp **%)
+
+moveXYZ :: RealB -> RealB -> RealB -> GeometryB -> GeometryB
+moveXYZ dx dy dz = move3 (vector3XYZ dx dy dz)
+
+stretch3 :: RealB -> GeometryB -> GeometryB
+stretch3 sc = (uscale3 sc **%)
+
+turn3 :: Transformable3B a => Vector3B -> RealB -> a -> a
+turn3 axis angle = (rotate3 axis angle **%)
+
+
+-- Display-related
+
+userDelay :: GBehavior bv => bv -> User -> bv
+userDelay bv u = later (constantB (userStartTime u)) bv
+
+display :: ImageB -> IO ()
+display imB = displayU (userDelay imB)
+
+displayG :: GeometryB -> IO ()
+displayG g   = display (renderGeometry g defaultCamera)
+
+displayGU :: (User -> GeometryB) -> IO ()
+displayGU gf = displayU (\ u -> renderGeometry (gf u) defaultCamera)

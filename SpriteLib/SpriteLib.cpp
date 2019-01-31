@@ -13,6 +13,9 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
+// How many screen pixels correspond to one length unit
+double g_screenPixelsPerLength = 1;
+
 static AFX_EXTENSION_MODULE SpriteLibDLL = { NULL, NULL };
 
 extern "C" int APIENTRY
@@ -69,10 +72,7 @@ static BOOL g_SpriteLibIsOpen = FALSE;
 // For improving the resolution of timeGetTime under NT.
 static int timerResolutionMS = 5;
 
-// How many screen pixels correspond to one length unit
-double g_screenPixelsPerLength = 1;
-
-void OpenSpriteLib (double screenPixelsPerLength)
+EXT_API(void) OpenSpriteLib (double screenPixelsPerLength)
 {
     g_screenPixelsPerLength = screenPixelsPerLength;
     if (! g_SpriteLibIsOpen) {
@@ -86,7 +86,7 @@ void OpenSpriteLib (double screenPixelsPerLength)
     }
 }
 
-void CloseSpriteLib ()
+EXT_API(void) CloseSpriteLib ()
 {
     if (g_SpriteLibIsOpen) {
         g_SpriteLibIsOpen = FALSE;
@@ -97,7 +97,7 @@ void CloseSpriteLib ()
     }
 }
 
-void SetTimerResolutionMS (int newRes)
+EXT_API(void) SetTimerResolutionMS (int newRes)
 {
     timeEndPeriod(timerResolutionMS);   // out with the old
     timeBeginPeriod(newRes);            // and in with the new

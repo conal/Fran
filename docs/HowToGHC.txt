@@ -1,0 +1,350 @@
+                    Notes on how to use GHC with Fran
+
+                              Conal Elliott
+
+                  Last modified Fri Nov 14 14:46:54 1997
+
+
+Introduction
+
+While Fran programs are convenient to develop under Hugs, they have much
+better performance under GHC.  At this point, GHC is also harder to
+install and get working under Windows than is Hugs.  I fully expect this
+situation to improve in the future.  Meanwhile, this note provides
+step-by-step instructions to help a would-be GHC user get started.
+
+The first step is to be sure you have enough disk space.  You'll need
+about 60MB.
+
+There is a quite unfortunate and mysterious problem you'll need to be
+aware of.  The source code you compile with must reside on the same drive
+letter as GHC and cygwin.  If not, you'll get an error like the following:
+
+    mv /tmp/ghc1022_o.s: Invalid argument
+
+
+** Cygwin
+
+Get cygwin version 18 beta (14Mb) from the following site:
+
+         ftp://ftp.cygnus.com/pub/gnu-win32/gnu-win32-b18/
+
+Download and run cdk.exe, which is a self-extracting executable, and step
+through the questions asked by the install wizard.  Use the default disk
+location.  Consult the README.txt and make the four environment changes as
+directed (GCC_EXEC_PREFIX, PATH, TCL_LIBRARY, GDBTK_LIBRARY).  As directed
+in the README.txt in the same Cygnus directory as cdk.exe, make a \bin and
+copy sh.exe there, and make a \tmp.
+
+You'll have to start a new shell (and a new emacs, if you run your shell
+from within emacs) to get the changed environment.
+
+Fran uses the Win32 function "timeGetTime", which doesn't not work with
+Cygwin b18 out of the box.  So, copy the file cygwin.patch to
+c:/gnuwin32/b18/H-i386-cygwin32/i386-cygwin32/include/Windows32/ and then
+in that directory say "patch < cygwin.patch".  Then go to your Win32GHC
+directory, remove Win32Misc.o, and do a make.
+
+[GHC folks: is there another solution?]
+
+
+** Grab GHC
+
+Get the latest Win32 GHC binary release with concurrency from ???  (I used
+ftp://laysan.dcs.gla.ac.uk/fran/ghc-2.06-win32.tar.gz).  (8.5Mb)
+
+Unzip and untar the .tar.gz file to get a directory tree structure
+(41.5Mb) called "fptools" under c:/.  (WinZip95 can do both steps.)
+
+[Get Perl.  I already had a version to go with a previous GHC.  The
+particular version is important.  See fptools/INSTALL.]
+
+** Configure GHC
+
+In "c:\fptools", start up bash (sh.exe from cygwin), and type
+"./configure".  I got a message of concern about perl:
+
+    checking for perl... /Tools/perl5/bin/perl
+    checking if `#!/Tools/perl5/bin/perl' works in shell scripts
+    It does!
+    I think your perl library is misinstalled.
+    The following script did not work:
+          do "getopts.pl" || exit(1); exit(0);
+    But do not worry, we'll manage..
+
+Everything seemed okay.  The script itself makes config.log.  My
+config.log was the following.
+
+    This file contains any messages produced by compilers while
+    running configure, to aid debugging if configure makes a mistake.
+
+    configure:575: checking host system type
+    configure:596: checking target system type
+    configure:614: checking build system type
+    configure:696: checking for perl
+    configure:753: checking how to run the C preprocessor
+    configure:774: cc -E  conftest.c >/dev/null 2>conftest.out
+    ./configure: cc: command not found
+    configure: failed program was:
+    #line 768 "configure"
+    #include "confdefs.h"
+    #include <assert.h>
+    Syntax Error
+    configure:791: cc -E -traditional-cpp  conftest.c >/dev/null 2>conftest.out
+    ./configure: cc: command not found
+    configure: failed program was:
+    #line 785 "configure"
+    #include "confdefs.h"
+    #include <assert.h>
+    Syntax Error
+    configure:839: checking for a BSD compatible install
+    configure:889: checking whether ln -s works
+
+Check out the generated Makefile, as indicated in c:/fptools/INSTALL.
+Mine had "version = 2.04", which I had to change to 2.06.
+
+In bash, do "make in-place".  I save the resulting messages in in-place.out.
+
+It will tell you to c:\fptools\bin\i386-unknown-cygwin32\ghc-2.06 to your
+%PATH%.  Do it.  Again, you'll have to start a new shell before continuing.
+
+Next, edit c:/fptools/bin/i386-unknown-cygwin32/ghc-2.06/mkdependHS.
+You'll see a line near the top that says "$RAWCPP='';":
+
+Replace that line with something like the following:
+
+    $RAWCPP='c:/gnuwin32/b18/H-i386-cygwin32/lib/gcc-lib/i386-cygwin32/cygnus-2.7.2-970404/cpp -traditional';
+    $SED='sed';
+
+I got the RAWCPP path by doing a "Find..." for cpp.exe in Windows
+Explorer, starting at c:\gnuwin32.
+
+How did I know to do this??  I looked at what Gary had done.  [GHC folks:
+How should I have known?  This step is probably the most baffling to a
+would-be GHC user.]
+
+Next, fix hscpp to be callable when ghc is invoked with "-cpp".
+
+    bash$ /fptools/lib/i386-unknown-cygwin32/ghc-2.06
+    bash$ ln -s hscpp.prl hscpp
+
+Also, look at hscpp.prl and fix incorrect paths at the beginning.  For me,
+this changing "/usr/fptools" to "/fptools" and "/usr/H-i386-cygwin32" to
+"/gnuwin32/b18/H-i386-cygwin32".
+
+It would be great also to fix hstags.prl.  I haven't yet.
+
+[Again, install bugs.]
+
+Finally, for Fran, edit the file
+
+    c:/fptools/lib/i386-unknown-cygwin32/ghc-2.06/imports/GHC.hi
+
+and add the following line to the exports section
+
+    reallyUnsafePtrEquality#
+
+
+ ** Try GHC
+
+Make a directory "Tst" and a file tst.hs containing only the following
+line:
+
+    main = putStrLn "Hello, world!"
+
+In bash, do "ghc tst.hs".  I got the following in reply.
+
+    bash$ ghc tst.hs
+    ghc: module version changed to 1; reason: no old .hi file
+    Panic: no such executable: a.out.exe
+
+But there's really not a problem:
+
+    bash$ ls -RC
+    a.exe	tst.hi	tst.hs	tst.o
+    bash$ ./a
+    Hello, world!
+
+Better, do "ghc tst.hs -o tst.exe".  Then there's no error message, and
+you get tst.exe, which runs fine.
+
+Now let's make a GHC-style makefile.  First, to make it interesting,
+change tst.hs to
+
+    import Fiddle
+    main = sayIt "Hello, world!"
+
+and add a file Fiddle.hs
+
+    module Fiddle where
+    sayIt = putStrLn
+
+Then make a file called "makefile", with the following lines:
+
+    # The target
+    all : tst.exe
+
+    # Standard defs:
+    OBJS = $(SRC:.hs=.o)
+    GHC  = ghc
+    RM   = rm -f
+
+    # Unique to this project:
+
+    SRC = tst.hs Fiddle.hs
+
+    tst.exe :: $(OBJS)
+            ghc -o tst.exe $(OBJS)
+
+
+    ### Boilerplate GHC stuff
+
+    .SUFFIXES	: .lhs .hs .hi .o
+
+    depend :: $(SRC)
+            mkdependHS $(SRC)
+
+    clean ::
+            $(RM) *.o *.hi *.exe
+
+    %.hi		: %.o
+                    @:
+
+    %.o		: %.lhs
+                    $(RM) $@
+                    $(GHC) $(GHC_FLAGS) -cpp -c $< 
+
+    %.o		: %.hs
+                    $(RM) $@
+                    $(GHC) $(GHC_FLAGS) -c $<
+
+For more info on makefiles, see the GHC user guide's section "Separate
+Compilation".
+
+Now check that automatic dependency generation works:
+
+    bash$ make depend
+    mkdependHS tst.hs Fiddle.hs
+
+Now look at the end of your makefile, and you should see the following new
+lines:
+
+    # DO NOT DELETE: Beginning of Haskell dependencies
+    tst.o : tst.hs
+    tst.o : ./Fiddle.hi
+    Fiddle.o : Fiddle.hs
+    # DO NOT DELETE: End of Haskell dependencies
+
+Next you should be able to build an executable again:
+
+    bash$ make
+    rm -f Fiddle.o
+    ghc  -c Fiddle.hs
+    ghc: module version changed to 1; reason: no old .hi file
+    rm -f tst.o
+    ghc  -c tst.hs
+    ghc: module version changed to 1; reason: no old .hi file
+    ghc -o tst.exe tst.o Fiddle.o
+
+And, run it:
+
+    bash$ ./tst
+    Hello, world!
+
+
+** Build Win32 interfaces
+
+This section describes building the Win32 interface from its GreenCard
+specification.  I'm assuming it to be in \Haskell\green-card\Win32GHC.
+
+If the Win32 interfaces are already built for you, you can skip this
+section. 
+
+In the Makefile, find the "Configuration" section, and replace it with the
+following lines:
+
+    GHCDIR		= /fptools/bin/i386-unknown-cygwin32/ghc-2.06
+    GCDIR		= /Haskell/green-card
+    HERE		= /Haskell/win32ghc
+
+Next find the definition of "GC" ("# Use GreenCard compiled..."), and
+replace it with the following:
+
+    GC	    	= $(GCDIR)/green-card
+
+[These makefile sections should be merged.]
+
+[Oops -- green-card.exe is not really distributed, so this section is not
+helpful.]
+
+Then do "make".  It should go okay.
+
+
+** Building Fran
+
+If Fran is are already built for you, you can skip this section.
+Otherwise, just cd to "Fran1/" and type "make depends all".  There are
+several sub-directories with makefiles in them, and the top-level makefile
+just delegates to each of the others in proper order.  Here's what
+happens, in case you care:
+
+1. Sprite library (in SpriteLib).  I assume you have Microsoft Visual C
+   installed.  First the sprite library is compiled and SpriteLib.dll is copied
+   into your windows system directory (which is presumably on your
+   %PATH%).  [##Fran binary installation note: must copy this DLL to that
+   same location.]  Then a GHC-compatible library (libSpriteLib.a) is
+   built.
+
+2. GreenCard interface to SpriteLib (in gc/GHC).  This step will
+   run GreenCard to make HSpriteLib.hs, compile it into HSpriteLib.o, and
+   then compile gc/errors.c to make gc/errors.obj.  [##Note: I couldn't do
+   an optimized compilation.  See the Makefile comment.]
+
+3. The Fran library (src).  Eventually, it should finish, producing
+   libFran.a.  
+
+4. The demos (demos).  Some source files are in this directory and some
+   are in subdirectories.
+
+   + test.exe.  Contains some examples from Test.hs.  You can change it to
+     contain different ones.  After playing with each example, close the
+     window to get the next one.
+
+   + tutorial.exe.  The Fran tutorial examples.  See Tutorial.hs for a URL
+     to the article, which has animated GIFs.  The file TutMain.hs
+     provides a Main.main.  Hit space, 'n' or right arrow to get from one
+     example to the next, and 'p' or left arrow to go back to previous
+     ones.
+
+   + spirokids.exe.  Just plain weird.  Check it out.
+
+   + fifteen.exe.  A version of the classic Fifteen puzzle.  Wave the
+     mouse over the pieces you want to have move.  There are several other
+     variations in Mover.hs.
+
+   + Roids/roids.exe.  A first crack at an asteroids game.  So far, you
+     can pilot around and shoot.  There's no screen-wrapping, so hit
+     the escape key if you get lost.
+
+   + Sokoban/sokoban.exe.  A wonderful old puzzle game.  Try to get the
+     gold balls into the black holders.  Currently crashes.
+
+
+Known problems:
+
+  - Problem: if Behavior.lhs is compiled optimized (-O flag to ghc), I get
+   "No runnable threads!"  immediately on running a demo.
+
+  - If compiling unoptimized, then after running a while, I either get
+    "Entered Forward_Ref 4022304: Should never occur!", or I get dropped
+    into the cygwin exception handler with STATUS_ACCESS_VIOLATION.  A
+    workaround is to run all the executables with the magical arguments
+    "+RTS -F2s", which means to use the two-space garbage collector.
+
+  - Fran leaks memory fast. =:*(
+
+
+** Building your own Franimations ("frapplets"?) 
+
+Just look at how I set up the demos, and do likewise.  (Set the makefile's
+FRAN variable to point to the Fran1 directory.)

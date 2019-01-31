@@ -1,6 +1,6 @@
 -- 3D Vectors (static)
 --
--- Last modified Fri Oct 10 15:52:00 1997
+-- Last modified Tue Oct 21 14:19:09 1997
 --
 -- To do: check formula for vector3Spherical
 
@@ -13,7 +13,7 @@ module Vector3
          vector3XYZ,             -- :: RealVal -> RealVal -> Vector3
          vector3XYZCoords,       -- :: Vector3 -> (RealVal, RealVal)
          vector3Spherical,          -- :: Length  -> Radians -> Vector3
---       vector3SphericalCoords,    -- :: Vector3 -> (Length, Radians)
+         vector3SphericalCoords,    -- :: Vector3 -> (Length, Radians)
          -- instance  VectorSpace Vector3
         ) where
 
@@ -29,24 +29,27 @@ vector3XYZ = Vector3XYZ
 xVector3,yVector3,zVector3 :: Vector3
 xVector3 = Vector3XYZ 1 0 0
 yVector3 = Vector3XYZ 0 1 0
-zVector3 = Vector3XYZ 0 1 1
+zVector3 = Vector3XYZ 0 0 1
 
 vector3XYZCoords :: Vector3 -> (RealVal,RealVal,RealVal)
 vector3XYZCoords (Vector3XYZ x y z) = (x,y,z)
 
--- To do: check this formula
-
 vector3Spherical :: Length -> Radians -> Radians -> Vector3
 vector3Spherical rho theta phi =
-  Vector3XYZ (rho * cos theta) (rho * sin theta) (rho * sin phi)
+  Vector3XYZ (rho * sinPhi * cosTheta)
+             (rho * sinPhi * sinTheta)
+             (rho * cosPhi)
+ where
+   cosTheta = cos theta; cosPhi = cos phi
+   sinTheta = sin theta; sinPhi = sin phi 
 
-{-
 
 vector3SphericalCoords :: Vector3 -> (Length,Radians,Radians)
-vector3SphericalCoords v@(Vector3XYZ x y z) =
- -- ???
-
--}
+vector3SphericalCoords v@(Vector3XYZ x y z) = (rho, theta, phi)
+ where
+   rho   = sqrt (x*x+y*y+z*z)
+   theta = if x == 0 then 0 else atan (y/x)
+   phi   = acos (z / rho)
 
 instance  VectorSpace Vector3  where
   zeroVector = Vector3XYZ 0 0 0

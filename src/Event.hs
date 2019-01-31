@@ -1,33 +1,28 @@
 -- This version is right before I switched to memoized functions.
 -- 
 -- The "event algebra".
--- 
--- Last modified Thu Oct 09 12:59:51 1997
---
--- To do:
 
 
 module Event where
 
 import BaseTypes
 
-import Channel                           -- for EventChannel
+import Concurrent                           -- for EventChannel
 -- import IOExtensions (unsafeInterleaveIO) -- for getChanContents
 
 import Maybe (isJust)
 import Trace
 
-infixr 1 `untilB`, `untilF`
+infixr 1 `untilBE`
 
 infixl 3 ==>
 infixl 3 -=>
 infixl 2 .|.
 
-infixl 9 `handleE`, `filterE`
+infixl 3 `handleE`, `filterE`
        , `withElemE`, `withElemE_`
-       , `afterE`, `afterE_`
        , `withPrevE`, `withPrevE_`
-       , `suchThat`
+       , `suchThat`, `suchThat_`
 
 
 -- Represent an event as a sequence of possible occurrences.  The
@@ -161,7 +156,7 @@ Event possOccs `withElemE` l = Event (loop possOccs l)
    loop [] _ = []
 
 withElemE_ :: Event a -> [b] -> Event b
-e `withElemE_` l = (e `withElemE` l) ==> snd
+e `withElemE_` l = e `withElemE` l ==> snd
 
 ----------- Monadic stuff ----------
 
@@ -198,94 +193,25 @@ joinEOne (Event possOccs) = Event (loop possOccs)
 
 ------------- Event as generalized behavior -------------
 
-class GBehavior bv where
-  untilB     :: bv -> Event bv -> bv
-  afterTimes :: bv -> [Time]   -> [bv]
-
--- I thought this would be useful.  However, the event should really be a
--- function of bv, which breaks the mold.
-instance (GBehavior bv, GBehavior bv') => GBehavior (bv -> bv') where
- untilB f e = \ bv -> f bv `untilB` e `afterE` bv ==> uncurry ($)
- afterTimes = error "afterTimes for GBehavior (->) not available"
-
--- Instead, use this guy.  Should there be one version for GBehavior a
--- that does the afterE and one for non-GBehavior a that doesn't??
-untilF :: (GBehavior bv, GBehavior a)
-       => (a -> bv) -> (a -> Event (a -> bv)) -> (a -> bv)
-untilF f e = \ a -> f a `untilB` e a `afterE` a ==> uncurry ($)
-
-instance (GBehavior bv1, GBehavior bv2) => GBehavior (bv1,bv2) where
- (bv1, bv2) `untilB` e    =
-   (bv1 `untilB` e ==> fst, bv2 `untilB` e ==> snd)
- (bv1, bv2) `afterTimes` ts = zip (bv1 `afterTimes` ts) (bv2 `afterTimes` ts)
-
-instance (GBehavior bv1, GBehavior bv2, GBehavior bv3)
-      => GBehavior (bv1,bv2,bv3) where
- (bv1, bv2, bv3) `untilB` e    =
-   ( bv1 `untilB` e ==> \(bv1',_,_) -> bv1'
-   , bv2 `untilB` e ==> \(_,bv2',_) -> bv2'
-   , bv3 `untilB` e ==> \(_,_,bv3') -> bv3'
-   )
- (bv1, bv2, bv3) `afterTimes` ts =
-   zip3 (bv1 `afterTimes` ts) (bv2 `afterTimes` ts) (bv3 `afterTimes` ts)
-
-
-instance (GBehavior bv) => GBehavior (Maybe bv) where
- -- There can't be an untilB, since there's no way to change between
- -- Nothing and Just bv.
- untilB             = error "Sorry -- no untilB for (Maybe bv)"
- Nothing `afterTimes` ts = map (const Nothing) ts
- Just bv `afterTimes` ts = map Just (bv `afterTimes` ts)
-
-instance GBehavior (Event a) where
-  Event possOccs1 `untilB` Event possOccs2 = Event (loop possOccs1 possOccs2)
-   where
-     -- No more in first event.  Just use what e2 gives
-     loop pos1@(po1@(te1,mb1) : pos1')
-          pos2@(po2@(te2,mb2) : pos2') =
-       if te1 <= te2 then
-         -- Still old event.  Emit first possible occurrence.
-         --trace (show te1 ++ " <= " ++ show te2 ++ "\n")$
-         po1 : loop pos1' pos2
-       else --trace (show te1 ++ " > " ++ show te2 ++ " and ")$
-            case mb2 of
-              Just e2' ->  -- Real first occurrence.  Switch.
-                           --trace "occurrence\n"$
-                           possOccsOf e2'
-              Nothing  ->  --trace "non-occurrence\n"$
-                           (te2,Nothing) : loop pos1 pos2'
-     loop [] possOccs2  =  --trace "Event untilB: no more LHS occurrences\n" $
-                           possOccsOf (joinEOne (Event possOccs2))
-     loop possOccs1 []  = possOccs1	-- GSL
-
-  afterTimes = afterTimesE
-
-
-afterE :: GBehavior bv => Event a -> bv -> Event (a, bv)
-Event possOccs `afterE` bv =
-  -- Take the remainders of bv at each time in possOccs
-  --trace ("afterE: times are " ++ show evTimes ++ "\n") $
-  Event (loop possOccs (bv `afterTimes` evTimes))
+Event possOccs1 `untilBE` Event possOccs2 = Event (loop possOccs1 possOccs2)
  where
-   evTimes = map fst possOccs
-   loop [] _ = []
-
-   -- Pair up the event data, if any, with the behavior residual.
-   -- This lazy pattern is necessary, so that the bv doesn't get "sampled"
-   -- too soon, which is especially important if it involves the user.
-   -- But, it does create a space leak and later latency from
-   -- unevaluated bvAfter's, heads and tails.  The seq eliminates that
-   -- leak, by making sure that the bvAfters cons cell gets created very
-   -- soon.
-   loop ((te,mb) : possOccs') ~bvAfters@(bvAfter : bvAfters') =
-     --trace "afterE\n" $
-     -- The seq below is to help avoid the space leak.  Unfortunately, it
-     -- then becomes too strict.  See seqD9 in Spritify.hs
-     (te, map (`pair` bvAfter) mb) :
-     (bvAfters `seq` loop possOccs' bvAfters')
-
-afterE_ :: GBehavior bv => Event a -> bv -> Event bv
-e `afterE_` b  = (e `afterE` b) ==> snd
+   -- No more in first event.  Just use what e2 gives
+   loop pos1@(po1@(te1,mb1) : pos1')
+        pos2@(po2@(te2,mb2) : pos2') =
+     if te1 <= te2 then
+       -- Still old event.  Emit first possible occurrence.
+       --trace (show te1 ++ " <= " ++ show te2 ++ "\n")$
+       po1 : loop pos1' pos2
+     else --trace (show te1 ++ " > " ++ show te2 ++ " and ")$
+          case mb2 of
+            Just e2' ->  -- Real first occurrence.  Switch.
+                         --trace "occurrence\n"$
+                         possOccsOf e2'
+            Nothing  ->  --trace "non-occurrence\n"$
+                         (te2,Nothing) : loop pos1 pos2'
+   loop [] possOccs2  =  --trace "Event untilB: no more LHS occurrences\n" $
+                         possOccsOf (joinEOne (Event possOccs2))
+   loop possOccs1 []  = possOccs1	-- GSL
 
 -- Like scanl for lists.  Warning! Do not use for GBehavior a, since it
 -- will not get "aged".  See accumB.  Note: maybe the accumulator should
@@ -324,7 +250,7 @@ withPrevE :: Event a -> a -> Event (a,a)
 -}
 
 withPrevE_ :: Event a -> a -> Event a
-e `withPrevE_` a0 = (e `withPrevE` a0) ==> snd
+e `withPrevE_` a0 = e `withPrevE` a0 ==> snd
 
 -------------- Channel-based (external) events ---------------
 
@@ -387,6 +313,10 @@ withTimeE e = e `handleE` \ te x e' -> (x,te)
 nextE :: Event a -> Event (Event a)
 nextE e = e `handleE` \ te x e' -> e'
 
+withRestE_ :: Event a -> Event (Event a)
+withRestE_ = nextE
+
+
 -- Event handler simplifications.  ## Maybe rename "-=>" to "==>-", and in
 -- general use a trailing "-" in operator names just as "_" in alphabetic
 -- names.
@@ -397,9 +327,11 @@ ev -=> x  =  ev ==> const x
 -- Filter out event occurrences whose data doesn't satisfy a condition.
 
 suchThat :: Event a -> (a -> Bool) -> Event a
-suchThat ev pred =
+ev `suchThat` pred =
   filterE ev (\a -> if pred a then Just a else Nothing) 
 
+suchThat_ :: Event a -> (a -> Bool) -> Event ()
+ev `suchThat_` pred = ev `suchThat` pred -=> ()
 
 -------------- Debugging support -------------
 
@@ -455,4 +387,4 @@ e3 t0 = withTimeE (e2 t0) ==> subtract t0 . snd
 e4 t0 = alarmE t0 (1/2) -=> "left" .|. alarmE t0 (1/3) -=> "right"
 
 -- Go off every 0.1 second for a while and then every 0.2 second
-e5 t0 = alarmE t0 0.1 `untilB` timeIs (2+t0) -=> alarmE (2+t0) 0.2
+e5 t0 = alarmE t0 0.1 `untilBE` timeIs (2+t0) -=> alarmE (2+t0) 0.2

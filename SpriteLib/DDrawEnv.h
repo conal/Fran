@@ -10,7 +10,6 @@
 #ifdef __cplusplus
 // C++ interfaces to constructors, destructors, and methods.
 
-#include "StdAfx.h"
 #include "Behavior.h"
 
 // A drawing environment.

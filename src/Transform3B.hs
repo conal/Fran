@@ -1,6 +1,6 @@
 -- Lifted 3D transformations
 -- 
--- Last modified Wed Jul 09 12:10:35 1997
+-- Last modified Tue Nov 04 08:58:20 1997
 
 module Transform3B(
 	Transform3B
@@ -17,8 +17,8 @@ import Transform3(Transform3, Translateable3, Transformable3, Scaleable3)
 import Behavior
 import BaseTypes
 	
--- Hugs bug (?) workaround.  See comment in VectorSpaceB.
--- infixr 7 **%, `compose3`         -- transform apply and compose
+infixr 7 **%, `compose3`         -- transform apply and compose
+
 
 type Transform3B = Behavior Transform3
 

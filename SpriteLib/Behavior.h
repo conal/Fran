@@ -5,21 +5,22 @@
 #define _BEHAVIOR_H
 
 #include "cdecls.h"
+#include "GlobalVar.h"
 
 typedef double SpriteTime;
 
-EXT_API SpriteTime CurrentSpriteTime();
+EXT_API(SpriteTime) CurrentSpriteTime();
 
 // When a behavior is updated with SetGoal(goalTime,goalVal), should the
 // sprite engine interpolate from the *current* time and value, or the
 // previous goal time and value.  Ideally, they would be the same.
 // Default FALSE.
 
-EXT_DECL_DATA BOOL behaviorMakeContinuous;
+declare_global(BOOL, behaviorMakeContinuous);
 
 // When a behavior is sampled past its end, should it continue sampling
 // its linear function (true) or stop (false)?  Default FALSE.
-EXT_DECL_DATA BOOL behaviorSamplePastGoal;
+declare_global(BOOL, behaviorSamplePastGoal);
 
 
 #ifdef __cplusplus

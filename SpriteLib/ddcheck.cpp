@@ -170,11 +170,11 @@ void dxcheck (ERRLIST elErrors[], int numErrors, HRESULT okVal, HRESULT retval)
     ASSERT(FALSE);
 }
 
-void ddcheck (HRESULT retval)
+EXT_API(void) ddcheck (HRESULT retval)
 { dxcheck (ddrawErrors, numDDrawErrors, DD_OK, retval); }
 
-void dscheck (HRESULT retval)
+EXT_API(void) dscheck (HRESULT retval)
 { dxcheck (dsoundErrors, numDSoundErrors, DS_OK, retval); }
 
-void d3check (HRESULT retval)
+EXT_API(void) d3check (HRESULT retval)
 { dxcheck (d3drmErrors, numD3drmErrors, D3DRM_OK, retval); }

@@ -7,7 +7,7 @@
 -- Choosing inhabs2 gives the fifteen puzzle, while inhabs3 is an
 -- interesting variation.
 --
--- Last modified Tue Oct 07 08:56:43 1997 by conal
+-- Last modified Fri Nov 14 15:36:44 1997 by conal
 --------------------------------------------------------------------------
 
 
@@ -209,7 +209,7 @@ randThenMousePicker button =
 
 demo :: UPicker -> [Inhabitant] -> IO ()
 
-demo upicker inhabitants = disp imF
+demo upicker inhabitants = displayU imF
  where
    imF u = overs (zipWith renderInhabitant paths inhabitants)
     where
@@ -218,7 +218,8 @@ demo upicker inhabitants = disp imF
       paths  = doMoves (upicker u) inhabitants worldB
       worldB = fillWorldB paths
 
-
+main :: IO ()
+main = demo (mousePicker updateDone) inhabs2
 
 --------------------------------------------------------------------------
 --                               Testing
@@ -244,6 +245,26 @@ inhabs2 = [ Inhabitant startLoc moveESWN (startIm startLoc)
    startIm (col,row) = inhabIm (row * rows + col)
 
 inhabs3 = tail (tail inhabs2)
+
+-- Chop up a picture
+
+cutUp pic = [ Inhabitant startLoc moveESWN (startIm startLoc)
+            | startLoc <- tail (range locRange)
+            ]
+ where
+   startIm loc = const (locCrop loc pic)
+
+-- Sample pic's
+
+rose  = stretch 0.7 (importBitmap "../Media/rose medium.bmp")
+donut = stretch 2 $
+        flipImage donutFlipBook (30 * 2 * pi * time / period)
+ where
+   period = 5
+
+donutFlipBook :: HFlipBook
+donutFlipBook = flipBook (bitmapDDSurface "../Media/donuts.bmp")
+                         64 64 0 0 5 6
 
 -- empty World
 worldTest0 = fillWorld []

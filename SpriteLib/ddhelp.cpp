@@ -1,6 +1,8 @@
 // More helper functionality for DirectDraw, DirectSound, and Direct3DRM.
 // (This file should be called dxhelp.cpp.)
 
+#include "GlobalVar.h"
+
 #include "StdAfx.h"
 #include "ddhelp.h"
 #include "ddcheck.h"
@@ -10,20 +12,20 @@
 // Globals.  See ddhelp.h for explanation.
 
 // Whether to print timing info
-BOOL ddhelpTimeTrace = FALSE;
+define_global(BOOL, ddhelpTimeTrace, FALSE);
 #define TTRACE if (ddhelpTimeTrace) printf
 
 
 IDirectDraw *g_pDDraw = NULL;
 IDirectDrawSurface *g_pFront = NULL;
 IDirectDrawClipper *g_pFrontClipper = NULL;
-IDirectDrawSurface *g_pScratchSurf = NULL;
+define_global(HDDSurface, g_pScratchSurf, NULL);
 CCriticalSection g_frontClipperCriticalSection;
 
 IDirectSound *g_pDSound = NULL;
 IDirect3DRM  *g_pD3DRM = NULL;
 
-void DDHelpInit()
+EXT_API(void) DDHelpInit()
 { 
     TTRACE("DDHelpInit()\n");
 
@@ -57,27 +59,43 @@ void DDHelpInit()
 
     // Now DSound init's
     TTRACE ("Doing DirectSoundCreate\n");
-    dscheck(DirectSoundCreate(0,&g_pDSound,0));
-    // TRACE ("Did DirectSoundCreate\n");
-    // Make up a invisible window, just so we can pass its handle
-    // to DSound's SetCooperativeLevel.  Silly.
-    {
-        HMODULE hInst = GetModuleHandle(NULL);
-        HWND bogusHWnd =
-            ::CreateWindow ("STATIC", // BOGUS_SOUND_CLASS,
-                            "Bogus sound window",
-                            0, // WS_THICKFRAME,
-                            0, 0 ,0, 0,
-                            NULL,NULL,hInst,NULL);
-        ASSERT (bogusHWnd != NULL) ;
-        dscheck(g_pDSound->SetCooperativeLevel(bogusHWnd, DSSCL_NORMAL));
+    // dscheck(DirectSoundCreate(0,&g_pDSound,0));
+    // Fail gracefully
+    g_pDSound = NULL;
+    // Try to open the sound device
+    BOOL trying = TRUE;
+    while (trying) {
+        if (DirectSoundCreate(0,&g_pDSound,0) == DS_OK) break;
+        switch (AfxMessageBox("The sound device is busy.",
+                              MB_ABORTRETRYIGNORE)) {
+        case IDIGNORE:
+            g_pDSound = NULL;
+            trying = FALSE;
+            break;
+        case IDABORT:
+            exit(3);
+        }
+    }
+    if (g_pDSound) {
+         // TRACE ("Did DirectSoundCreate\n");
+         // Make up a invisible window, just so we can pass its handle
+         // to DSound's SetCooperativeLevel.  Silly.
+         HMODULE hInst = GetModuleHandle(NULL);
+         HWND bogusHWnd =
+             ::CreateWindow ("STATIC", // BOGUS_SOUND_CLASS,
+                             "Bogus sound window",
+                             0, // WS_THICKFRAME,
+                             0, 0 ,0, 0,
+                             NULL,NULL,hInst,NULL);
+         ASSERT (bogusHWnd != NULL) ;
+         dscheck(g_pDSound->SetCooperativeLevel(bogusHWnd, DSSCL_NORMAL));
     }
 
     // Finally, initialize D3DRM:
     d3check(Direct3DRMCreate(&g_pD3DRM));
 }
 
-void DDHelpFini()
+EXT_API(void) DDHelpFini()
 { 
     TTRACE("DDHelpFini()\n");
     RELEASEIF (g_pDSound);
@@ -91,18 +109,25 @@ void DDHelpFini()
 }
 
 
+// Restore a ddraw surface if needed.
+EXT_API(void) CheckAndRestoreDDS (IDirectDrawSurface *pSurface)
+{
+    if (pSurface->IsLost() == DDERR_SURFACELOST)
+        ddcheck (pSurface->Restore());
+}
 
-HDC GetDDrawHDC (IDirectDrawSurface *pSurface)
+EXT_API(HDC) GetDDrawHDC (IDirectDrawSurface *pSurface)
 {
     HDC hdc;
+    CheckAndRestoreDDS(pSurface);
     ddcheck (pSurface->GetDC(&hdc));
     return hdc;
 }
 
-void ReleaseDDrawHDC (IDirectDrawSurface *pSurface, HDC hdc)
+EXT_API(void) ReleaseDDrawHDC (IDirectDrawSurface *pSurface, HDC hdc)
 { ddcheck (pSurface->ReleaseDC(hdc)); }
 
-IDirectDrawSurface *
+EXT_API(IDirectDrawSurface *)
 newDDrawSurface (int width, int height, COLORREF backColor, DWORD extraCaps)
 {
     DDSURFACEDESC       ddsd;
@@ -121,14 +146,14 @@ newDDrawSurface (int width, int height, COLORREF backColor, DWORD extraCaps)
     return pSurface;
 }
 
-IDirectDrawSurface *
+EXT_API(IDirectDrawSurface *)
 newPlainDDrawSurface (int width, int height, COLORREF backColor)
 { return newDDrawSurface (width, height, backColor, 0); }
 
 // I'm making this function return a SIZE instead of a CSize so that
 // I can call it from C/Haskell.  Automatic conversions to and from
 // CSize let it be convenient from C++.
-SIZE GetDDSurfaceSize(IDirectDrawSurface *pSurface)
+EXT_API(SIZE) GetDDSurfaceSize(IDirectDrawSurface *pSurface)
 {
     // Get surface size.
     DDSURFACEDESC destDesc;
@@ -139,7 +164,17 @@ SIZE GetDDSurfaceSize(IDirectDrawSurface *pSurface)
     return CSize (destDesc.dwWidth, destDesc.dwHeight);
 }
 
-void clearDDSurface(IDirectDrawSurface *pSurface, COLORREF color)
+// Clears a whole DDraw surface
+EXT_API(void) clearDDSurface(IDirectDrawSurface *pSurface, COLORREF color)
+{
+    clearDDSurfaceRect(pSurface,
+                       CRect(CPoint(0,0),GetDDSurfaceSize(pSurface)),
+                       color);
+}
+
+// This one is more general, taking a rectangle
+void clearDDSurfaceRect(IDirectDrawSurface *pSurface, CRect rect,
+                        COLORREF color)
 {
     DDBLTFX ddbltfx;
 
@@ -147,7 +182,7 @@ void clearDDSurface(IDirectDrawSurface *pSurface, COLORREF color)
     ddbltfx.dwFillColor = DDColorMatch(pSurface, color);
     HRESULT ddrval;
     while (DDERR_WASSTILLDRAWING ==
-            (ddrval = pSurface->Blt(NULL,  NULL, NULL,
+            (ddrval = pSurface->Blt(rect,  NULL, NULL,
                                    DDBLT_COLORFILL, &ddbltfx)))
         ;
                                  
@@ -156,7 +191,7 @@ void clearDDSurface(IDirectDrawSurface *pSurface, COLORREF color)
 }
 
 // Load a bitmap file.  Will return NULL if the sound isn't found.
-IDirectDrawSurface *
+EXT_API(IDirectDrawSurface *)
 newBitmapDDSurface (LPCSTR bmpName)
 {
     TTRACE("bitmapDDrawSurface(%s)\n", bmpName);
@@ -172,23 +207,23 @@ newBitmapDDSurface (LPCSTR bmpName)
 
 // New .wav buffer.  Just calls WaveBuffer in WaveBuffer.c.  Will return
 // NULL if the sound isn't found.
-IDirectSoundBuffer *
+EXT_API(IDirectSoundBuffer *)
 newWaveDSBuffer (char *wavName)
 {
-    return WaveBuffer(g_pDSound, wavName);
+    return g_pDSound ? WaveBuffer(g_pDSound, wavName) : NULL;
 }
 
 
 // Just a synonym for D3DRMCreateColor.  Eliminate when I straighten out
 // the float/double mess.
 
-D3DCOLOR CreateColorRGB (double r, double g, double b)
+EXT_API(D3DCOLOR) d3dColorRGB (double r, double g, double b)
 { return D3DRMCreateColorRGB(D3DVALUE(r), D3DVALUE(g), D3DVALUE(b)); }
 
 
 
 // New meshbuilder.  Returns NULL if not a legit mesh file
-IDirect3DRMMeshBuilder *
+EXT_API(IDirect3DRMMeshBuilder *)
 newMeshBuilder (char *fileName)
 {
     IDirect3DRMMeshBuilder *builder;
@@ -203,7 +238,7 @@ newMeshBuilder (char *fileName)
     }
 }
     
-HLight newHLight (HFrame parent, D3DRMLIGHTTYPE type)
+EXT_API(HLight) newHLight (HFrame parent, D3DRMLIGHTTYPE type)
 {
     HLight light;
     TTRACE("Making new light.\n");
@@ -213,14 +248,14 @@ HLight newHLight (HFrame parent, D3DRMLIGHTTYPE type)
     return light;
 }
 
-void HLightSetColor (HLight light, D3DCOLOR col)
+EXT_API(void) HLightSetColor (HLight light, D3DCOLOR col)
 {
     // TRACE("Setting light color to %x.\n",col);
     d3check(light->SetColor(col));
     // TRACE("Set light color.\n");
 }
 
-HFrame newHFrame (HFrame parent)
+EXT_API(HFrame) newHFrame (HFrame parent)
 {
     HFrame frame;
     TTRACE("Making new frame.\n");
@@ -229,7 +264,7 @@ HFrame newHFrame (HFrame parent)
     return frame;
 }
 
-void deleteFrameContents (HFrame pFrame)
+EXT_API(void) deleteFrameContents (HFrame pFrame)
 {
     TTRACE("deleteFrameContents\n");
     IDirect3DRMFrameArray *pChildren;
@@ -245,10 +280,10 @@ void deleteFrameContents (HFrame pFrame)
     // Then similarly for visuals and lights.
 }
 
-HFrame newScene ()
+EXT_API(HFrame) newScene ()
 { return newHFrame (NULL); }
 
-void HFrameAddMeshBuilder (HFrame parent, HMeshBuilder builder)
+EXT_API(void) HFrameAddMeshBuilder (HFrame parent, HMeshBuilder builder)
 {
     TTRACE("Adding mesh builder to frame.\n");
     d3check(parent->AddVisual(builder));
@@ -259,33 +294,33 @@ void HFrameAddMeshBuilder (HFrame parent, HMeshBuilder builder)
     d3check(parent->SetMaterialMode(D3DRMMATERIAL_FROMFRAME));
 }
 
-void HFrameSetColor (HFrame frame, D3DCOLOR col)
+EXT_API(void) HFrameSetColor (HFrame frame, D3DCOLOR col)
 {
     // TRACE("Setting frame color to %x.\n", col);
     d3check(frame->SetColor(col));
     // TRACE("Set frame color.\n");
 }
 
-void HFrameClearTransform (HFrame frame)
+EXT_API(void) HFrameClearTransform (HFrame frame)
 { // TRACE("Clearing frame transform.\n");
   d3check(frame->AddScale(D3DRMCOMBINE_REPLACE,
                           D3DVALUE(1),D3DVALUE(1),D3DVALUE(1))); }
 
 // To do: check about AFTER vs BEFORE
 
-void HFrameRotate (HFrame frame,
+EXT_API(void) HFrameRotate (HFrame frame,
                    double rvx, double rvy, double rvz, double theta)
 { // TRACE("Rotating frame.\n");
   d3check(frame->AddRotation(D3DRMCOMBINE_AFTER,
                              D3DVALUE(rvx), D3DVALUE(rvy), D3DVALUE(rvz),
                              D3DVALUE(theta))); }
 
-void HFrameScale (HFrame frame, double x, double y, double z)
+EXT_API(void) HFrameScale (HFrame frame, double x, double y, double z)
 { // TRACE("Scaling frame.\n");
   frame->AddScale(D3DRMCOMBINE_AFTER,
                   D3DVALUE(x), D3DVALUE(y), D3DVALUE(z)); }
 
-void HFrameTranslate (HFrame frame, double x, double y, double z)
+EXT_API(void) HFrameTranslate (HFrame frame, double x, double y, double z)
 { // TRACE("Translating frame.\n");
   frame->AddTranslation(D3DRMCOMBINE_AFTER,
                         D3DVALUE(x), D3DVALUE(y), D3DVALUE(z)); }
@@ -296,7 +331,7 @@ void HFrameTranslate (HFrame frame, double x, double y, double z)
 
 // To do: make the quality settable
 #ifdef use_renderGeometrySurf
-HDDSurface
+EXT_API(HDDSurface)
 renderGeometrySurf (HFrame sceneFrame, HFrame cameraFrame, double scale)
 {
     // Allocate a surface, create a D3DRM device, make a viewport, render,
@@ -378,6 +413,7 @@ RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale)
     // The ddraw surface will space from -scale to scale in X and Y.
     TTRACE("Makeing Renderer.\n");
     //DWORD timeWas=timeGetTime(), timeIs;
+	extern double g_screenPixelsPerLength;
     int trySize = (int) (2 * scale * g_screenPixelsPerLength);
     TTRACE("Creating %dx%d surface...  ", trySize, trySize);
     m_surf =
@@ -403,11 +439,10 @@ RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale)
     // To do: set quality parameters on the device
 }
 
-HRMRenderer newRMRenderer(HFrame sceneFrame, HFrame cameraFrame, double scale)
+EXT_API(HRMRenderer) newRMRenderer(HFrame sceneFrame, HFrame cameraFrame, double scale)
 { return new RMRenderer(sceneFrame, cameraFrame, scale); }
 
-
-HDDSurface 
+EXT_API(HDDSurface) 
 doRMRenderer(HRMRenderer renderer)
 { return renderer->Render(); }
 
@@ -438,3 +473,4 @@ RMRenderer::Render ()
     //TTRACE("");
     return newSurf;
 }
+

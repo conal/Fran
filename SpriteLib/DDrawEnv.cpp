@@ -104,14 +104,32 @@ void DDrawEnv::ClearBack()
     clearDDSurface(m_pBack, backgroundColor);
 }
 
+static void recall(IDirectDrawSurface *p_Surface, char *what)
+{
+#define BLT_TRIAL_TIMES	5
+
+	int errCount = 0; HRESULT rstHResult = DD_OK;
+
+	if (p_Surface->IsLost() != DD_OK) {
+
+		while (errCount < BLT_TRIAL_TIMES) {
+			printf("Beginning to restore %s surface ...\n", what);
+			rstHResult = g_pFront->Restore();
+			printf("End of restoring %s surface...\n", what);
+			if (rstHResult == DD_OK) break;
+			errCount++;
+		}
+	}
+
+	if (errCount >= BLT_TRIAL_TIMES) ddcheck(rstHResult);
+}
+
 void DDrawEnv::Flip()
 {
     //TRACE("DDrawEnv::Flip\n");
     RECT rectFront;
     POINT p;
 
-    if (rectFront.top  != rectFront.bottom &&
-        rectFront.left != rectFront.right) {
     // first we need to figure out where on the primary surface our
     // window lives.  To do: use MFC rects and points to simplify this code.
     p.x = 0; p.y = 0;
@@ -119,24 +137,9 @@ void DDrawEnv::Flip()
     GetClientRect(m_hWnd, &rectFront );
     OffsetRect(&rectFront, p.x, p.y);
 
-#ifdef _VBLANK_H
-    BlockUntilVerticalBlank();
-#elif defined(_VBLANKHANDLER_H)
-    // No sync work needed -- done by VBlankHandler
-#else
-    BLORT_UNUSED;
-    // Experiment: wait for vertical blank, so we don't exceed
-    // the video refresh rate.  Catch: if two threads do this, the refresh
-    // rate reduces by two.  So, first see whether we're already in the VB.
-    // Still may be wasteful, since we don't start BLT'ing outside of VB.
-    // In fact, I never get very close to video refresh rate with two
-    // display threads, even when each can do > 500 fps running concurrently
-    // without the wait for VB.
-    BOOL isInVB;
-    ddcheck (g_pDDraw->GetVerticalBlankStatus(&isInVB));
-    if (!isInVB)
-        g_pDDraw->WaitForVerticalBlank(DDWAITVB_BLOCKBEGIN, NULL);
-#endif // _VBLANK_H
+	// when window gets minimized, top == bottom == left == right
+    if (rectFront.top  != rectFront.bottom &&
+		m_backRect.top != m_backRect.bottom) {
     // Get exclusive access to the front clipper while blitting.
     // Otherwise, another thread could sneak in between our SetHWnd and Blt
     g_frontClipperCriticalSection.Lock ();
@@ -145,14 +148,18 @@ void DDrawEnv::Flip()
     ddcheck (g_pFrontClipper->SetHWnd( 0, m_hWnd ));
     //TRACE("  SetHWnd done.\n");
 
-    ddcheck (g_pFront->Blt(&rectFront, m_pBack, &m_backRect,
-                           DDBLT_WAIT,
-                           NULL));
-    //TRACE("DDrawEnv::Flip did Blt.\n");
+	// Restoring ... ; GSL 
+
+	recall(g_pFront, "front");
+	recall(m_pBack, "back");
+	ddcheck (g_pFront->Blt(&rectFront, m_pBack, &m_backRect,
+		DDBLT_WAIT, NULL));
+
+
+	//TRACE("DDrawEnv::Flip did Blt.\n");
     g_frontClipperCriticalSection.Unlock ();
     }
 }
-
 
 void DDrawEnv::Lock ()
 { 

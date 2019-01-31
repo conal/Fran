@@ -1,7 +1,7 @@
 -- Integration.  Handles systems of mutually recursive integral behaviors
 -- (ODEs).
 -- 
--- Last modified Thu Oct 09 10:06:20 1997
+-- Last modified Mon Nov 03 13:17:38 1997
 --
 -- To do:
 --
@@ -24,8 +24,7 @@ import BehaviorEvent
 import Force
 
 import Trace
-import User (User, userStartTime)
-import Interaction (updateDone)
+import User (User, userStartTime, updateDone)
 
 
 integral :: VS.VectorSpace v => 
@@ -132,7 +131,7 @@ rungeKuttaStep b tn yn stepBehavior
             rungeKuttaStep bEnd tnEnd ynEnd stepBehavior'
 
     -- To improve the layout above (by facilitating using $).
-    untilTimeIs b t f = b `untilB` (timeIs t -=> f)
+    untilTimeIs b t f = b `untilB` timeIs t -=> f
 
     half_h  = h/2 
 

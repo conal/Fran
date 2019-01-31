@@ -1,8 +1,9 @@
 -- Fran 2D collision demo.  A bunch of balls bounce against each other and
 -- the walls of a room.  This version is not very dynamic, i.e., objects
 -- do not come and go during the life of the animation.
--- 
--- Last modified Tue Aug 05 08:46:03 1997 by conal
+--
+-- In progress
+
 
 module Collide where
 
@@ -100,12 +101,12 @@ ballFloorCollider u (Ball {ballMotion, ballVel}) =
   Collision {collVel, collNormal = S.yVector2}
  where
    hit = y <* floorHeight + ballRadius &&* dy <* 0
-   y   = snd (pairBSplit (vector2XYCoords  ballMotion))
-   dy  = snd (pairBSplit (vector2XYCoords ballVel))
+   y   = snd (vector2XYCoords  ballMotion)
+   dy  = snd (vector2XYCoords ballVel)
    floorVel = zeroVector
    -- Switch to the following when I have derivative.
    -- floorVel = vector2XY 0 (derivative floorHeight u)
-   floorHeight = - sndB (vector2XYCoords (viewSize u))
+   floorHeight = - snd (vector2XYCoords (viewSize u))
 
 -- Ball colliding with another ball.
 ballBallCollider :: Ball -> BallCollider

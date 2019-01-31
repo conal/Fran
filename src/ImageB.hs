@@ -6,7 +6,9 @@ import qualified HSpriteLib as SL
 import BaseTypes
 import qualified StaticTypes as S
 import Behavior
+import GBehavior
 import Vector2B
+import RectB
 import ColorB
 import Point2B
 import TextB
@@ -15,7 +17,7 @@ import Event
 import qualified RenderImage as R
 import SoundB
 import Maybe (fromMaybe)
-import Concurrent			-- MVar
+import Concurrent
 import Trace
 
 infixl 6 `over`
@@ -30,10 +32,12 @@ data ImageB
  | SoundI     SoundB                    -- embedded sound
  | Over       ImageB   ImageB           -- overlay
  | TransformI Transform2B ImageB        -- transformed image
- | WithColor  ColorB ImageB             -- colored image
+ | WithColorI ColorB ImageB             -- colored image
+ | CropI      RectB ImageB              -- cropped image
  | UntilI     ImageB (Event ImageB)	-- "untilB" on ImageB
  | TimeTransI ImageB  TimeB             -- timeTransform on ImageB
  deriving Show
+
 
 -- Primitives
 
@@ -63,7 +67,11 @@ over :: ImageB -> ImageB -> ImageB
 
 -- colored image
 withColor :: ColorB -> ImageB -> ImageB
-withColor = WithColor
+withColor = WithColorI
+
+-- crop image
+crop :: RectB -> ImageB -> ImageB
+crop = CropI
 
 instance Transformable2B ImageB where (*%) = TransformI
 
@@ -97,22 +105,31 @@ forwardSyncVars requestV replyV = do
 
 
 -- Renderer creator (should be forkIO'd).  See Spritify.hs
-type RenderIO = Maybe ColorB -> Transform2B -> Time -> Time
-             -> [Time] -> [Time] -> SyncVar -> SyncVar -> SL.SpriteTreeChain
+type RenderIO = RectB -> Maybe ColorB -> Transform2B -> TimeB -> Time
+             -> [Time] -> SyncVar -> SyncVar -> SL.SpriteTreeChain
              -> IO SL.HSimpleSprite
 
 
-syntheticImage :: (Maybe ColorB -> Transform2B -> SurfaceULB) -> ImageB
+-- ## To do: use the rect so we can pre-crop!  Could save a lot of video
+-- memory and rendering time.
+syntheticImage :: ({-RectB -> -}Maybe ColorB -> Transform2B -> TimeB -> SurfaceULB)
+               -> ImageB
 
 syntheticImage f = RenderImage renderIO
  where
-  renderIO mbColorB xfB t0 xt0 ts xts requestV replyV above = do
-    let surfaceULB = f mbColorB xfB
-        (surf0,ulX0,ulY0,motX0,motY0):_ = surfaceULB `ats` [xt0]
-    hSimpleSprite <- SL.newSimpleSprite
-                       surf0 ulX0 ulY0 motX0 motY0 1 1 above
+  renderIO rectB mbColorB xfB tt t0 ts requestV replyV above = do
+    let surfaceULB = f mbColorB xfB tt
+        ((R.SurfaceUL surf0 ulX0 ulY0 motX0 motY0), surfULBs) = ats0 surfaceULB t0 ts
+        (S.RectLLUR (S.Point2XY llx0 lly0) (S.Point2XY urx0 ury0), rects) =
+           ats0 rectB t0 ts
+    hSimpleSprite <- SL.newSimpleSprite surf0 ulX0 ulY0
+                       llx0 lly0 urx0 ury0
+                       motX0 motY0 1 1 above
     --putStrLn "Made new SimpleSprite"
-    let update ~(t:ts') ~((surf,ulX,ulY,motX,motY):surfaceULs') = do
+    let update ~(t:ts')
+               ~((R.SurfaceUL surf ulX ulY motX motY):surfaceULs')
+               ~(S.RectLLUR (S.Point2XY llx lly)
+                            (S.Point2XY urx ury) : rects') = do
           --putStrLn "updating simple sprite"
           continue <- takeMVar requestV
           if continue then do
@@ -121,23 +138,24 @@ syntheticImage f = RenderImage renderIO
             --putStrLn "setting surface"
 	    -- scale 1 1 for now and (ulX, ulY) is upper-left corner
 	    -- of the bounding box in Fran coord system
-	    SL.updateSimpleSprite hSimpleSprite t surf ulX ulY motX motY 1 1
+            --putStrLn ("New surf: (ulX,ulY) == " ++ show (ulX,ulY) ++ ", (motX,motY) == " ++ show (motX,motY))
+	    SL.updateSimpleSprite hSimpleSprite
+                                  t surf ulX ulY
+                                  llx lly urx ury 
+                                  motX motY 1 1
             --putStrLn "renderIO replying"
             putMVar replyV True
-            update ts' surfaceULs'
+            update ts' surfaceULs' rects'
            else
             putMVar replyV False
-    forkIO $ update ts (surfaceULB `ats` xts)
+    forkIO $ update ts surfULBs rects
     return hSimpleSprite
 
 
-instance TimeTransformable ImageB where timeTransform = TimeTransI
-
 instance  GBehavior ImageB  where
-  untilB     = UntilI
-  afterTimes = afterTimesI
-  -- To do: move timeTransform into GBehavior and overload here
-  -- timeTransform = TTransI
+  untilB        = UntilI
+  afterTimes	= afterTimesI
+  timeTransform = TimeTransI
 
 
 afterTimesI :: ImageB -> [Time] -> [ImageB]
@@ -152,10 +170,10 @@ FlipImage book page `afterTimesI` ts =
 -- Is this one right???
 -- im@(SyntheticImageIO f) `afterTimesI` t = im
 
--- ## I don't think this one is right
+-- ## Is this one right?
 im@(RenderImage f) `afterTimesI` ts =
-  -- im
-  error "afterTimesI not yet supported for RenderImage, sorry."
+  repeat im
+  -- error "afterTimesI not yet supported for RenderImage, sorry."
 
 SoundI snd `afterTimesI` ts = map SoundI (snd `afterTimes` ts)
 
@@ -165,8 +183,11 @@ SoundI snd `afterTimesI` ts = map SoundI (snd `afterTimes` ts)
 TransformI xfb imb `afterTimesI` ts =
   zipWith TransformI (xfb `afterTimes` ts) (imb `afterTimesI` ts)
 
-WithColor c imb `afterTimesI` ts =
-  zipWith WithColor (c `afterTimes` ts) (imb `afterTimesI` ts)
+WithColorI c imb `afterTimesI` ts =
+  zipWith WithColorI (c `afterTimes` ts) (imb `afterTimesI` ts)
+
+CropI rectb imb `afterTimesI` ts =
+  zipWith CropI (rectb `afterTimes` ts) (imb `afterTimesI` ts)
 
 -- ## This one is essentially copied from Behavior.hs, and is almost
 -- identical to the GeometryB and SoundB versions.  Figure out how to
@@ -190,8 +211,8 @@ overs = foldr over emptyImage
 
 -- circle
 
-circleSurface :: Maybe ColorB -> Transform2B -> SurfaceULB
-circleSurface mbColorB stretchB =
+circleSurface :: Maybe ColorB -> Transform2B -> TimeB -> SurfaceULB
+circleSurface mbColorB stretchB _ =
   lift2 R.renderCircle (fromMaybe defaultColor mbColorB) stretchB
 
 circle :: ImageB
@@ -206,19 +227,19 @@ circle = syntheticImage circleSurface
 -- poly: polygon, polyline, polyBezier
 
 polygonSurfaceB    :: Behavior [S.Point2] -> Maybe ColorB -> Transform2B
-		   -> SurfaceULB
+		   -> TimeB -> SurfaceULB
 polylineSurfaceB   :: Behavior [S.Point2] -> Maybe ColorB -> Transform2B
-		   -> SurfaceULB
+		   -> TimeB -> SurfaceULB
 polyBezierSurfaceB :: Behavior [S.Point2] -> Maybe ColorB -> Transform2B
-		   -> SurfaceULB
+		   -> TimeB -> SurfaceULB
 
 polygonSurfaceB    = polySurface R.renderPolygon
 polylineSurfaceB   = polySurface R.renderPolyline
 polyBezierSurfaceB = polySurface R.renderPolyBezier
 
-polygonSurface    :: [Point2B] -> Maybe ColorB -> Transform2B -> SurfaceULB
-polylineSurface   :: [Point2B] -> Maybe ColorB -> Transform2B -> SurfaceULB
-polyBezierSurface :: [Point2B] -> Maybe ColorB -> Transform2B -> SurfaceULB
+polygonSurface    :: [Point2B] -> Maybe ColorB -> Transform2B -> TimeB -> SurfaceULB
+polylineSurface   :: [Point2B] -> Maybe ColorB -> Transform2B -> TimeB -> SurfaceULB
+polyBezierSurface :: [Point2B] -> Maybe ColorB -> Transform2B -> TimeB -> SurfaceULB
 
 polygonSurface    pts = polySurface R.renderPolygon    (liftL id pts)
 polylineSurface   pts = polySurface R.renderPolyline   (liftL id pts)
@@ -226,9 +247,11 @@ polyBezierSurface pts = polySurface R.renderPolyBezier (liftL id pts)
 
 polySurface :: ([S.Point2] -> S.Color -> S.Transform2 -> R.SurfaceUL)
 	    -> Behavior [S.Point2] -> Maybe ColorB -> Transform2B
-	    -> SurfaceULB
-polySurface renderF pts mbColorB stretchB =
-  lift3 renderF pts (fromMaybe defaultColor mbColorB) stretchB
+	    -> TimeB -> SurfaceULB
+polySurface renderF pts mbColorB stretchB tt =
+  -- The color and stretch have been time transformed, but the points haven't.
+  lift3 renderF (timeTransform pts tt)
+                (fromMaybe defaultColor mbColorB) stretchB
 
 polygonB    :: Behavior [S.Point2] -> ImageB
 polylineB   :: Behavior [S.Point2] -> ImageB
@@ -277,19 +300,21 @@ star skip vertices = polygonB pts
 
 -- line
 
-lineSurface :: Point2B -> Point2B -> Maybe ColorB -> Transform2B -> SurfaceULB
-lineSurface p0 p1 mbColorB stretchB =
-  lift4 R.renderLine p0 p1 (fromMaybe defaultColor mbColorB) stretchB
+lineSurface :: Point2B -> Point2B -> Maybe ColorB -> Transform2B -> TimeB -> SurfaceULB
+lineSurface p0 p1 mbColorB stretchB tt =
+  lift4 R.renderLine (timeTransform p0 tt)
+                     (timeTransform p1 tt)
+                     (fromMaybe defaultColor mbColorB) stretchB
 
 line :: Point2B -> Point2B -> ImageB
 line p0 p1 = syntheticImage (lineSurface p0 p1)
 
 -- textB, colorB, stretchB
 
-textSurface :: TextB -> Maybe ColorB -> Transform2B -> SurfaceULB
-textSurface textB mbColorB xfB =
+textSurface :: TextB -> Maybe ColorB -> Transform2B -> TimeB -> SurfaceULB
+textSurface textB mbColorB xfB tt =
   lift3 R.renderText
-	textB
+	(timeTransform textB tt)
 	(fromMaybe defaultColor mbColorB)
 	xfB
 
@@ -297,8 +322,3 @@ textImage :: TextB -> ImageB
 textImage textB = syntheticImage (textSurface textB)
 
 type SurfaceULB = Behavior R.SurfaceUL
-
--- pixelsPerLength
-
-importPixelsPerLength = R.importPixelsPerLength
-screenPixelsPerLength = R.screenPixelsPerLength

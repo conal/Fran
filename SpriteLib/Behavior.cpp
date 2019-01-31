@@ -1,5 +1,7 @@
 // Simple behavior implementation
 
+#include "GlobalVar.h"
+
 #include "StdAfx.h"
 #include "Behavior.h"
 
@@ -7,7 +9,7 @@
 
 static DWORD startTimeMS = timeGetTime();
 
-EXT_API SpriteTime CurrentSpriteTime()
+EXT_API(SpriteTime) CurrentSpriteTime()
 {
     return (timeGetTime() - startTimeMS) / 1000.0;
 }
@@ -15,11 +17,11 @@ EXT_API SpriteTime CurrentSpriteTime()
 // When a behavior is updated with SetGoal(goalTime,goalVal), should the
 // sprite engine interpolate from the *current* time and value, or the
 // previous goal time and value.  Ideally, they would be the same.
-BOOL behaviorMakeContinuous = FALSE;
+define_global(BOOL, behaviorMakeContinuous, FALSE);
 
 // When a behavior is sampled past its end, should it continue sampling
 // its linear function (true) or stop (false)?
-BOOL behaviorSamplePastGoal = FALSE;
+define_global(BOOL, behaviorSamplePastGoal, FALSE);
 
 // end of C interface
 

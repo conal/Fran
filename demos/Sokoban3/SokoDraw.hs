@@ -4,7 +4,6 @@ import SokoType
 import Sokoban
 import Fran
 import qualified StaticTypes as S
-import HSpriteLib
 import Array
 
 ----------------------------------------------------------------

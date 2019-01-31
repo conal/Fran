@@ -5,12 +5,14 @@
 
 // Open the sprite library.  Say how many screen pixels correspond to one
 // length unit.
-EXT_API void OpenSpriteLib (double screenPixelsPerLength);
-EXT_API void CloseSpriteLib ();
+EXT_API(void) OpenSpriteLib (double screenPixelsPerLength);
 
-EXT_DECL_DATA double g_screenPixelsPerLength;
+
+
+EXT_API(void) CloseSpriteLib ();
+
 
 // For improving the resolution of timeGetTime under NT.
-EXT_API void SetTimerResolutionMS (int newRes);
+EXT_API(void) SetTimerResolutionMS (int newRes);
 
 #endif // _SPRITELIB_H

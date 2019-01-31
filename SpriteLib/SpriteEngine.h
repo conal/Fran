@@ -16,10 +16,10 @@
 
 EXT_CLASS(SpriteEngine);
 
-EXT_API HSpriteEngine newSpriteEngine(HWND, HSpriteTree);
-EXT_API void onResizeSpriteEngine(HSpriteEngine);
+EXT_API(HSpriteEngine) newSpriteEngine(HWND, HSpriteTree);
+EXT_API(void) onResizeSpriteEngine(HSpriteEngine);
 // Stop an engine and return number of frames
-EXT_API int deleteSpriteEngine(HSpriteEngine);
+EXT_API(int) deleteSpriteEngine(HSpriteEngine);
 
 
 #ifdef __cplusplus

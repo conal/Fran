@@ -1,6 +1,6 @@
 -- Transform behaviors
 -- 
--- Last modified Tue Oct 07 14:00:01 1997
+-- Last modified Tue Nov 04 08:57:41 1997
 
 module Transform2B where
 
@@ -8,8 +8,7 @@ import qualified Transform2 as T
 import Behavior
 import Vector2B
 
--- Hugs bug (?) workaround.  See comment in VectorSpaceB.
--- infixr 7 *%, `compose2`         -- transform apply and compose
+infixr 7 *%, `compose2`         -- transform apply and compose
 
 type Transform2B = Behavior T.Transform2
 
@@ -26,6 +25,13 @@ class Transformable2B a where
 
 instance  T.Transformable2 a =>  Transformable2B (Behavior a) where
   (*%) =  lift2 (T.*%)
+
+instance (Transformable2B a, Transformable2B b) => Transformable2B (a,b) where
+  xf *% (a,b) = (xf *% a, xf *% b)
+
+instance (Transformable2B a, Transformable2B b, Transformable2B c)
+  => Transformable2B (a,b,c) where
+  xf *% (a,b,c) = (xf *% a, xf *% b, xf *% c)
 
 factorTransform2 :: Transform2B -> (Vector2B, RealB, RealB)
 factorTransform2 = tripleBSplit . factorTransform2B

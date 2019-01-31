@@ -53,7 +53,7 @@ sokoban board initLocs outside = (locBs, finalB)
     doMoves p ev = posB
        where
          posB  = stepper p evPos
-	 evPos = (ev `snapshot` posB) ==> \ (d, p') ->
+	 evPos = ev `snapshot` posB ==> \ (d, p') ->
 		 fromJust $ getNeighborPos p' d
 
     finalB :: BoolB

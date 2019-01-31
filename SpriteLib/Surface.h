@@ -10,9 +10,9 @@
 
 EXT_CLASS(Surface);
 
-EXT_API HSurface newBitmapSurface(LPCSTR bmpName);
-EXT_API HSurface newTextSurface(LPCSTR chars, COLORREF);
-EXT_API void deleteSurface (HSurface);
+EXT_API(HSurface) newBitmapSurface(LPCSTR bmpName);
+EXT_API(HSurface) newTextSurface(LPCSTR chars, COLORREF);
+EXT_API(void) deleteSurface (HSurface);
 
 #ifdef __cplusplus
 // C++ interfaces to constructors, destructors, and methods.

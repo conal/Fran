@@ -7,14 +7,12 @@
 # This goes first to make it the default
 all		: HSpriteLib.dll
 
-GCDIR		= C:/Haskell/green-card
+FRAN = ..
+include $(FRAN)/env.mk
+
 HUGSDIR 	= C:/Haskell/hugs
-RUNHUGS		= $(HUGSDIR)/runhugs
-#GC	    	= $(RUNHUGS) -h1m $(GCDIR)/src/GreenCard.lhs --target Hugs
-#GC_GHC		= $(RUNHUGS) -h1m $(GCDIR)/src/GreenCard.lhs --target ghc
-GC	    	= $(GCDIR)/green-card.exe --target Hugs
-GC_GHC		= $(GCDIR)/green-card.exe --target ghc
-GC_INCLUDES 	= --include-dir $(GCDIR)/lib/hugs --include-dir C:/Haskell/green-card/win32
+GC	    	+= --target Hugs
+GC_INCLUDES 	= --include-dir $(GREENCARD)/lib/hugs --include-dir C:/Haskell/green-card/win32
 
 .SUFFIXES	:
 .SUFFIXES	: .gc .dll .c .obj
@@ -27,19 +25,25 @@ INCLUDES	= -I$(HUGSDIR)/src -I../SpriteLib
 .gc.c	: 
 	rm -f $*.hs $*.c
 	$(GC) $(GC_INCLUDES) $*.gc
+	cp $*.hs $*.hs.hugs
 
-HSpriteLib.obj : HSpriteLib.c
+HSpriteLib.obj : HSpriteLib.c errors.h
 	cl /nologo $(INCLUDES) -c HSpriteLib.c
 
-HSpriteLib.dll	: HSpriteLib.obj ../SpriteLib/Debug/SpriteLib.lib
-	cl /nologo /LD $(INCLUDES) -o HSpriteLib.dll HSpriteLib.obj ../SpriteLib/Debug/SpriteLib.lib
+errors.obj : errors.c errors.h
+	cl /nologo -c errors.c
+
+HSpriteLib.dll	: HSpriteLib.obj errors.obj ../SpriteLib/Debug/SpriteLib.lib
+	cl /nologo /LD $(INCLUDES) -o HSpriteLib.dll HSpriteLib.obj \
+	errors.obj ../SpriteLib/Debug/SpriteLib.lib
 
 
 clean	:
+	rm -f HSpriteLib.c HSpriteLib.hs
 	rm -f *.dll *.obj *.exp *.lib 
 	rm -f *.so *.o 
 	rm -f *.hi
-	rm -f *.hs *.c
+	rm -f *.hs
 
 ################################################################
 # End of Makefile

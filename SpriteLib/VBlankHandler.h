@@ -4,6 +4,7 @@
 #define _VBLANKHANDLER_H
 
 #include "cdecls.h"
+#include "GlobalVar.h"
 
 // Can be set from outside, for experimentation.  Goal period for vertical
 // blank activities, in milliseconds.  Of course, it should really be the
@@ -13,11 +14,11 @@
 // following number will be rounded up to a multiple of 10, or if set to 5
 // (minimum), then one more than the number will be rounded up to a
 // multiple of 5.
-EXT_DECL_DATA int vblankPeriodMS;
+declare_global(int, vblankPeriodMS);
 
 
 // Set priority of the vblank handler thread.
-EXT_API void SetVblankThreadPriority(int priority);
+EXT_API(void) SetVblankThreadPriority(int priority);
 
 
 // end of C/Haskell interfaces
