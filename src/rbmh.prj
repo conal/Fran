@@ -1,0 +1,65 @@
+-- Last modified Sun Sep 08 16:32:10 1996 by t-sfinne
+
+-- To do: weed out some of these as possible
+
+-- Prelude/system libraries
+Win32.hs
+Lib/Channel.hs
+Lib/Utils.hs
+StdLib/Monad.hs
+PicLib/Bitmap.hs
+../Lib/MutVar.hs
+
+BaseTypes.hs
+
+-- non-Behavior modelling types
+VectorSpace.hs
+Vector2.hs
+Point2.hs
+Transform2.hs
+Color.hs
+Font.hs
+Text.hs
+Image.hs
+RenderImage.hs
+PickImage.hs
+
+ShowImage.hs
+
+-- core RBMH
+Behavior.hs
+Event.hs
+Until.hs
+Postpone.hs
+
+-- Integration
+Integral.hs
+
+-- lifted Behavior types
+VectorSpaceB.hs
+Vector2B.hs
+Point2B.hs
+Transform2B.hs   
+ColorB.hs
+TextB.hs
+ImageB.hs
+
+-- interactive images
+-- IImage.hs
+
+-- interaction
+External.hs
+PrimInteract.hs  -- primitive interaction Events
+Interaction.hs   -- higher-level interaction support
+-- Interaction2.hs  -- interaction over IImages
+
+-- Running animations in a window
+ShowImageB.hs
+
+ImageTest.hs
+ImageBTest.hs
+-- IImageTest.hs
+
+-- DynamicTest.hs
+
+
