@@ -1,17 +1,20 @@
 -- Integration.  Handles systems of mutually recursive integral behaviors
 -- (ODEs).
 -- 
--- Last modified Tue Oct 29 17:16:08 1996
+-- Last modified Sun Nov 10 16:18:24 1996
 
 module Integral where
 
-import VectorSpace      
+import qualified VectorSpace as VS
+import Fuzzy
 import Behavior
+import VectorSpaceB
 import Event
 import Until
 import Force
 
-integral :: (Forceable v, VectorSpace v) => Behavior v -> Time -> Behavior v
+integral :: (Forceable v, VS.VectorSpace v) =>
+              Behavior v -> Time -> Behavior v
 
 -- Piecewise-linear Euler's method.  Step forward from the starting time,
 -- taking regular steps, keeping an accumulator of the integral so far.  A
@@ -21,26 +24,27 @@ integral :: (Forceable v, VectorSpace v) => Behavior v -> Time -> Behavior v
 -- speeding-up time transform is applied).  Without forcing, the
 -- accumulator representation would keep growing and finally blow the
 -- heap.
+--
+-- Also, explicitly start out as the zero vector just for an instant, in
+-- order to avoid sampling the integrand at t0.  This is necessary in the
+-- case of recursive integrals (ODEs), to avoid an infinite evaluation
+-- cycle.
 
 integral dy t0 =
- loop zeroVector dy t0
+ zeroVector `untilB` timeIs t0 -=>
+ loop dy t0 VS.zeroVector
  where
-  loop y0 dy t0 =
+  loop dy t0 y0 =
     -- Follow a linear path from y0 with a derivative equal to dy@t0.
     -- After epsilon, repeat with a new y0 and dy.
     -- Force the accumulator, so partial computations don't build up.
     force y0 `seq`
-    lift1 linearPart time `untilB` timeIs (t0+epsilon) *=> \ t1 ->
-      loop (linearPart t1) dy' t1
+    linearPart `untilB` nextStep +=> loop dy'
     where
-      linearPart t = y0 `addVector` scaleDy0 (t-t0)
+      linearPart = lift0 y0 ^+^ (time - lift0 t0) *^ lift0 dy0 
 
-      -- Scale initial derivative value dy0.  Check for the zero scale
-      -- factor.  This specialization prevents evaluation of dy0 before
-      -- it's ready.  Otherwise, recursive integrals would get into an
-      -- evaluation cycle at time t0.
-      scaleDy0 0 = zeroVector
-      scaleDy0 s = s `scaleVector` dy0
+      -- Take another step, with new accumulated value
+      nextStep = (timeIs (t0+epsilon) `snapshot` linearPart) ==> snd
 
       (dy0,dy') = dy `at` t0
 

@@ -1,6 +1,6 @@
 -- Simple test harness for Image behaviors
 -- 
--- Last modified Mon Oct 28 14:57:54 1996
+-- Last modified Sun Nov 10 16:20:31 1996
 -- 
 -- To have a go, run "disp i{j}" where j `elem` [1..].
 -- Or run "disp allDemos" to see them all, and press <space> to go on to the
@@ -16,11 +16,10 @@ module ImageBTest where
 
 import RBMH
 import qualified StaticTypes as S
-import qualified ImageTest
+--import qualified ImageTest
 import UtilsB
 
 import Random
-import Win32 (timeGetTime)
 
 import qualified ShowImageB
 
@@ -36,9 +35,9 @@ fpsImage = withColor yellow . showIm . fps
 
 demos =   [ iStart,
             i1,  i2,  i3,  i4,  i5,  i6,  i7,  i8,  i9, 
-                i12, i13, i14, i15, i16, i17, i18, i19, i20,
-           i21, i22, i23, i24, i25,      i27, i28,      i30,
-           i31, i32, i33,          i36, i37,
+                i12, i13, i14, i15, i16, i17,      i19,
+                     i23, i24, i25,      i27, i28,
+           i31,      i33,                i37,
             iEnd ]
 
 -- Sequential demo combinator
@@ -207,8 +206,8 @@ chasingWatcher t0 =
       where
        eyePos = startPos .+^ integral eyeVel t0
        eyeVel = integral eyeAcc t0
-       eyeAcc = (mouse 0 .-. eyePos) `addVector`
-                (dragFactor `scaleVector` eyeVel)
+       eyeAcc = (mouse 0 .-. eyePos) +
+                (dragFactor *^ eyeVel)
        dragFactor = -1
        -- x,y are in [0,1]
        startPos =  uscale2 1.5 *%
@@ -239,16 +238,16 @@ chasingWatchers' n t0 =
       where
        eyePos = startPt .+^ integral eyeVel t0
        eyeVel = integral eyeAcc t0
-       eyeAcc = (followPt .-. eyePos) `addVector`
-                (dragFactor `scaleVector` eyeVel)
+       eyeAcc = (followPt .-. eyePos) +
+                (dragFactor *^ eyeVel)
        dragFactor = -1
 
 -- A group chase.
 i17 t0 = chasingWatchers' 3 t0
 
 
--- Pretty picture
-i18 t0 = rotate2 (time/5) *% lift0 (ImageTest.lotus 8 4)
+-- Pretty picture, but slow.
+-- i18 t0 = rotate2 (time/5) *% lift0 (ImageTest.lotus 8 4)
 
 -- Accumulate snapshots of a simple animation, upon left click
 
@@ -262,38 +261,6 @@ i19 t0 = moveXY (wiggle/5) 0 (withColor yellow (stringIm "Click me"))
              im0 `untilB`
                (lbp t0 `snapshot` anim) ==> snd ==> lift0 ==> (`over` im0)
                 +=> stepping
-
--- Trailing motion
-
-motion_tracker spc motion trail =
- -- withColor (rgb (abs (sin (2*time))) 0.8 0.5) $
- foldl1 over
-  (zipWith
-    (\ tShift im ->
-       (translate2 motion *% im) `timeTransform` (time - lift0 tShift))
-    [0.0,spc..]
-    trail)
-
--- Turn a string into a list of simple text images.
-
-stringTrail str =
- map (\ c -> withColor yellow (stringIm [c])) str
-
-i20 t0 = motion_tracker 0.1 m1 (stringTrail "Time Transformation")
- where
-  m1 = (uscale2 0.9 *% vector2XY (cos (3*time)) (sin (5*time)))
-        `timeTransform` (time/3)
-
-
-mouse_tracker t0 =
-  motion_tracker 0.1 (mouse t0 .-. origin2)
-
-i21 t0 = mouse_tracker t0 (stringTrail "TIME FLOWS")
-
-i22 t0 =
- mouse_tracker t0
-  [uscale2 0.1 *% withColor (hsl (lift0 h) 0.5 0.5) circle |
-   h <- [0, 360 / 5 .. 359] ]
 
 
 -- Bouncing ball examples.
@@ -314,11 +281,14 @@ bounce1 minVal maxVal x0 dx0 ddx t0 = path
 
         bounce :: Event (RealVal, RealVal)  -- new x and dx
 
-        bounce = (collide `snapshot` pairB x dx)
-                    ==> \ ((),(xHit,dxHit)) -> (xHit, - reciprocity * dxHit)
+        bounce = (collide `snapshot` pairB x dx) ==> snd
+                    ==> \ (xHit,dxHit) -> (xHit, - reciprocity * dxHit)
 
-        collide = predicate (x <=* lift0 minVal &&* dx<=*0 ||*
-                             x >=* lift0 maxVal &&* dx>=*0) t0
+        -- We'd like to use "predicate" here, and ==* for the x
+        -- comparisons, but interval analysis doesn't yet work on
+        -- integral, because it doesn't work on untilB.
+        collide = predicate' (x <=* lift0 minVal &&* dx<=*0 ||*
+                              x >=* lift0 maxVal &&* dx>=*0) t0
 
 -- New and improved version!  But this one wedges :-(
 
@@ -431,9 +401,6 @@ chunksOf n ls =
    ([],_) -> []
    (x,xs) -> x:chunksOf n xs
 
-translateT :: Time -> Behavior a -> Behavior a
-translateT t b = timeTransform b (lift1 (+t) time)
-
 i27 t0 =
   withColor 
      colours
@@ -442,8 +409,7 @@ i27 t0 =
          (map i (chunksOf 5 [0,pi/18..2*pi])))
   where
    colours = stronger (abs (sin time)) black
-   i ls    = polygon  (map (\ t -> translateT (negate t) 
-                                              pt) ls)
+   i ls    = polygon  (map (\ t -> later t pt) ls)
    pt      = point2XY (sin (2*time)) (cos (2*time))
    idx ls  = lift1 (\ idx -> ls!!(round idx))
 
@@ -466,18 +432,8 @@ i29 t0 =
   i26' = i26 t0
  in
  i26'                                  `over` 
- (translateT 1 ((uscale2 0.8)  *% i26'))
+ (later 1 ((uscale2 0.8)  *% i26'))
 
-i30 t0 = 
- noverlay (map (\ x -> translateT x i) [0,0.4..4])
- where
-  p1 = (point2XY (-1/3) (cos time))
-  p2 = (point2XY ( 1/3) (sin time))
-  i = bezier 
-        (point2XY (-1) 0)
-        p1
-        p2
-        (point2XY 1 0)
 
 i31 t0 = i
  where
@@ -486,17 +442,6 @@ i31 t0 = i
         (point2XY (-1/3) (cos time)),
         (point2XY (1/3) (sin time)),
         (point2XY (sin (pi-time)) 0)]
-
-i32 t0 = 
- (translate2 p1 *% (uscale2 0.05 *% withColor red  circle)) `over`
- (translate2 p2 *% (uscale2 0.05 *% withColor blue circle)) `over`
- i
- where
-  p0 = point2XY (-1) 0
-  p1 = mouse 0
-  p2 = translateT (-2) p1
-  p3 = point2XY 1 0
-  i  = bezier p0 p1 p2 p3 
 
 mingle [] ls = ls
 mingle ls [] = ls
@@ -530,8 +475,6 @@ koch ls =
  in
  ls'++koch (last ls')
 
--}
-
 map2 :: (a -> a -> [a]) -> [a] -> [[a]]
 map2 f (x:y:ls) = map (f x y ++) (ls : map2 f (y:ls))
 map2 _ _ = []
@@ -539,39 +482,30 @@ map2 _ _ = []
 koch1 p0 p4 = [p0,p1,p2,p3,p4]
  where
   dp  = p4   `S.pointMinusPoint2` p0
-  dp' = S.scaleVector 0.33 dp
+  dp' = 0.33 S.*^ dp
   p1  = p0  `S.pointPlusVector2`  dp'
-  p2  = p1  `S.pointPlusVector2`  (S.rotate2 (pi/3)) S.*% dp'
+  p2  = p1  `S.pointPlusVector2`  ((S.rotate2 (pi/3)) S.*% dp')
   p3  = p4  `S.pointMinusVector2` dp'
 
-i36 t0 =
-  let
-   pt1 = point2XY (cos time) (sin time)
-   pt2 = point2XY (sin time) (cos time)
-  in
-  bezier (mouse t0) 
-         (translateT (-pi/2) pt2)
-         pt1
-         (translateT (3*pi/2) pt2)
+
+-}
 
 -- Based on a similar function by Gary Shu Ling
 
-viewStretch :: String -> Time -> ImageB
+viewStretchBmpFile :: String -> Time -> ImageB
 
-viewStretch bitmapFilename t0 =
+viewStretchBmpFile bitmapFilename t0 =
   case S.importBitmap bitmapFilename of
-      S.EmptyImage -> emptyImage
-      im@(S.Bitmap size _) ->
-        moveXY 0 (-wHeight/3) (stringIm "Resize the window") `over`
-        scale2 (vector2XY (wWidth / lift0 iWidth)
-                          (wHeight / lift0 iHeight))
-         *% lift0 im
-        where
-          (wWidth, wHeight) = pairBSplit (vector2XYCoords (viewSize t0))
-          (iWidth, iHeight) = S.vector2XYCoords size
+    S.EmptyImage ->
+      stringIm ("Couldn't open " ++ bitmapFilename)
+    im@(S.Bitmap size _) ->
+      viewStretch (lift0 size) t0 (
+        resizeLabel `over` lift0 im )
+ where
+  resizeLabel =
+   stringIm "Resize the window" `untilB` timeIs (t0+3) -=> emptyImage
 
-
-i37 = viewStretch "../Media/frog.bmp"
+i37 = viewStretchBmpFile "../Media/frog.bmp"
 
 
 -- This one shows the view size
@@ -603,7 +537,7 @@ iRecIntegral t0 = scale2 size *% withColor red circle
 
 iRecReact t0 = withColor red (scale2 x *% circle)
  where
-  x = time - t0 `untilB` predicate (x >=* 1) 0 -=> 1
+  x = time - t0 `untilB` predicate' (x >=* 1) 0 -=> 1
 
 
 -- Works fine
@@ -628,12 +562,12 @@ iTst8 t0 = withColor red (scale2 x *% circle)
 
 iTst9 t0 = withColor red (scale2 x *% circle)
  where
-  x = integral dx t0 `untilB` predicate (x>=*1) t0 `snapshot` x -=> 1
+  x = integral dx t0 `untilB` predicate' (x>=*1) t0 `snapshot` x -=> 1
   dx = 0.1 :: Behavior RealVal
 
 iTst10 t0 = withColor red (scale2 x *% circle)
  where
-  x = integral dx t0 `untilB` predicate (x>=*1) t0 `snapshot` x ==> lift0 . snd
+  x = integral dx t0 `untilB` predicate' (x>=*1) t0 `snapshot` x ==> lift0 . snd
   dx = 0.1 :: Behavior RealVal
 
 

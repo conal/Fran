@@ -19,8 +19,8 @@ content="text/html; charset=iso-8859-1">
 <h1 align="center">News on Recent RBMH Releases</h1>
 
 <h3 align="center"><em>Last modified <!--webbot bot="TimeStamp"
-startspan s-type="EDITED" s-format="%B %d, %Y" -->October 31, 1996<!--webbot
-bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
+startspan s-type="EDITED" s-format="%B %d, %Y" -->November 11, 1996<!--webbot
+bot="TimeStamp" i-checksum="41272" endspan --></em></h3>
 
 <h2><a href="http:rbmh0.0.zip">0.0</a> Sept 8, 1996</h2>
 
@@ -31,17 +31,19 @@ bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
 <h2><a href="http:rbmh0.1.zip">0.1</a> Sept 9, 1996</h2>
 
 <ul>
-    <li>Fixed inverse2 bug that messed up screen-to-world mapping </li>
+    <li>Fixed inverse2 bug that messed up screen-to-world mapping
+    </li>
     <li>Fixed RenderImage.draw to catch all errors and print
         &quot;Win32 drawing error&quot; instead of bombing. When
-        you start seeing this message, you can kill the animation window. </li>
+        you start seeing this message, you can kill the animation
+        window. </li>
     <li>Changed ImageBTest.smoothGrowShrink to scale by &quot;exp
-        (integral (changingRate t0) t0&quot; instead of &quot;1 + integral
-        (changingRate t0) t0&quot;. The result looks better the new
-        way and never does negative scaling. </li>
+        (integral (changingRate t0) t0&quot; instead of &quot;1 +
+        integral (changingRate t0) t0&quot;. The result looks
+        better the new way and never does negative scaling. </li>
     <li>Added a bunch of fun examples to ImageBTest. These
-        examples are eyes that look at the mouse and one that chases
-        it. See i12 to i16. </li>
+        examples are eyes that look at the mouse and one that
+        chases it. See i12 to i16. </li>
 </ul>
 
 <h2><a href="http:rbmh0.2.zip">0.2</a> Sept 16, 1996</h2>
@@ -61,18 +63,18 @@ bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
         slow. :-(</li>
     <li>Major change to the representation of events.</li>
     <li>Added some neat examples of Sigbjorn's, involving time
-        transforms. See i19, i20, and i21 in ImageBTest.hs. Unfortunately,
-        time transformation works badly with external events, and
-        thus with the mouse position behavior, to i20 and i21 are
-        quite jerky.</li>
+        transforms. See i19, i20, and i21 in ImageBTest.hs.
+        Unfortunately, time transformation works badly with
+        external events, and thus with the mouse position
+        behavior, to i20 and i21 are quite jerky.</li>
     <li>Renamed constructors Vector2 and Point2 to Vector2XY and
         Point2XY.</li>
     <li>Re-implemented integral so that recursive systems (ODEs)
         work efficiently! Try &quot;disp (i17 0)&quot; in
-        ImageBTest, and move the mouse around. The eyes are connected
-        in a chain of springs. Introduced the t0 argument to to avoid
-        a space leak problem. This change should be done
-        throughout ImageBTest.</li>
+        ImageBTest, and move the mouse around. The eyes are
+        connected in a chain of springs. Introduced the t0
+        argument to to avoid a space leak problem. This change
+        should be done throughout ImageBTest.</li>
     <li>Removed determinant common-subexpression from inverse2.</li>
     <li>Renamed lerp2 to linearInterpolate2.</li>
     <li>Added RBMH module, which imports all the individual parts
@@ -98,15 +100,15 @@ bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
         functions of start time, to eliminate space leak (CAFs)
         and to make them temporally composable.</li>
     <li>Added keyboard event primitives <strong>primKP</strong>
-        and <strong>primKR</strong> in <strong>PrimInteract.hs</strong>, plus a
-        higher-level version <strong>keyPress</strong> in <strong>Interaction.hs</strong>.
+        and <strong>primKR</strong> in <strong>PrimInteract.hs</strong>,
+        plus a higher-level version <strong>keyPress</strong> in <strong>Interaction.hs</strong>.
         Changed <strong>i8</strong> in <strong>ImageBTest</strong>
         to use it.</li>
     <li>Added <strong>allDemos</strong> to <strong>ImageBTest</strong>.
-        This new &quot;super demo&quot; combines all of the others.
-        run &quot;<strong>disp allDemos</strong>&quot; to see
-        them all, and press &lt;space&gt; to go on to the next
-        item.</li>
+        This new &quot;super demo&quot; combines all of the
+        others. run &quot;<strong>disp allDemos</strong>&quot; to
+        see them all, and press &lt;space&gt; to go on to the
+        next item.</li>
     <li>Added lifted list formation and extraction: <strong>nilB,
         consB, headB, tailB</strong>.</li>
 </ul>
@@ -116,18 +118,18 @@ bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
 <ul>
     <li>Changed <strong>polyline</strong> from being a filled
         polygon to be a set of connected line segments. Added <strong>polygon</strong>
-        for describing n-sided filled polygons. The inside of a polygon
-        is filled with the (outermost) color specified with the <strong>withColor</strong> combinator,
-        i.e., <tt>withColor red (polygon ls)</tt> draws a red
-        polygon. (default is white). Line segments are drawn with
-        a white pen.</li>
+        for describing n-sided filled polygons. The inside of a
+        polygon is filled with the (outermost) color specified
+        with the <strong>withColor</strong> combinator, i.e., <tt>withColor
+        red (polygon ls)</tt> draws a red polygon. (default is
+        white). Line segments are drawn with a white pen.</li>
     <li>Switched color transformation combinators from using RGB
         color space to HSL (removed mixRed,mixGreen,mixBlue).</li>
     <li>Added a fourth control point argument to <strong>bezier</strong>,
         instead of having the origin2 be the implicit first
         control point.</li>
-    <li>Added a bunch of demos that uses <strong>polyline</strong>, <strong>polygon</strong>
-        and <strong>bezier</strong>.</li>
+    <li>Added a bunch of demos that uses <strong>polyline</strong>,
+        <strong>polygon</strong> and <strong>bezier</strong>.</li>
 </ul>
 
 <h2><a href="http:rbmh0.5.zip">0.5</a> Oct 8, 1996</h2>
@@ -153,18 +155,19 @@ bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
         Several couldn't be lifted because of their types, and so
         have names like &quot;<strong>roundB</strong>&quot;
         instead of &quot;<strong>round</strong>&quot;. If you try
-        using something like &quot;<strong>round</strong>&quot;, you'll
-        get a helpful error message.</li>
+        using something like &quot;<strong>round</strong>&quot;,
+        you'll get a helpful error message.</li>
     <li>Added <strong>dispFps</strong> to ImageBTest.hs. This
-        variant of <strong>disp</strong> shows the frames per second.</li>
+        variant of <strong>disp</strong> shows the frames per
+        second.</li>
     <li>Re-activated frames-per-second counting. See <strong>dispFps</strong>
         in <strong>ImageBTest.hs</strong>.</li>
     <li>Added <strong>showB</strong>, a lifting of <strong>show</strong>.</li>
     <li>Integrated Gary's fix for <strong>viewSize</strong>
         behavior.</li>
     <li>Added example <strong>i37</strong> showing a use of <strong>viewSize</strong>
-        to stretch an image to fit the window, based on a similar function
-        of Gary's.</li>
+        to stretch an image to fit the window, based on a similar
+        function of Gary's.</li>
     <li>Added a frog image <strong>Media\frog.bmp</strong> from <a
         href="http://www.cs.yale.edu/homes/sjl/froggy.html">Sandra
         Loosemore's frog page</a>.</li>
@@ -180,13 +183,13 @@ bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
     <li>Added <strong>regularPolygon</strong> and <strong>star</strong>
         in <strong>Image.hs</strong> and <strong>ImageB.hs</strong>.</li>
     <li>Added <strong>bounce1'</strong>, a new version of <strong>bounce</strong>1,
-        in <strong>ImageBTest.hs</strong>. The new one is simpler,
-        but doesn't yet work, probably because of too much
-        self-reactivity (snapshotting and/or predicate).</li>
+        in <strong>ImageBTest.hs</strong>. The new one is
+        simpler, but doesn't yet work, probably because of too
+        much self-reactivity (snapshotting and/or predicate).</li>
     <li>Added <strong>UtilsB.hs</strong>. Ad hoc collection of
         definitions. These are here for introductory use, to make
-        it easier to do some simple things. I'd like to make it so
-        that kids can use this simple vocabulary.</li>
+        it easier to do some simple things. I'd like to make it
+        so that kids can use this simple vocabulary.</li>
 </ul>
 
 <h2><a href="http:rbmh0.7.zip">0.7</a> Oct 25, 1996</h2>
@@ -198,22 +201,22 @@ bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
         previous set. The event combinators <strong>suchThat</strong>
         and <strong>filterEv</strong>, which were previously
         primitive, are now derived. Even <strong>predicate</strong>
-        is defined in terms of &gt;&gt;. (Interval analysis still not restored.) <em>Check
-        it out!</em></li>
+        is defined in terms of &gt;&gt;. (Interval analysis still
+        not restored.) <em>Check it out!</em></li>
     <li>Big change in representation of behaviors and events. A
         behavior is no longer maps time streams to value streams,
-        but rather maps a single time to a value and a new behavior.
-        Simon PJ recommended this representation as being neatly deforestable by
-        GHC. (Sigbjorn also suggested it a while back.)
-        Similarly, an event takes a query time tq and returns
-        either a time/value pair (te,x) with te&lt;tq, or a new
-        event (non-occurrence).</li>
+        but rather maps a single time to a value and a new
+        behavior. Simon PJ recommended this representation as
+        being neatly deforestable by GHC. (Sigbjorn also
+        suggested it a while back.) Similarly, an event takes a
+        query time tq and returns either a time/value pair (te,x)
+        with te&lt;tq, or a new event (non-occurrence).</li>
     <li>Rewrote <strong>integral</strong> to be a recursive
         reactive behavior. Still uses Euler's method :-( but now
         is piecewise-linear between steps.</li>
 </ul>
 
-<h2><a href="http:rbmh0.8.zip">0.8</a> Oct 31, 1996</h2>
+<h2><a href="http:rbmh0.8patched.zip">0.8</a> Oct 31, 1996</h2>
 
 <ul>
     <li>Made this version just before giving a talk at the Oregon
@@ -224,13 +227,15 @@ bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
     <li>A bunch of new examples in a new source file <strong>Samples.hs</strong>.
         These are the OCATE talk examples. Try them out!</li>
     <li>Added <strong>Force.hs</strong>, which defines a <strong>Forceable</strong>
-        type class. Helps when lazy evaluation causes space leaks(Anthony
-        Daniels)</li>
+        type class. Helps when lazy evaluation causes space
+        leaks(Anthony Daniels)</li>
     <li>More helper functions in <strong>UtilsB.hs</strong>: <strong>TurnRight,
-        TurnLeft,</strong> <strong>move</strong>, <strong>biggerXY</strong>, <strong>smallerXY</strong>,
-        and <strong>wiggleRange</strong>. Removed <strong>moveHorizontal</strong>
-        and <strong>moveVertical</strong>. Removed color from the <strong>showIm</strong>
-        functions. Added <strong>atRate</strong> (synonym for <strong>integral</strong>). </li>
+        TurnLeft,</strong> <strong>move</strong>, <strong>biggerXY</strong>,
+        <strong>smallerXY</strong>, and <strong>wiggleRange</strong>.
+        Removed <strong>moveHorizontal</strong> and <strong>moveVertical</strong>.
+        Removed color from the <strong>showIm</strong> functions.
+        Added <strong>atRate</strong> (synonym for <strong>integral</strong>).
+    </li>
     <li>Added point and vector operation synonyms. .+^ .-., *^,
         and ^/.</li>
     <li>Text display now centers.</li>
@@ -245,6 +250,70 @@ bot="TimeStamp" i-checksum="31570" endspan --></em></h3>
         simplified <strong>lbp</strong> and <strong>rbp</strong></li>
     <li>Doubled pixels-per-unit. You'll notice that the demo
         window is now bigger.</li>
+</ul>
+
+<h2><a href="http:rbmh0.81.zip">0.81</a> Nov 11, 1996</h2>
+
+<ul>
+    <li>Integrated lots of changes from <a
+        href="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/reid-alastair.html">Alastair
+        Reid</a>. He updated rbmh to a newer Hugs version, and
+        making various improvements, and rewriting <strong>PrimInteract.hs</strong>
+        to be much simpler. (Thanks, Alastair!!)</li>
+    <li>Turned <strong>Samples.hs</strong> into a literate
+        program, <strong>Tutorial.lhs</strong> with lots of
+        prose. Please try it out and let me know what you think.</li>
+    <li>Re-introduced fuzzy/interval analysis, and reimplemented <strong>predicate</strong>
+        to use it. Renamed old version to <strong>predicate'</strong>.
+        It's still useful because <strong>predicate</strong>
+        doesn't handle <strong>untilB</strong> and (thus) <strong>integral</strong>
+        yet.</li>
+    <li>Replaced point and vector arithmetic names with
+        operators, based on the names that were in <strong>UtilsB.hs</strong></li>
+    <li>Replaced point and vector arithmetic names with
+        operators, based on the names that were in <strong>UtilsB.hs</strong>.
+        Added ^+^ and ^-^, although for specific vector space
+        types, + and - should be defined as well.</li>
+    <li>Added <strong>mouseTrailWords</strong> for making dancing
+        word lists in Tutorial.lhs Made <strong>trailWords</strong>
+        and <strong>mouseTrailWords</strong> take an explicit
+        color argument</li>
+    <li>In <strong>ShowImageB.hs</strong>, removed <strong>times</strong>,
+        which was motivated by an earlier representation. No more
+        <strong>unsafeIntereaveIO</strong>! Also simplified <strong>timeSinceMS</strong>
+        a lot, thanks to Alastair. I don't remember why I had the
+        complicated version. Made <strong>draw</strong> simpler,
+        by not using <strong>times</strong>.</li>
+    <li>In <strong>ShowImageB.hs, </strong>added flag <strong>presentation</strong>,
+        normally <strong>False</strong>. Make <strong>True</strong>
+        for a (e.g., PowerPoint) presentation. Makes the window
+        stay on top, but in a corner. Also, resizing the window
+        scales the animation.</li>
+    <li>In ImageBTest.hs, renamed <strong>viewStretch</strong> to
+        <strong>viewStretchBmpFile</strong>, and made it use <strong>viewStretch</strong>
+        in UtilsB.hs. The directions self-destruct after three
+        seconds.</li>
+    <li>Renamed <strong>Pick2Image</strong> module to <strong>PickImage.</strong></li>
+    <li>More and corrected <strong>Forceable</strong> instances.</li>
+    <li>Decoupled import vs display pixels-per-unit. See <strong>bitmapPixelsPerLengthHorizontal</strong>
+        in <strong>Image.hs</strong>, vs <strong>screenPixelsPerLengthHorizontal</strong>
+        in <strong>ShowImageB.hs</strong>, and similarly for
+        vertical.</li>
+    <li>Misc small improvements to <strong>Integral.hs</strong>.
+        Better factored now. Removed the scale-by-zero trick,
+        moving it outside of the recursion. Switched
+        implementation to work more natively at the behavior
+        level, removing the explicit lifting in <strong>linearPart</strong>.
+        Still does a sampling of the integrand, which it would be
+        nice to eliminate somehow.</li>
+    <li>Made all <strong>Win32</strong> dependencies explicit
+        through qualified import, in preperation for Thomas
+        Nordin's GHC green card.</li>
+    <li>Noticed that <strong>map</strong> is defined on <strong>IO</strong>.
+        Tweaked <strong>viewSize</strong> calculation in <strong>ShowImageB.hs</strong>
+        to use <strong>map</strong>. I wonder why <strong>Monad</strong>
+        isn't defined as a subclass of <strong>Functor</strong>,
+        since IO's definition of map does not seem IO-specific.</li>
 </ul>
 </body>
 </html>

@@ -7,6 +7,7 @@
 module Until where
 
 import Event
+import Fuzzy
 import Behavior 
 
 infixr 1 `untilB`
@@ -27,16 +28,19 @@ b `untilBB` e  =  b `untilCached` (cacheEvent e)
 
 -- This one uses caching, statefully implemented events
 
-b `untilCached` cachedEv = Behavior $ \ t ->
-  --trace ("untilCached: time == " ++ show t ++ "\n") $
-  case  cachedEv t  of
-    -- If e doesn't occur before t, yield b's value at t, with
-    -- a reconstructed untilBB behavior, based on possible changes
-    -- to b and e.
-    Nothing        ->  (x,  b' `untilCached` cachedEv)
-                        where (x, b') = b `at` t
-    -- Otherwise
-    Just (_,bAfterE)  ->  bAfterE `at` t
+b `untilCached` cachedEv = Behavior sample isample
+ where
+  sample t =
+    --trace ("untilCached: time == " ++ show t ++ "\n") $
+    case  cachedEv t  of
+      -- If e doesn't occur before t, yield b's value at t, with
+      -- a reconstructed untilBB behavior, based on possible changes
+      -- to b and e.
+      Nothing        ->  (x,  b' `untilCached` cachedEv)
+			  where (x, b') = b `at` t
+      -- Otherwise
+      Just (_,bAfterE)  ->  bAfterE `at` t
+  isample = noI "untilB"
 
 {-
 

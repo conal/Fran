@@ -2,7 +2,7 @@
 -- to make it easier to do some simple things. I'd like to make it so that
 -- kids can use this simple vocabulary.
 --
--- Last modified Tue Oct 29 17:29:36 1996
+-- Last modified Sun Nov 10 16:18:49 1996
 
 module UtilsB where
 
@@ -10,6 +10,7 @@ import qualified StaticTypes as S
 import Force
 
 import RBMH
+
 
 -- Move
 
@@ -50,7 +51,7 @@ slower x   = faster (1/x)
 
 -- Continuous show, rendered into an image
 
-showIm :: Text a => Behavior a -> ImageB
+showIm :: Show a => Behavior a -> ImageB
 
 showIm = stringBIm . showB
 
@@ -69,18 +70,16 @@ atRate :: (Forceable v, S.VectorSpace v) => Behavior v -> Time -> Behavior v
 atRate = integral
 
 
--- points and vectors.  Move to {Point,Vector}2{,B}.hs
+-- More specialized 
 
-infixl 6 .+^, .-.
-infixl 7 *^, ^/
+-- Given an image and a canonical size, stretch the image so that the size
+-- maps exactly onto the window view size.
 
-(.+^) = pointPlusVector2
-(.-.) = pointMinusPoint2
+viewStretch :: Vector2B -> Time -> ImageB -> ImageB
 
+viewStretch size t0 =
+  biggerXY (wWidth  / iWidth ) (wHeight / iHeight)
+  where
+    (wWidth, wHeight) = pairBSplit (vector2XYCoords (viewSize t0))
+    (iWidth, iHeight) = pairBSplit (vector2XYCoords size)
 
-(*^) :: S.VectorSpace v => Behavior S.Scalar -> Behavior v -> Behavior v
-
-(^/) :: S.VectorSpace v => Behavior v -> Behavior S.Scalar -> Behavior v
-
-(*^)  = scaleVector
-v ^/ s = (1/s) *^ v

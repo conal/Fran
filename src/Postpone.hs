@@ -20,12 +20,13 @@
 
 module Postpone where
 
-import Prelude hiding (MutVar,newVar,writeVar,readVar)
-import MutVar
+import IORef(Ref,newRef,getRef,setRef)
+import IOExtensions(unsafePerformIO, forkIO)
 
 -- Process queue.  Add newly suspended computations to the tail and pull
 -- off of the head.
-type PQueue = MutVar [IO ()] in
+type PQueue = Ref [IO ()] in
+  initProcTable :: IO (),
   newPQueue :: IO PQueue,
   postpone :: IO () -> IO (),
   emptyPQueue :: IO Bool,
@@ -39,10 +40,13 @@ withNewPQueue :: (PQueue -> IO ()) -> IO ()
 -- we create a global variable to hold the current set of blocked
 -- contexts. 
 
+-- initProcTable :: IO ()
+initProcTable = setRef proc_table []
+
 proc_table :: PQueue
 proc_table = unsafePerformIO (newPQueue)
 
-newPQueue = newVar []
+newPQueue = newRef (error "newPQueue")
 
 withNewPQueue h =
   newPQueue >>= \pq ->
@@ -52,32 +56,32 @@ withNewPQueue h =
 
 postpone cont =
   --tracePQ " postpone"                     >>
-  readVar proc_table                        >>= \ suspended ->
-  writeVar proc_table (suspended ++ [cont]) >>
+  getRef proc_table                        >>= \ suspended ->
+  setRef proc_table (suspended ++ [cont]) >>
   return ()
 
 tracePQ opstr =
-  readVar proc_table >>= \ suspended ->
+  getRef proc_table >>= \ suspended ->
   putStr (opstr ++ ": length pq = " ++ show (length suspended)) >>
   return ()
 
 
 emptyPQueue =
   --tracePQ " emptyPQueue" >>
-  readVar proc_table >>= \ suspended ->
+  getRef proc_table >>= \ suspended ->
   return (null suspended)
 
 -- Activate head of the queue
 activateOne =
   --tracePQ " activateOne" >>
-  readVar proc_table     >>= \ suspended ->
+  getRef proc_table     >>= \ suspended ->
   case suspended of
      -- No postponed computations?  All done.
     []  ->  error "{activateOne} Empty pqueue"
      -- otherwise, pop off the head of the queue and yield
      -- that head.
     (firstSuspended : restSuspended) ->
-       writeVar proc_table restSuspended >>
+       setRef proc_table restSuspended >>
        firstSuspended
 
 -- Keep activating until nothing left to do.

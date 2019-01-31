@@ -5,29 +5,24 @@
 -- Last modified Mon Oct 21 11:36:18 1996
 
 module PrimInteract 
-        (
-         initUser,        -- :: IO ()
-         primBP,          -- :: Time -> Event (Point2,Bool,Bool)
-         primLBP,primLBR, -- :: Time -> Event Point2
-         primRBP,primRBR, -- :: Time -> Event Point2
-
-         primKP,          -- :: Time -> Event Char
-         primKR,          -- :: Time -> Event Char
-         primMousePos,    -- :: Time -> Event Point2
-         primViewSz,      -- :: Time -> Event Vector2
-         primFPS,         -- :: Time -> Event Double
-
-         -- For ShowImage only (ToDo: create an InteractImpl interface)
-         firePrimBPEv,
-         firePrimKeyEv,
-         firePrimMouseEv,
-         firePrimViewSize,
-         firePrimFPS
-
+        (PrimEV(..)      
+	,button         -- :: PrimEV (Point2,Bool,Bool)
+	,key	        -- :: PrimEV Point2
+	,mousePos       -- :: PrimEV Point2
+	,viewSz	        -- :: PrimEV Vector2
+	,fps	        -- :: PrimEV Double
+	,initUser       -- :: IO ()
+		      
+        ,lbp,lbr     	-- :: Time -> Event Point2
+        ,rbp,rbr     	-- :: Time -> Event Point2
+		      
+        ,keyPress       -- :: Time -> Event Char
+        ,keyRelease     -- :: Time -> Event Char
         ) where
 
-import Prelude hiding (MutVar,newVar,readVar,writeVar)
-import MutVar
+import IORef(Ref,newRef,getRef,setRef)
+import IOExtensions(unsafePerformIO)
+
 import External
 import Behavior
 import Event
@@ -49,142 +44,82 @@ import Vector2
         state, so 
 -}
 
+----------------------------------------------------------------
+-- Primitive Event Dowidgets
+--
+-- NB These contain global mutable variables and are therefore
+-- not referentially transparent.  Care should be taken not to
+-- duplicate these variables or "substitute equals for equals".
+---------------------------------------------------------------
 
+button   :: PrimEV (Point2,Bool,Bool)
+key      :: PrimEV (Char, Bool)
+mousePos :: PrimEV Point2
+viewSz   :: PrimEV Vector2
+fps      :: PrimEV Double
+
+button   = unsafePerformIO $ mkPrimEV "button"
+key      = unsafePerformIO $ mkPrimEV "key"
+mousePos = unsafePerformIO $ mkPrimEV "mousePos"
+viewSz   = unsafePerformIO $ mkPrimEV "viewSz"
+fps      = unsafePerformIO $ mkPrimEV "fps"
 
 -- Initialise the interaction `devices'
 
 initUser :: IO ()
-initUser =
- readVar primBPEGVar     >>
- readVar primKeyEGVar    >>
- readVar primMouseEGVar  >>
- readVar primViewSzEGVar >>
- readVar primFPSEGVar    >>
- return ()
+initUser = do
+  reset button
+  reset key
+  reset mousePos
+  reset viewSz
+  reset fps
 
-primBPEGVar = 
- unsafePerformIO (
-   newExternalEGen "button" 0        >>= \ (egv, tev) ->
-   writeVar primBPTEv tev   >>
-   return egv)
+----------------------------------------------------------------
+-- Mouse button functions
+----------------------------------------------------------------
 
--- Shortcut used by toplevel ev.loop
-
-firePrimBPEv :: Time -> Point2 -> Bool -> Bool -> IO ()
-firePrimBPEv t pt left press = 
--- putStrLn ("firing: "++show t) >>
- fireExternalEGen "button" primBPEGVar t (pt,left,press)
-
-primBPTEv :: MutVar (Time -> Event (Point2,Bool,Bool))
-primBPTEv = unsafePerformIO (newVar (error "primBPTEv"))
-
-primBP :: Time -> Event (Point2,Bool,Bool)
-primBP = unsafePerformIO (readVar primBPTEv)
+lbp, lbr, rbp, rbr :: Time -> Event Point2
+lbp = filteredBP True  True
+lbr = filteredBP True  False
+rbp = filteredBP False True
+rbr = filteredBP False False
 
 filteredBP :: Bool -> Bool -> Time -> Event Point2
-filteredBP isLeft isPress = filterEv primBP f
+filteredBP isLeft isPress = filterEv (getEvent button) f
  where
-  f (p,left,press) =
-    if left==isLeft && press==isPress then
-       Just p
-    else
-       Nothing
+  f (p,left,press) | left==isLeft && press==isPress = Just p
+                   | otherwise                      = Nothing
 
+----------------------------------------------------------------
+-- Keyboard handling utilities
+----------------------------------------------------------------
 
--- Derived mouse button functions
-
-primLBP, primLBR, primRBP, primRBR :: Time -> Event Point2
-
-primLBP = filteredBP True  True
-primLBR = filteredBP True  False
-primRBP = filteredBP False True
-primRBR = filteredBP False False
-
-
--- Keyboard handling
-
-primKeyEGVar = 
- unsafePerformIO (
-   newExternalEGen "key" 0        >>= \ (egv, tev) ->
-   writeVar primKeyTEv tev  >>
-   return egv)
-
-primKeyTEv :: MutVar (Time -> Event (Char,Bool))
-primKeyTEv = unsafePerformIO (newVar (error "primKeyTEv"))
-
-firePrimKeyEv :: Time -> Char -> Bool -> IO ()
-firePrimKeyEv t ch press = 
- fireExternalEGen "key" primKeyEGVar t (ch,press)
-
-primKey :: Time -> Event (Char,Bool)
-primKey = unsafePerformIO (readVar primKeyTEv)
+keyPress, keyRelease :: Time -> Event Char
+keyPress   = filteredKey True
+keyRelease = filteredKey False
 
 filteredKey :: Bool -> Time -> Event Char
-
-filteredKey isPress = filterEv primKey f
+filteredKey isPress = filterEv (getEvent key) f
  where
-  f (ch,press) =
-    if press==isPress then
-       Just ch
-    else
-       Nothing
+  f (ch,press) | press==isPress = Just ch
+               | otherwise      = Nothing
 
-primKP, primKR :: Time -> Event Char
+----------------------------------------------------------------
+-- Package them up in a structure for export
+----------------------------------------------------------------
 
-primKP = filteredKey True
-primKR = filteredKey False
+data Show a => PrimEV a = 
+  PrimEV {
+    reset    :: IO (),
+    fire     :: Time -> a -> IO (),
+    getEvent :: Time -> Event a
+    }
 
-
-
--- Tracking mouse positions
-
-primMouseEGVar = 
- unsafePerformIO (
-   newExternalEGen "mouse" 0          >>= \ (egv, tev) ->
-   writeVar primMouseTEv tev  >>
-   return egv)
-
-primMouseTEv :: MutVar (Time -> Event Point2)
-primMouseTEv = unsafePerformIO (newVar (error "primMouseTEv"))
-
-firePrimMouseEv :: Time -> Point2 -> IO ()
-firePrimMouseEv = fireExternalEGen "mouse" primMouseEGVar
-
-primMousePos :: Time -> Event Point2
-primMousePos = unsafePerformIO (readVar primMouseTEv)
-
-
-primViewSzEGVar = 
- unsafePerformIO (
-   newExternalEGen "view size" 0            >>= \ (egv, tev) ->
-   writeVar primViewSzTEv tev   >>
-   return egv)
-
-{- Shortcut used by toplevel ev.loop -}
-firePrimViewSize :: Time -> Vector2 -> IO ()
-firePrimViewSize t v  =
-  -- trace ("view size " ++ show v ++ " at time " ++ show t ++ "\n") $
-  fireExternalEGen "view size" primViewSzEGVar t v
-
-primViewSzTEv :: MutVar (Time -> Event Vector2)
-primViewSzTEv = unsafePerformIO (newVar (error "primViewSzTEv"))
-
-primViewSz :: Time -> Event Vector2
-primViewSz = unsafePerformIO (readVar primViewSzTEv)
-
-primFPSEGVar = 
- unsafePerformIO (
-   newExternalEGen "fps" 0         >>= \ (egv, tev) ->
-   writeVar primFPSTEv tev   >>
-   return egv)
-
-{- Shortcut used by toplevel ev.loop -}
-firePrimFPS :: Time -> Double -> IO ()
-firePrimFPS = fireExternalEGen "fps" primFPSEGVar
-
-primFPSTEv :: MutVar (Time -> Event Double)
-primFPSTEv = unsafePerformIO (newVar (error "primFPSTEv"))
-
-primFPS :: Time -> Event Double
-primFPS = unsafePerformIO (readVar primFPSTEv)
-
+mkPrimEV :: Show a => String -> IO (PrimEV a)
+mkPrimEV nm = 
+  newExternalEGen nm >>= \ (egv, tev) ->
+  return $ PrimEV { 
+	     reset    = initExternalEGen nm egv 0,
+	     fire     = fireExternalEGen nm egv,
+	     getEvent = tev
+	     }

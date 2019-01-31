@@ -2,11 +2,14 @@
 --
 -- Last modified Mon Oct 28 16:52:51 1996
 
-module Text where
+module Text(
+	TextT,
+	simpleText, boldT, italicT, textFont
+	) where
 
 import qualified Font
 
-data TextT = TextT Font.Font String deriving Text
+data TextT = TextT Font.Font String deriving Show
 
 simpleText :: String -> TextT
 simpleText str = TextT Font.timesRoman str

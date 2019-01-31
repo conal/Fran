@@ -1,10 +1,10 @@
 -- Converting Picture values into graphical output (Win32 GDI).
 --
--- Last modified Mon Oct 28 17:56:30 1996
+-- Last modified Sun Nov 10 16:19:06 1996
 
 module RenderImage (draw) where
 
-import qualified Win32 hiding (writeFile,readFile,rgb,drawText)
+import qualified Win32
 import Image
 import Point2
 import Color
@@ -111,7 +111,7 @@ drawText hdc xf (TextT (Font.Font fam bold italic) str) =
  -- no need to get current font before setting new one, since the font is
  -- set locally for each use of Text
  -- putStrLn ("drawing text at " ++ show (x,y) ++ ". width==" ++ show width ++ ", escapement==" ++ show escapement) >>
- Win32.createFont width height
+ Win32.createFont width 0
                   escapement
                   0                   -- orientation
                   weight
@@ -121,7 +121,7 @@ drawText hdc xf (TextT (Font.Font fam bold italic) str) =
                   Win32.cLIP_DEFAULT_PRECIS
                   Win32.dEFAULT_QUALITY
                   Win32.dEFAULT_PITCH
-                  gdiFam >>= \hf ->
+                  gdiFam                   >>= \hf ->
  Win32.selectFont hdc hf                   >>= \ old ->
  -- This next guy is already done in showImageB.hs, but is ineffective
  -- there.  Why?
@@ -132,14 +132,14 @@ drawText hdc xf (TextT (Font.Font fam bold italic) str) =
  return ()
  where
   (x0,y0) = point2XYCoords p0
-  (stretch,angle) = vector2PolarCoords (p1 `pointMinusPoint2` p0)
+  (stretch,angle) = vector2PolarCoords (p1 .-. p0)
   p0     = xf *% origin2
   p1     = xf *% (point2XY 1 0)
-  -- This 20x12 is a guess.  Do the right thing.
-  width  = round (20 * stretch / pixelsPerLengthHorizontal)
-  height = round (12 * stretch / pixelsPerLengthVertical)
+  -- The 10 is empirically derived.
+  width  = round (stretch / 5)
   escapement = round (-angle * 1800/pi)
-  weight = if bold then 700 else 0
+  weight  | bold      = Win32.fW_BOLD
+          | otherwise = Win32.fW_NORMAL
   gdiFam =
    case fam of
      Font.System     -> "System" -- this is going to break ..
@@ -148,30 +148,6 @@ drawText hdc xf (TextT (Font.Font fam bold italic) str) =
      Font.Arial      -> "Arial"
      Font.Symbol     -> "Symbol"
 
-
-{- Need support in Win32.hs beyond Yale0 to do this.
-drawText :: Win32.HDC -> Int -> Int -> TextT -> IO ()
-drawText hdc x y (TextT (Font.Font fam bold ital) str) =
-  -- no need to get current font before setting new one, since the font is
-  -- set locally for each use of Text
- Win32.ezCreateFont hdc fam' 150 0 0 False >>= \ hf ->
- Win32.selectFont hdc hf                   >>= \ old ->
- Win32.textOut hdc x y str                 >>
- Win32.selectFont hdc old                  >>
- Win32.deleteFont hf                       >>
- return ()
- where
-  gdiFam =
-   (case fam of
-     Font.System     -> "System" -- this is going to break ..
-     Font.TimesRoman -> "Times New Roman"
-     Font.Courier    -> "Courier New"
-     Font.Arial      -> "Arial"
-     Font.Symbol     -> "Symbol") ++ 
-   (if bold then " Bold" else "") ++
-   (if ital then " Italic" else "")
-
--}
 
 drawWithColor hdc (RGB r g b) m =
    -- Sets brush, pen, and text colors.  Oops -- The Win32 "createPen"

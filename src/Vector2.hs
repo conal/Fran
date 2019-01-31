@@ -1,11 +1,11 @@
 {- RBMH 2D (static) Vectors
 
- Last modified Tue Oct 29 17:30:47 1996
+ Last modified Sun Nov 10 16:17:04 1996
 -}
 module Vector2 
         (
          Vector2(..),
-           -- instance Vector2 (Eq,Text,Num,VectorSpace,Transformable2)
+           -- instance Vector2 (Eq,Show,Num,VectorSpace,Transformable2)
          xVector2, yVector2,    -- :: Vector2, Vector2  -- unit vectors
 
          vector2XY,             -- :: RealVal -> RealVal -> Vector2
@@ -19,7 +19,7 @@ import BaseTypes
 import VectorSpace
 import Force
 
-data Vector2 = Vector2XY Double Double   deriving (Eq,Text)
+data Vector2 = Vector2XY Double Double   deriving (Eq,Show)
 
 vector2XY :: RealVal -> RealVal -> Vector2
 vector2XY = Vector2XY
@@ -43,20 +43,23 @@ vector2PolarCoords v@(Vector2XY x y) =
 instance  VectorSpace Vector2  where
   zeroVector = Vector2XY 0 0
 
-  scaleVector sc (Vector2XY dx dy) = Vector2XY (sc*dx) (sc*dy)
+  sc *^ (Vector2XY dx dy) = Vector2XY (sc*dx) (sc*dy)
 
-  addVector (Vector2XY dx1 dy1) (Vector2XY dx2 dy2) =
+  (Vector2XY dx1 dy1) ^+^ (Vector2XY dx2 dy2) =
     Vector2XY (dx1+dx2) (dy1+dy2)
 
   (Vector2XY dx1 dy1) `dot` (Vector2XY dx2 dy2)  =  dx1*dx2 + dy1*dy2
 
 instance  Num Vector2  where
-  (+)      = addVector
-  negate v = -1 `scaleVector` v
+  (+)    = (^+^)
+  negate = negateVector
   -- (-) follows from negate and +
   fromInteger = error "Can't interpret integers as Vector2"
+
 
 instance Forceable Vector2 where
   force v@(Vector2XY x y) = force x `seq` force y `seq` v
 
 
+-- This is here so we can use + and - on Vector2B.
+instance Ord Vector2

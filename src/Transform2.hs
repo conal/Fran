@@ -1,12 +1,12 @@
 -- 2D transforms.
 -- 
--- Last modified Mon Sep 16 14:54:42 1996
+-- Last modified Sun Nov 10 16:17:24 1996
 module Transform2 
         (
          Transform2(..),
            {- instance {Eq,  -- currently structural
                         Ord, -- currently empty
-                        Text}
+                        Show}
                        Transform2
            -}
          Transformable2((*%)),
@@ -34,7 +34,7 @@ infixr 7 *%,`compose2`           -- transform apply and compose
 
 data Transform2 =
   X RealVal RealVal RealVal RealVal RealVal RealVal
-  deriving (Eq,Text)
+  deriving (Eq,Show)
 
 -- Renamed constructor
 transform3x2 = X
@@ -53,7 +53,7 @@ class Transformable2 a where
 
 instance Translateable2 Vector2 where
   translate2 (Vector2XY dx dy) =  X   1    0  dx
-				      0    1  dy
+                                      0    1  dy
 
 
 -- Should we even have this one?
@@ -72,7 +72,7 @@ instance Translateable2 (RealVal,RealVal) where
 {- Overloadings of scale -}
 instance Scaleable2 Vector2 where
   scale2 (Vector2XY sx sy) = X  sx    0  0   
-				0    sy  0
+                                0    sy  0
 
   
 instance Scaleable2 Double where
@@ -86,10 +86,10 @@ instance Scaleable2 Double where
 
 
 identity2 = X  1   0   0
-	       0   1   0
+               0   1   0
 
 rotate2 a = X   c (-s)  0   
-		s    c  0  
+                s    c  0  
  where 
   c = cos a
   s = sin a
@@ -131,4 +131,4 @@ instance Transformable2 Point2 where
 
 instance Transformable2 Vector2 where
  xf *% (Vector2XY x y) =
-  xf *% (point2XY x y) `pointMinusPoint2` xf *% origin2
+  xf *% (point2XY x y) .-. xf *% origin2

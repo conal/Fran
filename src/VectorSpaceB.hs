@@ -1,9 +1,10 @@
 -- Behavior-level vector spaces
 -- 
--- Last modified Thu Oct 03 10:27:28 1996
+-- Last modified Sun Nov 10 16:15:46 1996
 
 module VectorSpaceB where
 
+import Fuzzy
 import Behavior
 import qualified VectorSpace as VS
 
@@ -13,28 +14,33 @@ import qualified VectorSpace as VS
 -- importation is done qualified.  Is this a Hugs bug??  If so, be sure to
 -- restore the infix declarations below when the bug is fixed.
 
--- infixr 7 `scaleVector`, `dot`
--- infixl 6 `addVector`
+-- infixr 7 *^, ^/, `dot`
+-- infixl 6 ^+^, ^-^
 
 zeroVector :: VS.VectorSpace v => Behavior v
 zeroVector  = lift0 VS.zeroVector
 
-scaleVector :: VS.VectorSpace v => Behavior VS.Scalar
+(*^) :: VS.VectorSpace v => Behavior VS.Scalar
                   -> Behavior v -> Behavior v
-scaleVector = lift2 VS.scaleVector
+(*^) = lift2 (VS.*^) (noI "(*^)")
 
-addVector :: VS.VectorSpace v => Behavior v
+(^/) :: VS.VectorSpace v => Behavior v ->
+           Behavior VS.Scalar -> Behavior v
+(^/) = lift2 (VS.^/) (noI "(^/)")
+
+(^+^),(^-^) :: VS.VectorSpace v => Behavior v
                   -> Behavior v -> Behavior v
-addVector = lift2 VS.addVector
+(^+^) = lift2 (VS.^+^) (noI "(^+^)")
+(^-^) = lift2 (VS.^-^) (noI "(^-^)")
 
 dot :: VS.VectorSpace v => Behavior v
                   -> Behavior v -> Behavior VS.Scalar
-dot = lift2 VS.dot
+dot = lift2 VS.dot (noI "dot")
 
 magnitude, magnitudeSquared
    :: VS.VectorSpace v => Behavior v -> Behavior VS.Scalar
-magnitudeSquared = lift1 VS.magnitudeSquared
-magnitude        = lift1 VS.magnitude
+magnitudeSquared = lift1 VS.magnitudeSquared (noI "magnitudeSquared")
+magnitude        = lift1 VS.magnitude (noI "magnitude")
 
 normalize :: VS.VectorSpace v => Behavior v -> Behavior v
-normalize = lift1 VS.normalize
+normalize = lift1 VS.normalize (noI "normalize")

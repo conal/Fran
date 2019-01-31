@@ -1,11 +1,11 @@
 -- Higher-level interaction
 --
--- Last modified Sun Oct 27 23:23:00 1996
+-- Last modified Tue Nov 05 14:48:16 1996
 
 module Interaction where
 
-import qualified MutVar
-import PrimInteract
+import IORef(Ref,newRef,getRef,setRef)
+import qualified PrimInteract as Prim
 --import Interval
 import Behavior
 import Event
@@ -18,21 +18,21 @@ import Point2B (Point2B)
 import qualified Point2B (linearInterpolate2)
 -- import Image (Image)
 -- import Point2B
--- import qualified Pick2Image
+-- import qualified PickImage
 
 lbp,rbp :: Time -> Event (Event ())
-lbp t0 = primLBP t0 *=> lbr
-rbp t0 = primRBP t0 *=> rbr
+lbp t0 = Prim.lbp t0 *=> lbr
+rbp t0 = Prim.rbp t0 *=> rbr
 
 lbr, rbr :: Time -> Event ()
 
-lbr t1 = primLBR t1 -=> ()
-rbr t1 = primRBR t1 -=> ()
+lbr t1 = Prim.lbr t1 -=> ()
+rbr t1 = Prim.rbr t1 -=> ()
 
 keyPress :: Time -> Event (Char, Event ())
 keyPress t0 =
-  primKP t0 +=> \ t1 ch ->
-   (ch, (primKR `suchThat` (== ch)) t0 -=> ())
+  Prim.keyPress t0 +=> \ t1 ch ->
+   (ch, (Prim.keyRelease `suchThat` (== ch)) t0 -=> ())
 
 -- Piecewise-constant mouse behavior 
 
@@ -40,7 +40,7 @@ mouse :: Time -> Point2B
 mouse t0 = mouse' t0 origin2
  where
   mouse' t0 p =
-   lift0 p `untilB` primMousePos t0 +=> mouse'
+   lift0 p `untilB` (Prim.getEvent Prim.mousePos) t0 +=> mouse'
 
 
 
@@ -62,7 +62,7 @@ mouse t0 = mouse' t0 origin2 (t0-1) origin2
    -- adding an initial peaceful state.
    Point2B.linearInterpolate2 (lift0 p0) (lift0 p1)
                               ((time - lift0 t0) / lift0 (t1-t0)) `untilB`
-    (primMousePos t1 .|. (timeIs (t1+0.2) -=> p1)) +=> mouse' t1 p1
+    (getEvent mousePos t1 .|. (timeIs (t1+0.2) -=> p1)) +=> mouse' t1 p1
 
 -}
 
@@ -70,7 +70,7 @@ viewSize :: Time -> Vector2B
 viewSize t0 = viewSz' t0 initialSize
  where
   viewSz' t0 v =
-    lift0 v `untilB` primViewSz t0 +=> viewSz'
+    lift0 v `untilB` Prim.getEvent Prim.viewSz t0 +=> viewSz'
   -- Hack: we don't really know the initial size here.  This won't work
   -- for ActiveX controls
   initialSize = vector2XY 2 2
@@ -79,7 +79,7 @@ fps :: Time -> Behavior Double
 fps t0 = fps' t0 0
  where
   fps' t0 count =
-    lift0 count `untilB` primFPS t0 +=> fps'
+    lift0 count `untilB` Prim.getEvent Prim.fps t0 +=> fps'
 
 {-
 
@@ -87,23 +87,23 @@ visible :: Behavior Image -> Point2B -> Behavior Bool
 visible img pointB = 
  Behavior (sample) (noI "visible")
  where
-  sample t = Pick2Image.pick (img `at` t) (pointB `at` t)
+  sample t = PickImage.pick (img `at` t) (pointB `at` t)
 
 when :: (Time -> Event a) -> Behavior Bool -> Time -> Event a
 when evg predB t0 = 
  let
   ev = evg t0
-  evv = unsafePerformIO (MutVar.newVar ev)
+  evv = unsafePerformIO (newRef ev)
 
   evt t =
-     case occ (unsafePerformIO (MutVar.readVar evv)) t of
+     case occ (unsafePerformIO (getRef evv)) t of
        Nothing -> Nothing
        Just (tVal,x) ->
          if predB `at` tVal then
             Just (tVal,x)
          else
             unsafePerformIO (
-               MutVar.writeVar evv (evg tVal) >>
+               setRef evv (evg tVal) >>
                return (evt t))
  in
  mkEvt t0 (evt)

@@ -21,7 +21,7 @@ data Font
      Family   
      Bool    -- bold or not
      Bool    -- italics
-   deriving Text
+   deriving Show
 
 system :: Font
 system = Font System False False
@@ -62,4 +62,4 @@ data Family
  | Courier
  | Arial
  | Symbol
-   deriving Text
+   deriving Show

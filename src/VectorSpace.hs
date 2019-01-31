@@ -1,6 +1,6 @@
 -- Vector spaces
 -- 
--- Last modified Tue Oct 29 17:30:01 1996
+-- Last modified Sun Nov 10 16:16:30 1996
 -- 
 -- Doesn't work as well as we'd like.  Lacking type relations, we have to
 -- hardwire the scalar type, which means we can't use behaviors, so we
@@ -13,8 +13,8 @@ module VectorSpace where
 
 import Force 
 
-infixr 7 `scaleVector`, `dot`
-infixl 6 `addVector`
+infixr 7 *^, ^/, `dot`
+infixl 6 ^+^, ^-^
 
 -- Vector space type class.  Should really be a binary type relation,
 -- rather than having Double hardwired.
@@ -23,13 +23,22 @@ type Scalar = Double
 
 class VectorSpace v where
   zeroVector         :: v
-  scaleVector        :: Scalar -> v -> v
-  addVector          :: v -> v -> v
-  dot                :: v -> v -> Scalar
+  (*^)        :: Scalar -> v -> v
+  (^+^)       :: v -> v -> v
+  dot         :: v -> v -> Scalar
 
 
--- negateVector :: VectorSpace v =>  v -> v
--- negateVector v = -1 `scaleVector` v
+(^-^) :: VectorSpace v => v -> v -> v
+
+v ^-^ v' = v ^+^ negateVector v'
+
+(^/) :: VectorSpace v => v -> Scalar -> v
+
+v ^/ s = (1/s) *^ v
+
+
+negateVector :: VectorSpace v =>  v -> v
+negateVector v = -1 *^ v
 
 magnitudeSquared :: VectorSpace v =>  v -> Scalar
 magnitudeSquared v = v `dot` v
@@ -38,7 +47,7 @@ magnitude :: VectorSpace v =>  v -> Scalar
 magnitude = sqrt . magnitudeSquared
 
 normalize :: VectorSpace v =>  v -> v
-normalize v = (1 / magnitude v) `scaleVector` v
+normalize v = v ^/ magnitude v
 
 
 
@@ -52,23 +61,23 @@ normalize v = (1 / magnitude v) `scaleVector` v
   the Floating instances (not extensible)...sigh.
 
 instance  Floating a => VectorSpace a  where
-  zeroVector    =  0
-  scaleVector   =  (*)
-  addVector     =  (+)
-  a `dot` b     =  fromRealFrac (a * b)
+  zeroVector  =  0
+  (*^)        =  (*)
+  (^+^)       =  (+)
+  a `dot` b   =  fromRealFrac (a * b)
 -}
 
 instance  VectorSpace Double  where
-  zeroVector     =  0.0
-  scaleVector    =  (*)
-  addVector      =  (+)
-  dot            =  (*)
+  zeroVector  =  0.0
+  (*^)        =  (*)
+  (^+^)       =  (+)
+  dot         =  (*)
 
 instance VectorSpace Float where
-  zeroVector          =  0.0
-  d  `scaleVector` f  =  (fromDouble d) * f
-  addVector           =  (+)
-  a `dot` b           =  fromRealFrac (a * b)
+  zeroVector  =  0.0
+  d  *^ f     =  (fromDouble d) * f
+  (^+^)       =  (+)
+  a `dot` b   =  fromRealFrac (a * b)
 
 
 {- We'd like to use +, -, and negate on vector spaces.  As above, we
@@ -77,8 +86,8 @@ instance VectorSpace Float where
    Workaround: define the Vector2 instance specifically (in Vector2.hs).
 
 instance  VectorSpace a => Num a  where
-  (+)      = addVector
-  negate v = -1 `scaleVector` v
+  (+)      = ^+^
+  negate v = -1 *^ v
   -- (-) follows from negate and +
 
 -}

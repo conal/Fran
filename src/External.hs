@@ -1,19 +1,22 @@
 -- External events.
 --
--- Last modified Wed Oct 23 12:15:33 1996
+-- Last modified Wed Nov 06 10:33:44 1996
 --
 -- This stuff needs an overhaul.  External events don't sensibly
 -- time-transform, and if one asks for the first occurrence after a time
 -- in the past or future, the wrong thing happens (silently).
 
-module External where
+module External(
+	module External
+	) where
 
-import Prelude hiding (MutVar,newVar,readVar,writeVar)
-import MutVar
+import IORef(Ref,newRef,getRef,setRef)
+import IOExtensions(unsafePerformIO)
 
 import Behavior
 import Event
 import Win32 (MilliSeconds)
+import Monad (when)
 
 -- A piece of state that can hold an event time and value.  Initialized to
 -- Nothing and set to something at most once.
@@ -22,7 +25,7 @@ import Win32 (MilliSeconds)
 --    support for IVars, modelling I-structures.)
 --   
 
-type EventVar a = MutVar (Maybe (Time, a))
+type EventVar a = Ref (Maybe (Time, a))
  {-
    newStateEvent :: Time -> IO (EventVar a, Event a)
    stateEvent    :: EventVar a -> Event a
@@ -32,7 +35,7 @@ type EventVar a = MutVar (Maybe (Time, a))
 newStateEvent :: String -> Time -> IO (EventVar a, Event a)
 
 newStateEvent eventName t0 =  
- newVar Nothing >>= \ var ->
+ newRef Nothing >>= \ var ->
  return (var, stateEvent eventName t0 var)
 
 -- The event of an EventVar being set to something
@@ -44,7 +47,7 @@ stateEvent eventName t0 var = event
   event = Event sample
   sample t =
     unsafePerformIO (
-    readVar var >>= \ mbOcc ->
+    getRef var >>= \ mbOcc ->
     return $
     case mbOcc of
        -- If already set, compare times.
@@ -60,22 +63,26 @@ stateEvent eventName t0 var = event
 -- External event generator state.  For things like mouse button press or
 -- window close.
 
-type EGVar a = MutVar (EventVar a, Event a)
+type EGVar a = Ref (EventVar a, Event a)
 
-newExternalEGen :: String -> Time -> IO (EGVar a, Time -> Event a)
+initExternalEGen :: String -> EGVar a -> Time -> IO ()
+initExternalEGen eventName egVar t0 =
+  newStateEvent eventName t0 >>= \ eventVarAndEvent ->
+  setRef egVar eventVarAndEvent
 
-newExternalEGen eventName t0 =
+newExternalEGen :: String -> IO (EGVar a, Time -> Event a)
+
+newExternalEGen eventName =
   -- Make new EventVar/Event pair and initialize a new EGVar with it.
-  --putStrLn ("newExternalEGen " ++ eventName ++ " " ++ show t0) >>
-  newStateEvent eventName t0        >>= \ eventVarAndEvent ->
-  newVar eventVarAndEvent >>= \ egVar ->
+  -- when (eventName == "button") (putStrLn $ "newExternalEGen " ++ eventName) >>
+  newRef undefined >>= \ egVar ->
   let
     stateEventGen tStart =
       -- Just return the current Event.  BUG: the contents of egVar
       -- could get/have gotten changed between t0 and now.  Should do some
       -- buffering?
       unsafePerformIO (
-        readVar egVar >>= \ (_, ev) ->
+        getRef egVar >>= \ (_, ev) ->
         --putStrLn ("stateEventGen (" ++ eventName ++ "): " ++ show tStart) >>
         return ev)
   in
@@ -84,16 +91,16 @@ newExternalEGen eventName t0 =
 
 -- Cause an internalized event to fire.
 
-fireExternalEGen :: Text a => String -> EGVar a -> Time -> a -> IO ()
+fireExternalEGen :: Show a => String -> EGVar a -> Time -> a -> IO ()
 
 fireExternalEGen eventName egVar occTime occValue =
   -- Set the current EventVar to have occurred.
-  --putStrLn ("Firing " ++ eventName ++ " " ++ show occValue ++ " at time " ++ show occTime) >>
-  readVar egVar    >>=  \ (eventVar, _) ->
-  writeVar eventVar (Just (occTime, occValue)) >>
+  --when (eventName == "button") (putStrLn $ "Firing " ++ eventName ++ " " ++ show occValue ++ " at time " ++ show occTime) >>
+  getRef egVar    >>=  \ (eventVar, _) ->
+  setRef eventVar (Just (occTime, occValue)) >>
     
   -- Replace it with a new EventVar/Event pair.
-  newStateEvent eventName occTime >>= writeVar egVar
+  newStateEvent eventName occTime >>= setRef egVar
 
 -- Implementation note: these newStateEvent's created upon external event
 -- occurrence will often not get used, in which case the stateEvent won't

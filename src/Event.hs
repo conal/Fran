@@ -1,13 +1,15 @@
 -- The "event algebra".
 -- 
--- Last modified Tue Oct 29 17:49:11 1996
+-- Last modified Sun Nov 10 17:20:06 1996
 
 
 module Event where
 
-import Behavior (Time, Behavior, at)
-import Prelude hiding (MutVar, newVar,readVar,writeVar)
-import MutVar
+import Fuzzy (Upto, TimeI)
+import Behavior (Time, Behavior, at, during, BoolB)
+import IORef(Ref,newRef,getRef,setRef)
+import IOExtensions(unsafePerformIO)
+import Utils(trace)
 import Force
 
 infixl 9 `snapshot`
@@ -37,6 +39,10 @@ occ (Event sample) = sample
 
 -- Event handling:
 
+
+-- Note that an event happens no earlier than a given time.  Useful for
+-- doing some work to determine a lower bound for an event time.  Laziness
+-- postpones determination of the event time for a while.
 
 timeIsAtLeast :: Time -> Event a -> Event a
 
@@ -88,7 +94,7 @@ joinEvent ev =
  case ev `occ` t of
    NonOcc newEv  -> NonOcc (joinEvent newEv)
    Occ te ev'    ->
-     --trace ("+>>= found LHS occurrence " ++ show te ++ "\n") $
+     --trace ("joinEvent: found inner occurrence at " ++ show te ++ "\n") $
      ev' `occ` t
 
 -- A "constant event" that has a given time and value
@@ -120,9 +126,10 @@ ev `snapshot` b =
     Occ te x   ->  Occ te (x,y)
                      where (y, _) = b `at` te
 
-    -- We force the evaluation of y below to aviod a problem with snapshot of the mouse.
+    -- We force the evaluation of y below to aviod a problem with snapshot
+    -- of the mouse.
     NonOcc ev' ->  force y `seq` 
-		   NonOcc (ev' `snapshot` b')		     
+                   NonOcc (ev' `snapshot` b')                
                      -- move b along
                      where (y, b') = b `at` t
 
@@ -137,12 +144,19 @@ cacheEvent :: Event a -> (Time -> Maybe (Time, a))
 
 cacheEvent ev = cachedEv
  where
+{- 
+  -- Equivalent code with no caching - use for debugging
+  uncachedEv t =
+    case  ev `occ` t  of
+    Occ te x    -> Just (te,x)
+    NonOcc ev'' -> Nothing
+-}
   cachedEv =
    unsafePerformIO (
-    newVar (Right (minPossibleTime, ev))  >>= \ cacheVar ->
+    newRef (Right (minPossibleTime, ev))  >>= \ cacheVar ->
     return $ \ t ->
     unsafePerformIO (
-     readVar cacheVar      >>= \ cacheVal ->
+     getRef cacheVar      >>= \ cacheVal ->
      case cacheVal of
        -- Already occurred
        Left pair@(te, _) ->
@@ -154,10 +168,10 @@ cacheEvent ev = cachedEv
          else
            case  ev' `occ` t  of
              Occ te x    ->
-               writeVar cacheVar (Left (te, x)) >>
+               setRef cacheVar (Left (te, x)) >>
                return (Just (te,x))
              NonOcc ev'' ->
-               writeVar cacheVar (Right (t,  ev'')) >>
+               setRef cacheVar (Right (t,  ev'')) >>
                return Nothing ) )
 
 
@@ -188,11 +202,12 @@ ev +>>= f  =  joinEvent (ev +=> f)
 
 -- First time cond is true after t0
 
-predicate :: Behavior Bool -> Time -> Event ()
+predicate, predicate' :: Behavior Bool -> Time -> Event ()
 
--- Sample the condition at regular intervals.
 
-predicate cond t0 =
+-- Old version: sample the condition at regular intervals.
+
+predicate' cond t0 =
   --trace ("predicate: time == " ++ show t0 ++ ", condVal == " ++ show condVal ++ "\n") $
   -- We know that the predicate event happens no sooner than t0.  Saying
   -- so here will prevent cond from getting sampled at t0 or before, which
@@ -204,11 +219,49 @@ predicate cond t0 =
     else
       --trace ("predicate: trying time " ++ show t0Next ++ "\n")$
       timeIs t0Next          >>    -- using monad interpretation
-      predicate cond' t0Next
+      predicate' cond' t0Next
   where
     (condVal, cond') = cond `at` t0
     t0Next = t0 + epsilon
     epsilon = 0.05 :: Time
+
+
+-- New predicate, using interval analysis.
+
+predicate cond t0 = predAfter cond t0 1
+  where
+    predAfter cond t0 width =
+      predIn    cond  (t0 `Upto` t0+width) $ \ cond' ->
+      predAfter cond' (t0+width) (2*width)
+
+    predIn :: BoolB -> TimeI -> (BoolB -> Event ()) -> Event ()
+
+    predIn cond iv tryNext =
+      case valI of
+          -- no occurrence
+        False `Upto` False    ->
+          -- Note lower bound and try the next condition.
+          timeIsAtLeast hi (tryNext cond')
+        False `Upto` True     ->
+          if hi-mid <= eventEpsilon then
+              constEvent mid ()
+          else
+              predIn cond    (lo `Upto` mid) $ \ midCond ->
+              predIn midCond (mid `Upto` hi) tryNext
+        True `Upto` True -> constEvent lo ()
+      where
+        lo `Upto` hi   =  iv
+        mid            =  (hi+lo)/2
+        ivLeftTrimmed  =  lo + leftSkipWidth `Upto` hi
+        (valI,cond')   =  cond `during` ivLeftTrimmed
+
+-- Interval size limit for temporal subdivision.
+eventEpsilon = 0.001 :: Time
+
+-- Hack: simulate left-open-ness via a small increment.  Look for a rigorous
+-- alternative.
+
+leftSkipWidth = 0.0001 :: Time
 
 
 -- Filter out events whose data doesn't satisfy a condition.  Take a
@@ -229,7 +282,9 @@ filterEv evg f t0 = loop t0
  where
   -- Simple sequential recursion
   loop t0 =
+    -- trace ("filtering at " ++ show t0 ++ "\n") $
     evg t0           +>>= \ tVal a ->
+    -- trace ("prefiltered event at time " ++ show tVal ++ "\n") $
     case  f a  of
       Just b   ->  constEvent tVal b
       Nothing  ->  loop tVal

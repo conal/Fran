@@ -1,8 +1,8 @@
 -- Picking Image values
 --
--- Last modified Wed Oct 09 11:57:43 1996
+-- Last modified Tue Nov 05 14:50:52 1996
 
-module Pick2Image where
+module PickImage where
 
 import BaseTypes
 import Point2

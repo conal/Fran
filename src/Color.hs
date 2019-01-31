@@ -1,6 +1,14 @@
 {- Colour - RGB & HSL spaces -}
 
-module Color where
+module Color(
+	Color(..),
+	rgb, hsl, toRGB, toHSL,
+	interpolateColor, gray,
+	white, black, red, green, blue,
+	lightBlue, royalBlue, yellow, brown,
+	transformHSL, 
+	stronger, duller, darker, brighter, shade, 
+	) where
 
 import BaseTypes
 
@@ -10,7 +18,7 @@ data Color
      RealVal  -- [0,360]
      Fraction -- [0,1]
      Fraction -- [0,1]
-   deriving (Eq, Text)
+   deriving (Eq, Show)
 
 rgb :: Fraction -> Fraction -> Fraction -> Color
 rgb = RGB
@@ -173,6 +181,13 @@ rgb_to_hsl r g b =
      h = if h' < 0 then h' + 1 else h'
     in
     (h,s,l)
+
+
+
+
+
+
+
 
 
 
