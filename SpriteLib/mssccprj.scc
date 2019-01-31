@@ -1,4 +1,5 @@
 SCC = This is a Source Code Control file
 
 [SpriteLib.mak]
+SCC_Aux_Path = "C:\Program Files\Microsoft Visual Studio\VSS"
 SCC_Project_Name = "$/RBMH/Fran/SpriteLib", LECAAAAA

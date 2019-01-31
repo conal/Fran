@@ -27,7 +27,7 @@ import Vector2
 import qualified Font
 import Text
 import Rect
-import Win32 hiding (readFile, writeFile)
+import Win32
 import IOExts (unsafePerformIO, trace)
 import Bits((.|.))
 import Int
