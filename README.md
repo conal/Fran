@@ -8,6 +8,8 @@ Some relevant links:
     *   [*Functional 3D Graphics in C++ — with an Object-Oriented, Multiple Dispatching Implementation.*]
 *   [My publications](http://conal.net/papers/), including several on FRP/Fran, including on some of the implementation techniques I explored in this repository.
 
+New project capturing early Fran/FRP implementations. Thanks to [@deepfire](https://github.com/deepfire) for the inspiration to make these implementations easily available.
+
 
 [*A Brief Introduction to ActiveVRML*]: http://conal.net/papers/ActiveVRML/ "Tech report (1996)"
 
