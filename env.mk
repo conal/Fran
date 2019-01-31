@@ -28,7 +28,8 @@ PS_VIEWER	= /gstools/gsview/gsview32
 # Include directories
 #  Hmm... without the src directory, lots of .hi files are not found.
 #  This situation seems wrong.
-INCLUDES	= -i$(FRAN)/src:$(FRAN)/src/GHC:$(FRAN)/gc/GHC:$(WIN32DIR):$(GCLIBDIR)
+#INCLUDES	= -i$(FRAN)/src:$(FRAN)/src/GHC:$(FRAN)/gc/GHC:$(WIN32DIR):$(GCLIBDIR)
+INCLUDES	= -i$(WIN32DIR)
 
 # GHC flags
 GHC_FLAGS	+= -fglasgow-exts -concurrent -recomp

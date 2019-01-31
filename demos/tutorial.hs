@@ -328,16 +328,14 @@ potAndLights () =
    withColorG green teapot `unionG`
    delayAnims3 (2/5) (replicate 5 (movingLight ())))
 
-spiral3D () = --slower 3 $
-           --sphere `unionG`
-           delayAnims3 0.075 balls
+spiral3D () = delayAnims3 0.075 balls
  where
    ball   = move3 motion (stretch3 0.1 sphereLowRes)
    balls  = [ withColorG (bColor i) ball | i <- [1 .. n] ]
    motion = vector3Spherical 1.5 (10*time) time
    n      = 20
    bColor i =
-     colorHSL (constantB (2 * pi * fromInt i / fromInt n)) 0.5 0.5
+     colorHSL (2 * pi * fromInt i / fromInt n) 0.5 0.5
 
 spiralTurn () = turn3 zVector3 (pi*time) (unionGs (map ball [1 .. n]))
  where

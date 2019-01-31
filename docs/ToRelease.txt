@@ -1,6 +1,6 @@
                       Notes on making a Fran Release
 
-             Last modified Thu Feb 26 08:52:50 1998 by conal
+             Last modified Thu Feb 26 12:10:07 1998 by conal
 
 
 - In ../, do "make staticTest", and make sure there are no errors.  Then
@@ -22,9 +22,9 @@
 
 - Do a recursive SourceSafe check-in at the Fran level.
 
-- Do a recursive SourceSafe "get" to a directory ToZip\Fran, selecting
-  "writable", and setting the file dates to "modified", in the advanced
-  controls for "get".
+- Do a SourceSafe "get" to a directory ToZip\Fran, selecting "recursive",
+  "writable", "build tree", and setting the file dates to "modified", in
+  the advanced controls for "get" (if not already set as the VSS default).
 
 - SpriteLib sometimes gets excluded, and I'm stumped as to why.  Check to
   make sure it's there, and if not, get it (recursively and writable)

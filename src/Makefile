@@ -27,8 +27,7 @@ include $(FRAN)/env.mk
 OBJS	 = $(addsuffix .$(way_)o,  $(basename $(HS)))
 OBJS	+=  ../gc/GHC/HSpriteLib.o ../gc/errors.obj
 
-# shadowed one in ../env.mk
-#INCLUDES	= -iGHC:$(WIN32DIR):../gc/GHC
+INCLUDES	+= -iGHC:../gc/GHC
 
 default		:: libFran$(_way).a
 
@@ -40,8 +39,8 @@ libFran$(_way).a	: $(OBJS)
 RANLIB		= ranlib
 AR		= ar clqs
 
-GHC_FLAGS	+= -H16M -cpp
-GHC_FLAGS	+= $(INCLUDES)
+GHC_FLAGS	+= -H16M
+#GHC_FLAGS	+= -cpp $(INCLUDES)
 #GHC_FLAGS	+= -prof -auto
 GHC_FLAGS_ONOT	:= $(GHC_FLAGS)
 GHC_FLAGS	+= -O

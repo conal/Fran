@@ -106,8 +106,9 @@ importBitmap :: String -> ImageB
 importBitmap fileName = imB
  where (imB, width, height) = importBitmapWithSize fileName
 
-importWave :: String -> SoundB
-importWave = bufferSound . waveDSBuffer
+-- Import a .wav file.  Possibly repeat
+importWave :: String -> Bool -> SoundB
+importWave fileName repeat = bufferSound (waveDSBuffer fileName) repeat
 
 -- Parse a DDSurface into a bunch of flip books.  The DDSurface is assumed
 -- to be a vertical concatenation of flip books, each of which is

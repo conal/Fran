@@ -4,10 +4,10 @@
 # *contents* of Main*.hs, and the main*.exe rules.
 
 EDITORS = Editor0.hs Editor1.hs Editor2.hs Editor3.hs Editor4.hs \
-          Editor5.hs Editor6.hs Editor7.hs.hs
+          Editor5.hs Editor6.hs Editor7.hs
 
 MAINS = Main0.hs Main1.hs Main2.hs Main3.hs Main4.hs \
-        Main5.hs Main6.hs Main7.hs.hs TestEditor.hs
+        Main5.hs Main6.hs Main7.hs TestEditor.hs
 
 HS = FileUtils.hs NewCurve.hs Stacker.hs \
      $(EDITORS) $(MAINS)

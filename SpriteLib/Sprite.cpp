@@ -109,9 +109,9 @@ EXT_API(void) updateMonochromeSprite (
 EXT_API(SoundSprite *)
 newSoundSprite (
     IDirectSoundBuffer *pOrigBuffer,
-    double vol0, double pan0, double freq0, 
+    double vol0, double pan0, double freq0, BOOL repeat,
     SpriteTreeChain rest)
-{ return new SoundSprite (pOrigBuffer, vol0, pan0, freq0, rest); }
+{ return new SoundSprite (pOrigBuffer, vol0, pan0, freq0, repeat, rest); }
 
 EXT_API(void) updateSoundSprite (
         SoundSprite *p_sSprite, SpriteTime t, double vol, double pan, double freq)
@@ -461,7 +461,7 @@ MonochromeSprite::Paint (IDirectDrawSurface *pDest, SpriteTime t)
 
 SoundSprite::SoundSprite (
     IDirectSoundBuffer *pOrigBuffer,
-    double vol0, double pan0, double freq0, 
+    double vol0, double pan0, double freq0, BOOL repeat,
     SpriteTreeChain rest)
  : m_vol(vol0), m_pan(pan0), m_freq(freq0), SpriteTree(rest)
 {
@@ -473,7 +473,7 @@ SoundSprite::SoundSprite (
       // are constant ones, the time doesn't matter, so use zero.
       Paint(NULL,0);
       // Always looping for now.  ## To do: fix this.
-      m_pDupBuffer->Play(0,0,DSBPLAY_LOOPING);
+      m_pDupBuffer->Play(0, 0, repeat ? DSBPLAY_LOOPING : 0);
   }
 };
 

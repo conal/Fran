@@ -27,7 +27,7 @@ donut :: Vector2B -> RealB -> RealB -> ImageB
 donut motionB scaleB pageB =
   move motionB $
   stretch scaleB  $
-  soundImage (bufferSound bounceBuffer) `over`
+  soundImage (bufferSound bounceBuffer True) `over`
   flipImage donutFlipBook pageB
 
 
@@ -233,13 +233,13 @@ shifter u = marker p2 red  `over`
 
 -- Sound tests
 
-bounceS = bufferSound bounceBuffer
+bounceS = bufferSound bounceBuffer True
 
 s0 u = soundImage $ pan (10 * sin (userTime u)) bounceS
    
 
 snd0 u = donut0 u `over`
-         soundImage (bufferSound bounceBuffer)
+         soundImage (bufferSound bounceBuffer True)
 
 -- Left-to-right panning
 snd1 u = move (vector2XY (sin (userTime u)) 0) (snd0 u)
@@ -252,7 +252,7 @@ snd2 u = stretch (sin (userTime u / 5)) (snd0 u)
 snd3' u = stringBIm (constantB "Move the mouse around")
 
 snd3 u = stringBIm msg `over`
-         soundImage (pitch y (volume x (bufferSound planeBuffer)))
+         soundImage (pitch y (volume x (bufferSound planeBuffer True)))
  where
   msg = constantB "Move the mouse around"
   (x, y) = vector2XYCoords (mouse u .-. point2XY (-1) (-1.5))
@@ -266,7 +266,7 @@ snd5 u = soundImage (loop u)
  where
   loop  u = accum u `untilB` nextUser_ (keyPress Win32.vK_ESCAPE) u ==> loop
   accum u = silence `untilB` nextUser_ (keyPress Win32.vK_SPACE) u ==> \ u' ->
-            bufferSound bounceBuffer `mix` accum u'
+            bufferSound bounceBuffer True `mix` accum u'
 
 snd6 u = soundImage (loop u)
  where
@@ -275,7 +275,7 @@ snd6 u = soundImage (loop u)
   addSound u = withTimeE (bounceButton u)  ==> bounce
   bounceButton u = nextUser_ (keyPress Win32.vK_SPACE) u
   bounce (u',te) = --trace ("bounce at " ++ show (userStartTime u', te) ++ "\n") $
-                   bufferSound bounceBuffer
+                   bufferSound bounceBuffer True
 
 
 growHowTo :: User -> ImageB

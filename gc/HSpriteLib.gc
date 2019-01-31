@@ -278,10 +278,10 @@ type HMonochromeSprite = Word32
 type HSoundSprite = Word32
 %dis hSoundSprite h = word32 h
 
--- Arguments orig buffer, vol, pan, freq, rest
+-- Arguments orig buffer, vol, pan, freq, repeat, rest
 
-%fun newSoundSprite :: HDSBuffer -> Double -> Double -> Double -> SpriteTreeChain -> IO HSoundSprite
---%{ h = newSoundSprite(arg1, arg2, arg3, arg4, arg5) %}
+%fun newSoundSprite :: HDSBuffer -> Double -> Double -> Double -> Bool -> SpriteTreeChain -> IO HSoundSprite
+--%{ h = newSoundSprite(arg1, arg2, arg3, arg4, arg5, arg6) %}
 --%fail { h == 0 } { ErrorString("newSoundSprite") }
 --%result (hSoundSprite h)
 

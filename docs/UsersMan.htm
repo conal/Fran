@@ -16,7 +16,7 @@ Gary Shu Ling<br>
 </h2>
 
 <p ALIGN="CENTER"><!--webbot bot="Timestamp" startspan S-Type="EDITED"
-S-Format="%B %d, %Y" -->February 25, 1998<!--webbot bot="Timestamp" i-checksum="43112" endspan --></p>
+S-Format="%B %d, %Y" -->February 26, 1998<!--webbot bot="Timestamp" i-checksum="43116" endspan --></p>
 
 <h2><a NAME="sect1"></a>Introduction</h2>
 
@@ -1093,7 +1093,8 @@ turn3 axis angle = (rotate3 axis angle **%)</pre>
 
 <h3><a NAME="sect8_5"></a>Sound</h3>
 
-<pre>importWave :: String -&gt; SoundB -- import from .wav file
+<pre>-- import from .wav file, possibly repeating
+importWave :: String -&gt; Bool -&gt; SoundB 
 silence :: SoundB
 mix :: SoundB -&gt; SoundB -&gt; SoundB
 volume :: RealB -&gt; SoundB -&gt; SoundB -- multiply intensity

@@ -260,12 +260,12 @@ spritifySoundB _ _ _SilentS _ _ = \ _ requestV replyV above -> do
   return above
 
 
-spritifySoundB volB panB pitchB (BufferS buff) tt t0 =
+spritifySoundB volB panB pitchB (BufferS buff repeat) tt t0 =
   \ ts requestV replyV above -> do
   let (vol0  , vols   ) = ats0 volB   t0 ts
       (pan0  , pans   ) = ats0 panB   t0 ts
       (pitch0, pitches) = ats0 pitchB t0 ts
-  hSoundSprite <- newSoundSprite buff vol0 pan0 pitch0 above
+  hSoundSprite <- newSoundSprite buff vol0 pan0 pitch0 repeat above
   --putStrLn "Made new SoundSprite" >>
   let update ~(t:ts') ~(vol:vols') ~(pan:pans') ~(pitch:pitches') = do
          continue <- takeMVar requestV

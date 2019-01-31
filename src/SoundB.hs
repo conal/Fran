@@ -10,7 +10,7 @@ import GBehavior
 
 
 data SoundB = SilentS
-            | BufferS (HSpriteLib.HDSBuffer)  -- sound buffer
+            | BufferS (HSpriteLib.HDSBuffer) Bool  -- buffer, whether repeats
             | MixS    SoundB SoundB
             | VolumeS RealB SoundB            -- scale (only <1, sorry!)
             | PanS    RealB SoundB            -- units?, combines?
@@ -27,7 +27,7 @@ data SoundB = SilentS
 silence :: SoundB
 silence = SilentS
 
-bufferSound :: HSpriteLib.HDSBuffer -> SoundB
+bufferSound :: HSpriteLib.HDSBuffer -> Bool -> SoundB
 bufferSound = BufferS
 
 mix :: SoundB -> SoundB -> SoundB
@@ -55,7 +55,7 @@ afterTimesS :: SoundB -> [Time] -> [SoundB]
 
 s@SilentS `afterTimesS` _ = repeat s
 
-s@(BufferS buff) `afterTimesS` _ = repeat s
+s@(BufferS _ _) `afterTimesS` _ = repeat s
 
 (snd `MixS` snd') `afterTimesS` ts =
   zipWith MixS (snd `afterTimesS` ts) (snd' `afterTimesS` ts)

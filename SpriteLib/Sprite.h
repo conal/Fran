@@ -83,7 +83,8 @@ EXT_API(void) updateMonochromeSprite (
 EXT_CLASS(SoundSprite);
 EXT_API(HSoundSprite) newSoundSprite (
     HDSBuffer origBuffer,
-    double vol0, double pan0, double freq0, 
+    double vol0, double pan0, double freq0,
+    BOOL repeat,
     SpriteTreeChain rest);
 EXT_API(HSpriteTree) soundSpriteToSpriteTree (HSoundSprite);
 EXT_API(void) updateSoundSprite (
@@ -281,7 +282,7 @@ protected:
 class AFX_EXT_CLASS SoundSprite : public SpriteTree {
 public:
     SoundSprite (IDirectSoundBuffer *pOrigBuffer,
-        double vol0, double pan0, double freq0, 
+        double vol0, double pan0, double freq0, BOOL repeat,
         SpriteTreeChain rest);
 	// Experimenting with a different style
 	void Update (SpriteTime t, double vol, double pan, double freq);

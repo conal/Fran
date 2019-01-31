@@ -17,6 +17,11 @@ endif
 LIBS		+= -L$(FRAN)/SpriteLib -lSpriteLib
 GUILIBS		+= -luser32 -lgdi32
 
+# The main modules Fran and StaticTypes are in $(FRAN)/src/GHC.  Omitting
+# $(FRAN)/src eliminates name space pollution, but then GHC can't find the
+# interface files it needs.  (Why does it need to?  Aren't all the
+# required interfaces in $(FRAN)/src/GHC/{Fran,StaticTypes}.hs??
+INCLUDES	+= -i$(FRAN)/src/GHC:$(FRAN)/src:$(FRAN)/gc/GHC
 
 FRANLIBS = $(FRAN)/SpriteLib/libSpriteLib.a $(FRAN)/src/libFran.a 
 
