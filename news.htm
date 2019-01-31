@@ -18,8 +18,6 @@ content="text/html; charset=iso-8859-1">
 
 <h1 align="center">News on Recent RBMH Releases</h1>
 
-<p>&nbsp;</p>
-
 <h2><a href="http:rbmh0.0.zip">0.0</a> Sept 8, 1996</h2>
 
 <ul>
@@ -35,8 +33,8 @@ content="text/html; charset=iso-8859-1">
         you start seeing this message, you can kill the animation window. </li>
     <li>Changed ImageBTest.smoothGrowShrink to scale by &quot;exp
         (integral (changingRate t0) t0&quot; instead of &quot;1 + integral
-        (changingRate t0) t0&quot;. The result looks better the
-        new way and never does negative scaling. </li>
+        (changingRate t0) t0&quot;. The result looks better the new
+        way and never does negative scaling. </li>
     <li>Added a bunch of fun examples to ImageBTest. These
         examples are eyes that look at the mouse and one that chases
         it. See i12 to i16. </li>
@@ -49,27 +47,28 @@ content="text/html; charset=iso-8859-1">
         implementation of untilB assumes that the given time
         stream does not go backwards across events. We cannot
         guarantee this property, so be careful! Before, we've
-        said to use only monotically non-decreasing time transforms,
-        but non-monotonic ones are very useful at times, and untilB
-        is the only construct that has trouble with them. (Even integration
-        doesn't mind.) </li>
+        said to use only monotically non-decreasing time
+        transforms, but non-monotonic ones are very useful at
+        times, and untilB is the only construct that has trouble
+        with them. (Even integration doesn't mind.) </li>
     <li>Changed ImageTest.lotus to take take the number of rings
         as an argument, rather than doing using many of them.
-        Added example ImageBTest.i18 to show it off. Still pretty slow.
-        :-(</li>
+        Added example ImageBTest.i18 to show it off. Still pretty
+        slow. :-(</li>
     <li>Major change to the representation of events.</li>
     <li>Added some neat examples of Sigbjorn's, involving time
         transforms. See i19, i20, and i21 in ImageBTest.hs. Unfortunately,
         time transformation works badly with external events, and
-        thus with the mouse position behavior, to i20 and i21 are quite jerky.</li>
+        thus with the mouse position behavior, to i20 and i21 are
+        quite jerky.</li>
     <li>Renamed constructors Vector2 and Point2 to Vector2XY and
         Point2XY.</li>
     <li>Re-implemented integral so that recursive systems (ODEs)
-        work efficiently! Try &quot;disp (i17 0)&quot; in ImageBTest, and
-        move the mouse around. The eyes are connected in a chain
-        of springs. Introduced the t0 argument to to avoid a
-        space leak problem. This change should be done throughout
-        ImageBTest.</li>
+        work efficiently! Try &quot;disp (i17 0)&quot; in
+        ImageBTest, and move the mouse around. The eyes are connected
+        in a chain of springs. Introduced the t0 argument to to avoid
+        a space leak problem. This change should be done
+        throughout ImageBTest.</li>
     <li>Removed determinant common-subexpression from inverse2.</li>
     <li>Renamed lerp2 to linearInterpolate2.</li>
     <li>Added RBMH module, which imports all the individual parts
@@ -92,20 +91,43 @@ content="text/html; charset=iso-8859-1">
         do a left-click to add a new ball. They disappear after
         five seconds.</li>
     <li>Switched all <strong>ImageBTest</strong> examples to be
-        functions of start time, to eliminate space leak (CAFs) and
-        to make them temporally composable.</li>
+        functions of start time, to eliminate space leak (CAFs)
+        and to make them temporally composable.</li>
     <li>Added keyboard event primitives <strong>primKP</strong>
-        and <strong>primKR</strong> in <strong>PrimInteract.hs</strong>,
-        plus a higher-level version <strong>keyPress</strong> in <strong>Interaction.hs</strong>.
+        and <strong>primKR</strong> in <strong>PrimInteract.hs</strong>, plus a
+        higher-level version <strong>keyPress</strong> in <strong>Interaction.hs</strong>.
         Changed <strong>i8</strong> in <strong>ImageBTest</strong>
         to use it.</li>
     <li>Added <strong>allDemos</strong> to <strong>ImageBTest</strong>.
-        This new &quot;super demo&quot; combines all of the
-        others. run &quot;<strong>disp allDemos</strong>&quot; to
-        see them all, and press &lt;space&gt; to go on to the
-        next item.</li>
+        This new &quot;super demo&quot; combines all of the others.
+        run &quot;<strong>disp allDemos</strong>&quot; to see
+        them all, and press &lt;space&gt; to go on to the next
+        item.</li>
     <li>Added lifted list formation and extraction: <strong>nilB,
         consB, headB, tailB</strong>.</li>
 </ul>
+
+<h2><a href="http:rbmh0.4.zip">0.4</a> Sept 20, 1996</h2>
+
+<ul>
+    <li>Changed <strong>polyline</strong> from being a filled
+        polygon to be a set of connected line segments. 
+        Added <strong>polygon</strong> for describing n-sided filled
+        polygons. The inside of a polygon is filled with the (outermost)
+        color specified with the <strong>withColor</strong> combinator, i.e.,
+        <tt>withColor red (polygon ls)</tt> draws a red polygon.
+        (default is white). Line segments are drawn with a
+	white pen.</li>
+     <li>Switched color transformation combinators from using
+         RGB color space to HSL (removed mixRed,mixGreen,mixBlue).</li>
+     <li>Added a fourth control point argument to <strong>bezier</strong>, 
+         instead of having the origin2 be the implicit first control point.</li>
+     <li>Added a bunch of demos that uses <strong>polyline</strong>,
+         <strong>polygon</strong> and <strong>bezier</strong>.</li>
+</ul>
+
+<p><em>Last modified <!--webbot bot="TimeStamp" startspan
+s-type="EDITED" s-format="%B %d, %Y" -->September 21, 1996<!--webbot
+bot="TimeStamp" i-checksum="39120" endspan --></em></p>
 </body>
 </html>

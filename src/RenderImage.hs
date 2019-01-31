@@ -1,6 +1,6 @@
 -- Converting Picture values into graphical output (Win32 GDI).
 --
--- Last modified Fri Sep 13 11:33:11 1996
+-- Last modified Thu Sep 19 12:02:00 1996
 
 module RenderImage (draw) where
 
@@ -30,6 +30,8 @@ draw :: Win32.HDC -> Image -> IO ()
 draw hdc im =
  -- we want transparent Text backgrounds
  Win32.setBkMode hdc Win32.tRANSPARENT >>
+ Win32.getStockPen Win32.wHITE_PEN     >>= \ pen ->
+ Win32.selectPen hdc pen               >>
  draw' identity2 False im `catch` (\ e -> putStrLn "Win32 drawing error")
                   
  where
@@ -55,10 +57,12 @@ draw hdc im =
      Line p1 p2 ->
         Win32.polyline hdc points
         where points = map (f tr) [p1,p2]
-     PolyLine pts ->
+     Polyline pts ->
+        Win32.polyline hdc (map (f tr) pts)
+     Polygon pts ->
         Win32.polygon hdc (map (f tr) pts)
-     Bezier p1 p2 p3 ->
-        Win32.polyBezier hdc (map (f tr) [origin2,p1,p2,p3])
+     Bezier p1 p2 p3 p4 ->
+        Win32.polyBezier hdc (map (f tr) [p1,p2,p3,p4])
      RenderedText str ->
         drawText hdc a b str
           where

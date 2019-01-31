@@ -1,6 +1,6 @@
 -- ImageB = 2d Image behaviors
 -- 
--- Last modified Sat Sep 07 23:23:09 1996
+-- Last modified Thu Sep 19 11:54:01 1996
 
 module ImageB where
 
@@ -17,8 +17,9 @@ emptyImage   = lift0 I.emptyImage
 circle       = lift0 I.circle
 square       = lift0 I.square
 line         = lift2 I.line
-polyline     = lift1 I.polyline
-bezier       = lift3 I.bezier
+polyline ls  = lift1 I.polyline (liftLs ls)
+polygon ls   = lift1 I.polygon (liftLs ls)
+bezier       = lift4 I.bezier
 renderedText = lift1 I.renderedText
 withColor    = lift2 I.withColor
 over         = lift2 I.over

@@ -1,6 +1,6 @@
 -- Picking Picture values
 --
--- Last modified Fri Sep 13 11:33:55 1996
+-- Last modified Thu Sep 19 11:46:00 1996
 
 module Pick2Image where
 
@@ -21,8 +21,9 @@ pick2 im pt = pick' pt False im
       Square -> abs x <= oneOverSqrtTwo && abs y <= oneOverSqrtTwo
       Bitmap (Vector2XY dx dy) _ -> x <= dx && y <= dy
       Line _ _        -> False
-      PolyLine _      -> False
-      Bezier _ _ _    -> False
+      Polyline _      -> False
+      Polygon _       -> False
+      Bezier _ _ _ _  -> False
       RenderedText _  -> False
       WithColor _ im  -> pick' p True im
       Over im1 im2 ->

@@ -1,6 +1,6 @@
 -- Simple test harness for static Image values and their display
 -- 
--- Last modified Mon Sep 16 21:13:30 1996
+-- Last modified Thu Sep 19 11:48:02 1996
 -- To try these out, run disp i{j} where j `elem` [1..] 
 
 module ImageTest where
@@ -28,7 +28,8 @@ i5 = rectangle (vector2XY 0.7 1.3)
 
 i6 = ellipse  (vector2XY 1.0 0.7)
 
-i7 = bezier (point2XY (-0.7) (-0.7))
+i7 = bezier (point2XY 0 0)
+	    (point2XY (-0.7) (-0.7))
             (point2XY   0      0.7 )
             (point2XY (-0.7)   0.7 ) `over` i2
 

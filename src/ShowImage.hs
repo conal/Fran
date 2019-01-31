@@ -1,6 +1,6 @@
 -- Toplevel fellow for displaying static Images in a window
 --
--- Last modified Fri Sep 13 11:34:19 1996
+-- Last modified Thu Sep 19 11:46:52 1996
 
 module ShowImage
         (
@@ -14,7 +14,7 @@ import Win32 hiding (writeFile, readFile,rgb,loadBitmap)
 
 import qualified MutVar
 
-import Image hiding (polyline,ellipse,rectangle)
+import Image hiding (polyline,polygon,ellipse,rectangle)
 import qualified RenderImage as Render
 import Transform2
 

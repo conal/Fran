@@ -1,6 +1,6 @@
 {- Definition of 2d static Image type -}
 
--- Last modified Sat Sep 07 23:23:10 1996
+-- Last modified Thu Sep 19 11:44:19 1996
 
 -- To do: be selective about exports
 
@@ -23,8 +23,9 @@ data Image
  | Square                            -- origin-centered, unit side
  | Bitmap    Vector2 HBITMAP  -- x v >=0 && y v >=0
  | Line      Point2 Point2
- | PolyLine  [Point2]
- | Bezier    Point2 Point2 Point2 -- just cubics
+ | Polyline  [Point2]
+ | Polygon   [Point2]
+ | Bezier    Point2 Point2 Point2 Point2 -- just cubics
  | RenderedText TextT
  | WithColor Color Image   -- add more stuff later.
  | Over      Image Image
@@ -34,23 +35,25 @@ data Image
 instance Text Image where
   showsPrec p im =
    case im of
-     EmptyImage       -> showString "Empty"
-     Circle           -> showString "Circle"
-     Square        -> showString "Square"
-     Bitmap size _    -> showString "Bitmap "  . showsPrec p size
-     Line p1 p2       -> showString "Line " . showsPrec 10 p1 .
-                         showString " " . showsPrec 10 p2
-     Bezier p1 p2 p3  -> showString "Bezier " . shows [p1,p2,p3]
-     RenderedText t   -> showsPrec p t
-     WithColor c im   -> showString "WithColor " .
+     EmptyImage         -> showString "Empty"
+     Circle             -> showString "Circle"
+     Square             -> showString "Square"
+     Bitmap size _      -> showString "Bitmap "  . showsPrec p size
+     Line p1 p2         -> showString "Line " . showsPrec 10 p1 .
+                           showString " " . showsPrec 10 p2
+     Polyline ls        -> showString "Polyline " . showsPrec 10 ls
+     Polygon ls         -> showString "Polygon " . showsPrec 10 ls
+     Bezier p1 p2 p3 p4 -> showString "Bezier " . shows [p1,p2,p3,p4]
+     RenderedText t     -> showsPrec p t
+     WithColor c im     -> showString "WithColor " .
                            showsPrec p c . showsPrec p im
-     Over im1 im2  -> showString "Over " . showsPrec p im1 .
-                         showString " " . showsPrec p im2
+     Over im1 im2       -> showString "Over " . showsPrec p im1 .
+                           showString " " . showsPrec p im2
      TransformedImage t im
-                      -> showString "TransformedImage " . showsPrec p t .
-                         showString " " . showsPrec p im
-     BBoxed2 p1 p2 im -> showString "BBoxed2 " . showsPrec p p1 .
-                         showsPrec p p2 . showsPrec p im
+                        -> showString "TransformedImage " . showsPrec p t .
+                           showString " " . showsPrec p im
+     BBoxed2 p1 p2 im   -> showString "BBoxed2 " . showsPrec p p1 .
+                           showsPrec p p2 . showsPrec p im
 
 
 -- Primitives
@@ -60,7 +63,8 @@ circle       = Circle
 square       = Square
 bitmap       = Bitmap
 line         = Line
-polyline     = PolyLine
+polyline     = Polyline
+polygon      = Polygon
 bezier       = Bezier
 renderedText = RenderedText
 withColor    = WithColor
@@ -125,3 +129,5 @@ unitBBoxed2 :: Image -> Image
 
 unitBBoxed2 = bboxed2 (point2XY (-1) (-1))
                       (point2XY   1    1 )
+
+

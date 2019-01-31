@@ -1,4 +1,4 @@
-{- Colour - just RGB at the moment -}
+{- Colour - RGB & HSL spaces -}
 
 module Color where
 
@@ -7,7 +7,7 @@ import BaseTypes
 data Color 
  = RGB Fraction Fraction Fraction -- all in [0,1]
  | HSL 
-     Fraction -- [0,360]
+     RealVal  -- [0,360]
      Fraction -- [0,1]
      Fraction -- [0,1]
    deriving (Eq, Text)
@@ -17,16 +17,6 @@ rgb = RGB
 
 hsl :: Fraction -> Fraction -> Fraction -> Color
 hsl = HSL
-
-{-
- mix* operators are multiplicative colour transformators.
-
--}
-
-mixRed,mixGreen, mixBlue :: Fraction -> Color -> Color
-mixRed f (RGB r g b)   = RGB (f*r) g b
-mixGreen f (RGB r g b) = RGB r (f*g) b
-mixBlue f (RGB r g b)  = RGB r g (f*b)
 
 -- From the PicBasics module shipped with Yale Hugs
 -- Maybe move to AffineSpace class when we have type relations.
@@ -54,27 +44,37 @@ brown     = RGB 0.5 0 0
 
 clamp mi ma v = max mi (min ma v)
 
+transformHSL :: RealVal
+             -> Fraction
+	     -> Fraction
+	     -> Color
+	     -> Color
+transformHSL dh ds dl (HSL h s l) = 
+  HSL 
+   (clamp 0 360 (h+dh))
+   (clamp 0 1 (s+ds)) 
+   (clamp 0 1 (l+dl))
+transformHSL dh ds dl (RGB r g b) =
+  let (h,s,l) = rgb_to_hsl r g b in
+  HSL
+   (clamp 0 360 (h+dh))
+   (clamp 0 1 (s+ds)) 
+   (clamp 0 1 (l+dl))
+
 stronger :: Fraction -> Color -> Color
-stronger d (HSL h s l) = HSL (clamp 0 360 (h+d)) s l
-stronger d (RGB r g b) =
- let
-  (h,s,l) = rgb_to_hsl r g b
- in
- HSL (clamp 0 360 (h+d)) s l
+stronger d = transformHSL 0 d d
 
 duller :: Fraction -> Color -> Color
-duller d = stronger (-d)
+duller d = transformHSL 0 (-d) (-d)
 
-darker :: Double -> Color -> Color
-darker d = brighter (-d)
+darker :: Fraction -> Color -> Color
+darker d = transformHSL 0 d 0
 
-brighter :: Double -> Color -> Color
-brighter d (HSL h s l) = HSL h s (clamp 0 1 (d+l))
-brighter d (RGB r g b) = 
- let
-  (h,s,l) = rgb_to_hsl r g b
- in
- HSL h s (clamp 0 1 (d+l))
+brighter :: Fraction -> Color -> Color
+brighter d = transformHSL 0 (-d) 0
+
+shade :: Fraction -> Color -> Color
+shade d = transformHSL 0 1 (-d)
 
 toRGB :: Color -> Color
 toRGB c =

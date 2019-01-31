@@ -1,7 +1,7 @@
 -- Experimental support for displaying image behaviors in an existing
 -- window.  Intended for use with the ActiveX Hugs control
 -- 
--- Last modified Tue Sep 17 14:27:10 1996
+-- Last modified Thu Sep 19 11:47:13 1996
 -- 
 -- Recycled bits from ShowImageB.hs.
 
@@ -12,7 +12,7 @@ module ShowImageB
         ) where
 
 import Win32 hiding (writeFile, readFile,rgb,
-                     polyline,arc,ellipse,rectangle)
+                     polyline,polygon,arc,ellipse,rectangle)
 
 import Behavior
 import Vector2
@@ -65,11 +65,18 @@ worldToScreen =
 
 screenToWorld = inverse2 worldToScreen
 
+-- For testing
+
+disp :: ImageB -> IO ()
+
+disp imb =
+  timeGetTime >>= \ startMS ->
+  makeTestWindow startMS $ draw startMS imb
 
 draw :: MilliSeconds -> ImageB -> WindowPainter
 
 draw startMS imb hwnd =
-  --debugMessage "Entering draw" >>
+  -- debugMessage "Entering draw" >>
   times startMS               >>= \ ts ->
   let
   loop (im:ims') =
@@ -305,11 +312,6 @@ targetFPS = 40 :: Float
 
 --- Testing
 
-
-disp :: ImageB -> IO ()
-disp imb =
-  timeGetTime >>= \ startMS ->
-  makeTestWindow startMS $ draw startMS imb
 
 -- import ImageBTest
 

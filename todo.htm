@@ -18,19 +18,23 @@ content="text/html; charset=iso-8859-1">
 href="http://www.research.microsoft.com/research/graphics/elliott/">Conal
 Elliott</a> </h3>
 
-<p align="center"><em>Last modified September 16, 1996 </em></p>
+<p align="center"><em>Last modified <!--webbot bot="TimeStamp"
+startspan s-type="EDITED" s-format="%B %d, %Y" -->September 18, 1996<!--webbot
+bot="TimeStamp" i-checksum="39112" endspan --> </em></p>
 
 <ul>
     <li>More interesting demos. </li>
     <li>Make demos self-documenting.</li>
+    <li>Come up with a more appealing name -- memorable and
+        meaningful.</li>
     <li>Experiment with ways to eliminate redundant sampling. I
         suspect it is a significant expense. The initial approach
         I have in mind is to change the representation of behaviors
         to be simply lists. (Then <strong>lift3</strong>, for
-        instance, would be <strong>zipWith3</strong>.). Then the usual
-        caching property of lazy data structures should eliminate
-        redundancy. The top-level sampler would have to change to
-        &quot;resample&quot; image lists.</li>
+        instance, would be <strong>zipWith3</strong>.). Then the
+        usual caching property of lazy data structures should
+        eliminate redundancy. The top-level sampler would have to
+        change to &quot;resample&quot; image lists.</li>
     <li>Restore interval analysis and re-implement <strong>predicate</strong>
         to use it.</li>
     <li>Restore <strong>when</strong> and image picking.</li>
@@ -53,8 +57,8 @@ Elliott</a> </h3>
     <li>Add 3D. For performance, use Direct3D's retained mode. </li>
     <li>Define precise semantics for Image type and its
         operations, independent of representation/construction.
-        For instance, make sure that coloring and transformation work
-        sensibly to bitmap- and text-based images. </li>
+        For instance, make sure that coloring and transformation
+        work sensibly to bitmap- and text-based images. </li>
     <li>Short operator names for point/vector/scalar operations
         instead of <strong>pointMinusPoint2</strong>, for
         instance. </li>

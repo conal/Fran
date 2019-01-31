@@ -1,6 +1,6 @@
 -- Non-reactive behaviors
 -- 
--- Last modified Tue Sep 17 15:16:13 1996
+-- Last modified Thu Sep 19 11:50:53 1996
 
 module Behavior where
 
@@ -45,11 +45,40 @@ lift2 f b1 b2 =
 lift3 f b1 b2 b3 =
   Behavior (\ts -> zipWith3 f (b1 `ats` ts) (b2 `ats` ts) (b3 `ats` ts))
 
-{- There is no zipWith4.  Wait until needed.
-lift4 f b1 b2 b3 b4 =
-  Behavior (\ts -> zipWith4 f (b1 `ats` ts) (b2 `ats` ts) (b3 `ats` ts)
-  (b4 `ats` ts))
--}
+
+lift4 f (Behavior ats1) (Behavior ats2) (Behavior ats3) (Behavior ats4) =
+  Behavior (\ts -> zipWith4 f (ats1 ts) (ats2 ts) (ats3 ts) (ats4 ts))
+
+
+zipWith4 :: (a -> b -> c -> d -> e)
+	 -> [a]
+         -> [b]
+         -> [c] 
+         -> [d] 
+         -> [e]
+zipWith4 f (a:as) (b:bs) (c:cs) (d:ds) = f a b c d : zipWith4 f as bs cs ds
+zipWith4 _  _ _ _ _ = []
+
+merge :: [[a]] -> [[a]]
+merge lss = 
+  case decons lss of
+    (a,lss') -> a:merge lss'
+  where
+  --decons :: [[a]] -> [([a],[[a]])]
+  decons lss = 
+     foldr (\ (a,as) (acc,accs) -> (a:acc,as:accs))
+	   ([],[])
+	   (map (\ (x:xs) -> (x,xs)) lss)
+     
+
+liftLs :: [Behavior a] -> Behavior [a]
+liftLs ls = 
+ Behavior 
+   (\ts -> 
+     let
+      ass = map (`ats` ts) ls
+     in
+     merge ass)
 
 -- and so on
 

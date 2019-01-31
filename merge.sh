@@ -1,7 +1,7 @@
 
 unzip ../rbmh0.$1.zip 
-cp -rp Release0/* .
+cp -rp rbmh/* .
 chmod -R u+w .
-rm -rf Release0/
+rm -rf rbmh/
 git add .
 git commit -m "RBMH 0.$1"
