@@ -23,14 +23,16 @@ type SpriteTime = Double
 -- False.
 -- When a behavior is sampled past its end, should it continue sampling
 -- its linear function (true) or stop (false)?  Default False.
+-- GHC needs gcc, which cannot handle some of the .h files transitively
+-- included by d3drmdefs.h, so instead, use DXSubst.h, which contains
+-- copies of the minimum requirement.
+--%#include "d3drmdefs.h"
 type HDDSurface = Word32
 -- Sometimes useful for newSimpleSprite, but should be eliminated
 type HDSBuffer = Word32
 type HMeshBuilder = Word32
 type HLight = Word32
 type HFrame = Word32
--- For testing, but phase out
---%fun textDDSurface :: String -> COLORREF -> HDDSurface
 -- The size in pixels of a surface
 -- To do: do consistent error-reporting
 -- Make a surface from a .BMP file.
@@ -49,6 +51,9 @@ type LightType = Int
 -- the scale after creation.  To do: find a way to relax this restriction
 -- with tolerable efficiency.
 type HRMRenderer = Word32
+--%{ h = newRMRenderer(arg1, arg2, arg3) %}
+--%fail { h == 0 } { ErrorString("newRMRenderer") }
+--%result (hRMRenderer h)
 type HFlipBook = Word32
 type Pixels = LONG
 -- Arguments: surface, width and height, X,Y start pos on surface, 
@@ -65,40 +70,31 @@ flipBook surf width height srcXFirst srcYFirst columns rows =
 type HSpriteTree = Word32
 type SpriteTreeChain = HSpriteTree
 -- %fun paintAndFlip :: HSpriteTree -> HDDRawEnv -> SpriteTime -> IO ()
-type HSprite = Word32
--- Arguments: sprite, posX, posY, goalTime
 type HFlipSprite = Word32
--- Arguments flip book, posX0, posY0, scaleX0, scaleY0, page0, rest
--- Arguments: flip sprite, goal page, goal time
---%fun setGoalPage :: HFlipSprite -> Double -> SpriteTime -> IO ()
--- Arguments: flip sprite, time, ulX, ulY, scaleX, scaleY
+-- Arguments flip book, cropRegion0, pos0, scale0, page0, rest
+-- Arguments: flip sprite, time, crop, pos, scale, page
 type HSimpleSprite = Word32
--- Arguments surface, ulX, ulY, posX0, posY0, scaleX0, scaleY0, page0, rest
--- Arguments: simple sprite, goal time, new surface, ulX, ulY, posX, posY,
--- scaleX, scaleY
+-- Arguments surface, ul, crop0, pos0, scale0, rest
 type HMonochromeSprite = Word32
--- Arguments: color and rest
--- Arguments: time, r, g, b
+-- Arguments: crop, color and rest
 type HSoundSprite = Word32
 -- Arguments orig buffer, vol, pan, freq, rest
+--%{ h = newSoundSprite(arg1, arg2, arg3, arg4, arg5) %}
+--%fail { h == 0 } { ErrorString("newSoundSprite") }
+--%result (hSoundSprite h)
 -- Update methods go here (volume, frequency)
 type HSpriteGroup = Word32
 -- Arguments: elements, rest
 -- Arguments: sprite group, elements, whether mutable
 type HSpriteEngine = Word32
+--%{ h = newSpriteEngine(arg1, arg2) %}
+--%fail { h == 0 } { ErrorString("newSpriteEngine") }
+--%result (hSpriteEngine h)
 -- Supertype coercions
 class  AkoSpriteTree a  where
   toSpriteTree :: a -> HSpriteTree
-class  AkoSprite a  where
-  toSprite :: a -> HSprite
 -- instance  AkoSprite HFlipSprite  where
 --   toSprite = flipSpriteToSprite
--- 
--- instance  AkoSprite HSimpleSprite where
---   toSprite = simpleSpriteToSprite
--- 
--- instance  AkoSpriteTree HSprite  where
---   toSpriteTree = spriteToSpriteTree
 -- 
 -- instance  AkoSpriteTree HSpriteGroup  where
 --   toSpriteTree = spriteGroupToSpriteTree
@@ -114,8 +110,6 @@ class  AkoSprite a  where
 -- GSL
 instance AkoSpriteTree Word where
   toSpriteTree = wordToSpriteTree
-instance AkoSprite     Word where
-  toSprite     = wordToSprite
 needPrims_hugs
 openSpriteLib :: Double -> IO ()
 openSpriteLib arg1 =
@@ -236,12 +230,12 @@ newMeshBuilder gc_arg1 =
   then unmarshall_string_ gc_failstring >>= fail . userError
   else (return (h))
 primitive prim_newMeshBuilder :: Addr -> IO (Word,Int,Addr)
-createColorRGB :: Double -> Double -> Double -> D3DColor
-createColorRGB arg1 arg2 arg3 =
+d3dColorRGB :: Double -> Double -> Double -> D3DColor
+d3dColorRGB arg1 arg2 arg3 =
   unsafePerformIO(
-    prim_createColorRGB arg1 arg2 arg3 >>= \ (res1) ->
+    prim_d3dColorRGB arg1 arg2 arg3 >>= \ (res1) ->
     (return (res1)))
-primitive prim_createColorRGB :: Double -> Double -> Double -> IO (Word)
+primitive prim_d3dColorRGB :: Double -> Double -> Double -> IO (Word)
 newHLight :: HFrame -> LightType -> IO HLight
 newHLight arg1 arg2 =
   prim_newHLight arg1 arg2 >>= \ (res1) ->
@@ -291,11 +285,9 @@ hFrameTranslate arg1 arg2 arg3 arg4 =
 primitive prim_hFrameTranslate :: Word -> Double -> Double -> Double -> IO ()
 newRMRenderer :: HFrame -> HFrame -> Double -> IO HRMRenderer
 newRMRenderer arg1 arg2 arg3 =
-  prim_newRMRenderer arg1 arg2 arg3 >>= \ (h,gc_failed,gc_failstring) ->
-  if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
-  else (return (h))
-primitive prim_newRMRenderer :: Word -> Word -> Double -> IO (Word,Int,Addr)
+  prim_newRMRenderer arg1 arg2 arg3 >>= \ (res1) ->
+  (return (res1))
+primitive prim_newRMRenderer :: Word -> Word -> Double -> IO (Word)
 doRMRenderer :: HRMRenderer -> IO HDDSurface
 doRMRenderer arg1 =
   prim_doRMRenderer arg1 >>= \ (res1) ->
@@ -327,54 +319,36 @@ deleteSpriteTree :: HSpriteTree -> IO ()
 deleteSpriteTree arg1 =
   prim_deleteSpriteTree arg1
 primitive prim_deleteSpriteTree :: Word -> IO ()
-setGoalPos :: HSprite -> Double -> Double -> SpriteTime -> IO ()
-setGoalPos arg1 arg2 arg3 arg4 =
-  prim_setGoalPos arg1 arg2 arg3 arg4
-primitive prim_setGoalPos :: Word -> Double -> Double -> Double -> IO ()
-setGoalScale :: HSprite -> Double -> Double -> SpriteTime -> IO ()
-setGoalScale arg1 arg2 arg3 arg4 =
-  prim_setGoalScale arg1 arg2 arg3 arg4
-primitive prim_setGoalScale :: Word -> Double -> Double -> Double -> IO ()
-spriteToSpriteTree :: HSprite -> HSpriteTree
-spriteToSpriteTree arg1 =
+newFlipSprite :: HFlipBook -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HFlipSprite
+newFlipSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 arg10 arg11 =
+  prim_newFlipSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 arg10 arg11 >>= \ (res1) ->
+  (return (res1))
+primitive prim_newFlipSprite :: Word -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Word -> IO (Word)
+flipSpriteToSpriteTree :: HFlipSprite -> HSpriteTree
+flipSpriteToSpriteTree arg1 =
   unsafePerformIO(
-    prim_spriteToSpriteTree arg1 >>= \ (res1) ->
+    prim_flipSpriteToSpriteTree arg1 >>= \ (res1) ->
     (return (res1)))
-primitive prim_spriteToSpriteTree :: Word -> IO (Word)
-newFlipSprite :: HFlipBook -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HFlipSprite
-newFlipSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 =
-  prim_newFlipSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 >>= \ (h,gc_failed,gc_failstring) ->
-  if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
-  else (return (h))
-primitive prim_newFlipSprite :: Word -> Double -> Double -> Double -> Double -> Double -> Word -> IO (Word,Int,Addr)
-flipSpriteToSprite :: HFlipSprite -> HSprite
-flipSpriteToSprite arg1 =
+primitive prim_flipSpriteToSpriteTree :: Word -> IO (Word)
+updateFlipSprite :: HFlipSprite -> SpriteTime -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
+updateFlipSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 arg10 arg11 =
+  prim_updateFlipSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 arg10 arg11
+primitive prim_updateFlipSprite :: Word -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
+newSimpleSprite :: HDDSurface -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HSimpleSprite
+newSimpleSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 arg10 arg11 arg12 =
+  prim_newSimpleSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 arg10 arg11 arg12 >>= \ (res1) ->
+  (return (res1))
+primitive prim_newSimpleSprite :: Word -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Word -> IO (Word)
+simpleSpriteToSpriteTree :: HSimpleSprite -> HSpriteTree
+simpleSpriteToSpriteTree arg1 =
   unsafePerformIO(
-    prim_flipSpriteToSprite arg1 >>= \ (res1) ->
+    prim_simpleSpriteToSpriteTree arg1 >>= \ (res1) ->
     (return (res1)))
-primitive prim_flipSpriteToSprite :: Word -> IO (Word)
-updateFlipSprite :: HFlipSprite -> SpriteTime -> Double -> Double -> Double -> Double -> Double -> IO ()
-updateFlipSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 =
-  prim_updateFlipSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7
-primitive prim_updateFlipSprite :: Word -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
-newSimpleSprite :: HDDSurface -> Pixels -> Pixels -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HSimpleSprite
-newSimpleSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 =
-  prim_newSimpleSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 >>= \ (h,gc_failed,gc_failstring) ->
-  if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
-  else (return (h))
-primitive prim_newSimpleSprite :: Word -> Int -> Int -> Double -> Double -> Double -> Double -> Word -> IO (Word,Int,Addr)
-simpleSpriteToSprite :: HSimpleSprite -> HSprite
-simpleSpriteToSprite arg1 =
-  unsafePerformIO(
-    prim_simpleSpriteToSprite arg1 >>= \ (res1) ->
-    (return (res1)))
-primitive prim_simpleSpriteToSprite :: Word -> IO (Word)
-updateSimpleSprite :: HSimpleSprite -> SpriteTime -> HDDSurface -> Pixels -> Pixels -> Double -> Double -> Double -> Double -> IO ()
-updateSimpleSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 =
-  prim_updateSimpleSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
-primitive prim_updateSimpleSprite :: Word -> Double -> Word -> Int -> Int -> Double -> Double -> Double -> Double -> IO ()
+primitive prim_simpleSpriteToSpriteTree :: Word -> IO (Word)
+updateSimpleSprite :: HSimpleSprite -> SpriteTime -> HDDSurface -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
+updateSimpleSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 arg10 arg11 arg12 arg13 =
+  prim_updateSimpleSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 arg10 arg11 arg12 arg13
+primitive prim_updateSimpleSprite :: Word -> Double -> Word -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
 get_MinSpriteSize :: IO Int
 get_MinSpriteSize =
   prim_get_MinSpriteSize >>= \ (res1) ->
@@ -384,24 +358,20 @@ set_MinSpriteSize :: Int -> IO ()
 set_MinSpriteSize arg1 =
   prim_set_MinSpriteSize arg1
 primitive prim_set_MinSpriteSize :: Int -> IO ()
-newMonochromeSprite :: Double -> Double -> Double -> SpriteTreeChain -> IO HMonochromeSprite
-newMonochromeSprite arg1 arg2 arg3 arg4 =
-  prim_newMonochromeSprite arg1 arg2 arg3 arg4 >>= \ (h,gc_failed,gc_failstring) ->
-  if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
-  else (return (h))
-primitive prim_newMonochromeSprite :: Double -> Double -> Double -> Word -> IO (Word,Int,Addr)
-updateMonochromeSprite :: HSimpleSprite -> SpriteTime -> Double -> Double -> Double -> IO ()
-updateMonochromeSprite arg1 arg2 arg3 arg4 arg5 =
-  prim_updateMonochromeSprite arg1 arg2 arg3 arg4 arg5
-primitive prim_updateMonochromeSprite :: Word -> Double -> Double -> Double -> Double -> IO ()
+newMonochromeSprite :: Double -> Double -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HMonochromeSprite
+newMonochromeSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 =
+  prim_newMonochromeSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 >>= \ (res1) ->
+  (return (res1))
+primitive prim_newMonochromeSprite :: Double -> Double -> Double -> Double -> Double -> Double -> Double -> Word -> IO (Word)
+updateMonochromeSprite :: HSimpleSprite -> SpriteTime -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
+updateMonochromeSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9 =
+  prim_updateMonochromeSprite arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9
+primitive prim_updateMonochromeSprite :: Word -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double -> IO ()
 newSoundSprite :: HDSBuffer -> Double -> Double -> Double -> SpriteTreeChain -> IO HSoundSprite
 newSoundSprite arg1 arg2 arg3 arg4 arg5 =
-  prim_newSoundSprite arg1 arg2 arg3 arg4 arg5 >>= \ (h,gc_failed,gc_failstring) ->
-  if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
-  else (return (h))
-primitive prim_newSoundSprite :: Word -> Double -> Double -> Double -> Word -> IO (Word,Int,Addr)
+  prim_newSoundSprite arg1 arg2 arg3 arg4 arg5 >>= \ (res1) ->
+  (return (res1))
+primitive prim_newSoundSprite :: Word -> Double -> Double -> Double -> Word -> IO (Word)
 soundSpriteToSpriteTree :: HSoundSprite -> HSpriteTree
 soundSpriteToSpriteTree arg1 =
   unsafePerformIO(
@@ -432,11 +402,9 @@ resetSpriteGroup arg1 arg2 gc_arg1 =
 primitive prim_resetSpriteGroup :: Word -> Word -> Int -> IO ()
 newSpriteEngine :: HWND -> HSpriteTree -> IO HSpriteEngine
 newSpriteEngine arg1 arg2 =
-  prim_newSpriteEngine arg1 arg2 >>= \ (h,gc_failed,gc_failstring) ->
-  if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
-  else (return (h))
-primitive prim_newSpriteEngine :: Addr -> Word -> IO (Word,Int,Addr)
+  prim_newSpriteEngine arg1 arg2 >>= \ (res1) ->
+  (return (res1))
+primitive prim_newSpriteEngine :: Addr -> Word -> IO (Word)
 onResizeSpriteEngine :: HSpriteEngine -> IO ()
 onResizeSpriteEngine arg1 =
   prim_onResizeSpriteEngine arg1
@@ -452,12 +420,6 @@ wordToSpriteTree arg1 =
     prim_wordToSpriteTree arg1 >>= \ (res1) ->
     (return (res1)))
 primitive prim_wordToSpriteTree :: Word -> IO (Word)
-wordToSprite :: Word -> HSprite
-wordToSprite arg1 =
-  unsafePerformIO(
-    prim_wordToSprite arg1 >>= \ (res1) ->
-    (return (res1)))
-primitive prim_wordToSprite :: Word -> IO (Word)
 threadPriorityIdle :: ThreadPriority
 threadPriorityIdle =
   unsafePerformIO(

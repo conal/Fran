@@ -5,7 +5,7 @@
 ################################################################
 
 # This goes first to make it the default
-all		: HSpriteLib.dll
+default		: HSpriteLib.dll
 
 FRAN = ..
 include $(FRAN)/env.mk

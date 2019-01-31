@@ -34,6 +34,10 @@ clean		::
 
 # Profiling.  Move to $(FRAN)/app.mk when ready
 
+# Automatic profiling cost centers for apps
+# For now, done in env.mk
+#GHC_FLAGS += -auto
+
 #PHEAP = -H20M
 
 # Make a heap profile.  Don't worry if the .exe went bad.  (Without the

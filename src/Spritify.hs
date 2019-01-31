@@ -13,8 +13,6 @@
 -- 
 --   mbWithColor Nothing  imb = imb
 --   mbWithColor (Just c) imb = withColor c imb
---
--- Note: I've started to add cropping, but it's not all there yet.
 
 
 

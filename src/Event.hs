@@ -15,11 +15,10 @@ import Trace
 
 infixr 1 `untilBE`
 
-infixl 3 ==>
-infixl 3 -=>
 infixl 2 .|.
 
-infixl 3 `handleE`, `filterE`
+infixl 3 ==>, -=>
+       , `handleE`, `filterE`
        , `withElemE`, `withElemE_`
        , `withPrevE`, `withPrevE_`
        , `suchThat`, `suchThat_`
@@ -306,15 +305,16 @@ neverE = possOccsE []
 withRestE :: Event a -> Event (a, Event a)
 withRestE e = e `handleE` \ te x e' -> (x,e')
 
+-- As usual, one that drops the original data
+withRestE_ :: Event a -> Event (Event a)
+withRestE_ e = e `handleE` \ te x e' -> e'
+
 withTimeE :: Event a -> Event (a, Time)
 withTimeE e = e `handleE` \ te x e' -> (x,te)
 
--- Just expose the remainder event.  Could be called withRestE_.
+-- A synonym for withRestE_
 nextE :: Event a -> Event (Event a)
-nextE e = e `handleE` \ te x e' -> e'
-
-withRestE_ :: Event a -> Event (Event a)
-withRestE_ = nextE
+nextE = withRestE_
 
 
 -- Event handler simplifications.  ## Maybe rename "-=>" to "==>-", and in

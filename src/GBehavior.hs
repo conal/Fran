@@ -105,17 +105,18 @@ Event possOccs `afterE` bv =
 afterE_ :: GBehavior bv => Event a -> bv -> Event bv
 e `afterE_` b  = e `afterE` b ==> snd
 
--- stepper
-
+-- A switcher for piecewise-constant behaviors
 stepper :: a -> Event a -> Behavior a
 stepper x0 e = switcher (constantB x0) (e ==> constantB)
 
+-- Assemble a behavior piecewise from an initial one and an event
 switcher :: GBehavior bv => bv -> Event bv -> bv
 switcher b0 e = b0 `untilB` repeatE e
 
 repeatE :: GBehavior bv => Event bv -> Event bv
 repeatE e = withRestE e ==> uncurry switcher
 
+-- Accumulate using f, but age the accumulator
 accumB :: GBehavior bv => (bv -> b -> bv) -> bv -> Event b -> bv
 accumB f soFar e =
   soFar `untilB` withRestE e `afterE` soFar ==> \ ((x,e'),soFar') ->

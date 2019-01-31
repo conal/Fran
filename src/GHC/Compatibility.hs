@@ -4,14 +4,16 @@ module Compatibility
        , cacheMatch
        ) where
 
+import Win32(Word32)
 import PrelNum(double2Float)
+import PrelRead(readDec)
 import GHC(reallyUnsafePtrEquality#, (==#))
 
 -- Seems to be a GHC bug.  Alastair says:
 --   The library docs say Words are readable.
 --   ftp://haskell.org/pub/reid/libs971028/libs-5.html
 -- Here's the code:  Oops: unknown Word32 and redDec
--- instance Read Word32 where readsPrec p = readDec
+instance Read Word32 where readsPrec p = readDec
 
 -- Per Sigbjorn: It still supported as a primop, but so exotic that it
 -- wasn't exported by any of the interfaces. To add it is

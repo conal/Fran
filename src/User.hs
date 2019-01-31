@@ -211,7 +211,7 @@ data UserAction
   | UpdateDone
       DTime     -- duration
   | Quit
-  deriving (Show {-, Read-})  -- GHC can't Read VKey (==Word32)
+  deriving (Show, Read)  -- GHC can't Read VKey (==Word32)
 
 {-
 -- So UserAction can derive Show.  Should be in Win32.hs, and more

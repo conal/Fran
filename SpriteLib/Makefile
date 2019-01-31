@@ -3,7 +3,7 @@
 #  libSpriteLib.a
 #################################################################
 
-all	: Debug/SpriteLib.lib libSpriteLib.a
+default	: Debug/SpriteLib.lib libSpriteLib.a
 
 # Use VC-generated makefile.  (Also makes .dll !)
 Debug/SpriteLib.lib ::

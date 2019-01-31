@@ -1,7 +1,5 @@
 -- Reactive behaviors, represented using memoized functions from time
 -- streams to value streams.
--- 
--- Last modified Tue Oct 07 13:54:38 1997
 --
 -- Notes
 --
@@ -28,12 +26,14 @@ import Maybe (isJust)
 import MutVar
 import Win32 (unsafePerformIO)
 import Trace
+import Compatibility
 
 infixr 8  ^*, ^^*
 infix  4  ==*, <*, <=* , >=*, >*
 infixr 3  &&*
 infixr 2  ||*
 
+infixr 1 `untilBB`
 infixr 0  $*
 
 -- Type of samplers and "afterers", mapping time lists to value lists or
@@ -44,6 +44,14 @@ type AftererB a = [Time] -> [BStruct a]
 -- Sampler cache
 type BCache   a = [([Time],[a])]
 type CacheVar a = MutVar (BCache a)
+
+-- Whether to do caching.  Tweakable for checking space leaks
+doCaching :: Bool
+doCaching = True
+
+newCache :: IO (Maybe (CacheVar a))
+newCache | doCaching = map Just (newVar [])
+         | otherwise = return Nothing
 
 -- A behavior contains structure and possibly a sampler cache.  The
 -- structure is used for $*/constantB and $*/untilB optimizations.
@@ -57,6 +65,17 @@ data BStruct a
    | TimeTransB (Behavior a) (Behavior Time)  -- C
    | UntilB (Behavior a) (Event (Behavior a))
   deriving Show
+
+-- Make an identical behavior, but without memoization.  This guy is
+-- necessary for avoiding humongous space leaks, especially with CAFs like
+-- wiggle and waggle.
+-- 
+-- To do: get the Hugs and GHC garbage collectors fixed to understand some
+-- kind of weak pointer notion, and so automatically clear out our caches
+-- when appropriate during GC's.
+
+dontMemoizeB :: Behavior a -> Behavior a
+dontMemoizeB (Behavior bstruct _) = Behavior bstruct Nothing
 
 -- I'd really like to remove SamplerB and add the following two
 -- constructors:
@@ -110,17 +129,29 @@ atsS (b `UntilB` e) = \ ts -> loop ts (b `ats` ts) (e `occs` ts)
    loop (_:ts') (x:xs') (Nothing:mbOccs') =
      x : loop ts' xs' mbOccs'
 
+   loop _ _ _ = error "pattern match failure: atsS in Behavior.hs"
 
-instance GBehavior (Behavior a) where
-  b `untilB` e = Behavior (b `UntilB` e)
-                          (Just (unsafePerformIO (newVar [])))
 
-  Behavior bstruct mbCacheVar `afterTimes` ts =
-    zipWith Behavior
-            (bstruct `afterTimesSt` ts)
-            (case mbCacheVar of
-              Nothing       -> repeat Nothing
-              Just cacheVar -> map Just (cacheVar `afterTimesCV` ts))
+------------------------------------------------------------------
+-- untilBB, afterTimesB, timeTransformB
+------------------------------------------------------------------
+
+untilBB :: Behavior a -> Event (Behavior a) -> Behavior a
+b `untilBB` e = Behavior (b `UntilB` e)
+                         (unsafePerformIO newCache)
+
+-- the following type signature is very very important: try
+-- deleting it and see what happens :-)! GSL
+afterTimesB :: Behavior a -> [Time] -> [Behavior a]
+Behavior bstruct mbCacheVar `afterTimesB` ts =
+  zipWith Behavior
+          (bstruct `afterTimesSt` ts)
+          (case mbCacheVar of
+            Nothing       -> repeat Nothing
+            Just cacheVar -> map Just (cacheVar `afterTimesCV` ts))
+
+timeTransformB :: Behavior a -> TimeB -> Behavior a
+timeTransformB b tt = samplerB (ats b . ats tt)
 
 afterTimesSt :: BStruct a -> [Time] -> [BStruct a]
 
@@ -130,13 +161,13 @@ SamplerB sampler afterer `afterTimesSt` ts = afterer ts
 
 TimeTransB b tt `afterTimesSt` ts =
   zipWith TimeTransB
-          (b `afterTimes` (tt `ats` ts))
-          (tt `afterTimes` ts)
+          (b `afterTimesB` (tt `ats` ts))
+          (tt `afterTimesB` ts)
 
 -- UntilB behaviors change at event occurrences
 (b `UntilB` e) `afterTimesSt` ts =
-  loop ts (b `afterTimes` ts) (e `occs` ts)
-          (e `afterTimes` ts)
+  loop ts (b `afterTimesB` ts) (e `occs` ts)
+          (e `afterTimesE` ts)
  where
    -- First occurrence.  Continue with new behavior
    loop ts _ (Just (_, Behavior bstruct' _) : _) _ =
@@ -147,6 +178,7 @@ TimeTransB b tt `afterTimesSt` ts =
         (Nothing : mbOccs') (eAfter : eAfters')  =
      bAfter `UntilB` eAfter : loop ts' bAfters' mbOccs' eAfters'
 
+   loop _ _ _ _ = error "pattern matching failure: UntilB in Behavior.hs"
 
 afterTimesCV :: CacheVar a -> [Time] -> [CacheVar a]
 afterTimesCV cv [] = []
@@ -168,6 +200,7 @@ updateCacheVar cacheVar te = unsafePerformIO $ do
        --trace ("trim " ++ show t ++ " ")$
        trim ts' xs'
      else (ts,xs)
+   trim _ _ = error "pattern match failure: updateCacheVar in Behavior.hs"
 
 
 -- Look up or compute a value stream
@@ -197,27 +230,18 @@ cacheLookup sampler cacheVar ts = unsafePerformIO $ do
 
   find allPairs 0
 
-cacheMatch :: Eval a => a -> a -> Bool
-x `cacheMatch` x' = --x `ptrEq` x'
-                    getCell x `cellPtrEq` getCell x'
-
--- The following requires INTERNAL_PRIMS to be set in Hugs/src/options.h.
--- These declarations copied from Hugs/lib/hugs/HugsInternals.hs
--- breaks referential transparency - use with care
-primitive ptrEq :: a -> a -> Bool
-data Cell
-primitive getCell                  :: a -> Cell
-primitive cellPtrEq                :: Cell -> Cell -> Bool
-
-
 -- Utility.  Make the initially empty cache.
 samplerB :: SamplerB a -> Behavior a
 samplerB sampler =
-  Behavior (SamplerB sampler afterer) (Just cv)
+  Behavior bstruct (unsafePerformIO newCache)
  where
-   cv = unsafePerformIO (newVar [])
-   afterer = map (const (SamplerB sampler afterer))
+   bstruct = SamplerB sampler afterer
+   afterer = map (const bstruct)
 
+
+-- Non-memoizing simple sampler behavior.
+simpleSamplerB :: (Time -> a) -> Behavior a
+simpleSamplerB f = dontMemoizeB (samplerB (map f))
 
 -- We define the usual assortment of behavior primitives and building
 -- blocks.
@@ -225,20 +249,12 @@ samplerB sampler =
 -- Time is the identity ("I" combinator).
 
 time :: Behavior Time
-time = Behavior bstruct Nothing
- where bstruct =  SamplerB id (map (const bstruct))
+time = simpleSamplerB id
 
--- I would put the timeTransform method in GBehavior, but then there would
--- be a cyclic dependency between Behavior and Event.  What's the right
--- thing?
-class TimeTransformable bv where
-  timeTransform :: bv -> TimeB -> bv
-
--- Time transformation is semantically equivalent to function composition.
-
-instance TimeTransformable (Behavior a) where
-  timeTransform b tt = samplerB (ats b . ats tt)
-
+-- Was:
+-- 
+-- time = Behavior bstruct Nothing
+--  where bstruct =  SamplerB id (map (const bstruct))
 
 -- The basics for non-reactivity.  The classic K and S.
 
@@ -258,11 +274,11 @@ Behavior (ConstantB f) _ $* Behavior (ConstantB x) _ =
 
 -- (constantB f `untilB` e) $* constantB x
 Behavior (Behavior (ConstantB f) _ `UntilB` e) _ $* xb@(Behavior (ConstantB x) _) = 
-  constantB (f x) `untilB` e ==> \ fb' -> fb' $* xb
+  constantB (f x) `untilBB` e ==> \ fb' -> fb' $* xb
 
 -- constantB f $* (constantB x `untilB` e)
 fb@(Behavior (ConstantB f) _) $* Behavior (Behavior (ConstantB x) _  `UntilB` e) _ = 
-  constantB (f x) `untilB` e ==> \ xb' -> fb  $* xb'
+  constantB (f x) `untilBB` e ==> \ xb' -> fb  $* xb'
 
 
 -- This one seems like it should be useful, but slows down Mover.hs.  :(
@@ -310,6 +326,19 @@ lift2 :: (a -> b -> c) ->
 
 -- etc
 
+
+-- Convenience function for sampling a behavior at a start time (usually
+-- corresponding to an event) and a list of later times.  Subtle point:
+-- don't use "b `ats` (t0 : ts)", because when "ats" does memoization,
+-- we're much more likely to get a hit with ts than with t0:ts.
+
+ats0 :: Behavior a -> Time -> [Time] -> (a, [a])
+ats0 b t0 ts = (x0,xs)
+ where
+   (x0 : _) = b `ats` [t0]
+   xs = b `ats` ts
+
+
 ---- End of primitives.
 
 lift0                        = constantB
@@ -329,26 +358,15 @@ lift7 f b1 b2 b3 b4 b5 b6 b7 = lift6 f b1 b2 b3 b4 b5 b6 $* b7
 timeSince :: Time -> Behavior DTime
 timeSince t0 = time - constantB t0
 
-stepper :: a -> Event a -> Behavior a
-stepper x0 e = switcher (constantB x0) (e ==> constantB)
 
-switcher :: GBehavior bv => bv -> Event bv -> bv
-switcher b0 e = b0 `untilB` repeatE e
+-- These guys should be in UtilsB.hs, defined as sin(pi*time) and
+-- cos(pi*time), but doing so creates a nasty space leak.  See comments
+-- there and at simpleSamplerB above.
 
-repeatE :: GBehavior bv => Event bv -> Event bv
-repeatE e = withRestE e ==> uncurry switcher
+wiggle, waggle :: RealB
+wiggle = simpleSamplerB $ \ t -> sin (pi * t)
+waggle = simpleSamplerB $ \ t -> cos (pi * t)
 
-accumB :: GBehavior bv => (bv -> b -> bv) -> bv -> Event b -> bv
-accumB f soFar e =
-  soFar `untilB` (withRestE e `afterE` soFar) ==> \ ((x,e'),soFar') ->
-  accumB f (f soFar' x) e'
-
--- Here's a much simpler accumB definition, but it has the problem that it
--- does't "age" soFar.  See the comment in scanlE.
--- 
--- accumB f soFar e = switcher soFar (scanlE f soFar e)
---
--- Look for a better way to define accumB.
 
 
 -- A few convenient type abbreviations:
@@ -414,6 +432,7 @@ instance  Num a => Num (Behavior a)  where
   abs          =  lift1 abs
   fromInteger  =  constantB . fromInteger
   fromInt      =  constantB . fromInt
+  signum       =  noOverloadBId "signum"
 
 fromIntegerB :: Num a => Behavior Integer -> Behavior a
 fromIntegerB = lift1 fromInteger
@@ -428,8 +447,19 @@ instance  Real a => Real (Behavior a)  where
 toRationalB ::  Real a => Behavior a -> Behavior Rational
 toRationalB = lift1 toRational
 
+enumSorry =
+ error "Sorry behavior enums currently only work for constant behaviors." 
 
-instance Enum a => Enum (Behavior a)
+instance Enum a => Enum (Behavior a) where
+    toEnum	  = noOverloadBId "toEnum"
+    fromEnum	  = noOverloadBId "fromEnum"
+    enumFrom (Behavior (ConstantB from) _) = map constantB (enumFrom from)
+    enumFrom _                             = enumSorry
+    enumFromThen (Behavior (ConstantB from) _)
+                 (Behavior (ConstantB to  ) _) =
+       map constantB (enumFromThen from to)
+    enumFromThen _ _ = enumSorry
+
 instance (Integral a) => Integral (Behavior a) where
     quot      = lift2 quot
     rem       = lift2 rem
@@ -438,11 +468,11 @@ instance (Integral a) => Integral (Behavior a) where
     quotRem x y  = pairBSplit (lift2 quotRem x y)
     divMod  x y  = pairBSplit (lift2 divMod  x y)
     toInteger = noOverloadBId "toInteger"
-    even      = noOverloadBId "even"
-    odd       = noOverloadBId "odd"
+--    even      = noOverloadBId "even"
+--    odd       = noOverloadBId "odd"
     toInt     = noOverloadBId "toInt"
 
-toIntegerB :: Integral a => Behavior a -> Behavior Integer
+toIntegerB  :: Integral a => Behavior a -> Behavior Integer
 evenB, oddB :: Integral a => Behavior a -> BoolB
 toIntB      :: Integral a => Behavior a -> IntB
 
@@ -452,7 +482,9 @@ oddB       = lift1 odd
 toIntB     = lift1 toInt
 
 instance Fractional a => Fractional (Behavior a) where
-  fromDouble   =  constantB . fromDouble
+  -- fromDouble is not standard Haskell, so GHC objects.  On some tests,
+  -- it improved speed by about 10%.
+  --fromDouble   =  constantB . fromDouble
   fromRational =  constantB . fromRational
   (/)          =  lift2 (/)
 
@@ -615,7 +647,7 @@ showB = lift1 show
 -- leaky CAFs.
 
 tstB f = take 10 $ f 0 `ats` [0.0, 0.1 ..]
-tstBAfter f = take 10 $ f 0 `afterTimes` [0.0, 0.1 ..]
+tstBAfter f = take 10 $ f 0 `afterTimesB` [0.0, 0.1 ..]
 
 
 -- Just get the nth member.
@@ -637,7 +669,7 @@ b4 t0 = b + b where b = b3 t0
 -- after.  The cause is accumulation errors in [0.1, 0.2 .. 3], as
 -- revealed by "map (\t -> (t, compare t 1)) [0.1, 0.2 .. 3]".)
 
-b5 t0 = timeSince t0 `untilB` timeIs (t0+1) -=> 0
+b5 t0 = timeSince t0 `untilBB` timeIs (t0+1) -=> 0
 
 b6 t0 = 10 * b5 t0
 
@@ -646,4 +678,4 @@ b7 t0 = b5 t0 * 10
 b8 t0 = b * b  where  b = b5 t0
 
 -- Initial transition, as in integral.  Wasn't working previously.
-b9 t0 = constantB "before" `untilB` timeIs t0 -=> constantB "after"
+b9 t0 = constantB "before" `untilBB` timeIs t0 -=> constantB "after"

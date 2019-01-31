@@ -1,8 +1,6 @@
 -- Ad hoc collection of definitions. These are here for introductory use,
 -- to make it easier to do some simple things. I'd like to make it so that
 -- kids can use this simple vocabulary.
---
--- Last modified Wed Nov 05 15:31:29 1997
 
 module UtilsB where
 
@@ -161,6 +159,8 @@ nextUser_ f u = nextUser f u ==> snd
 countE :: Event a -> Behavior Int
 countE e = stepper 0 (scanlE (\ c _ -> c + 1) 0 e)
 
+-- Oh: here's a much simpler formulation, inspired by John P:
+-- countE e = withElemE_ e [1 ..]
 
 -- Import an X mesh file to make a geometry.  Currently presumes that the
 -- X file is a simple mesh.

@@ -5,9 +5,9 @@
 ################################################################
 
 # This goes first to make it the default
-all		: libFran.a
+default		: libFran.a
 
-HS		= BaseTypes.hs Behavior.lhs VectorSpace.hs \
+HS		= BaseTypes.hs Behavior.hs VectorSpace.hs \
 		  BehaviorEvent.hs GBehavior.hs Color.hs ColorB.hs \
 		  Event.hs Font.hs Force.hs Fran.hs GeometryB.hs \
 		  ImageB.hs Integral.hs Point2.hs \
@@ -23,6 +23,7 @@ HS		= BaseTypes.hs Behavior.lhs VectorSpace.hs \
 FRAN = ..
 include $(FRAN)/env.mk
 
+OBJS	= $(addsuffix .o,  $(basename $(HS)))
 OBJS		+=  ../gc/GHC/HSpriteLib.o ../gc/errors.obj
 
 # Using hbc first, to override standard Random.hs.  To do: switch to the
@@ -46,9 +47,10 @@ GHC_FLAGS	+= -O
 
 # Modules to compile *without* optimization.  This works
 # around a bug with optimized compilation.
-Behavior.o	: Behavior.lhs
-		$(RM) $@
-		$(GHC) $(GHC_FLAGS_ONOT) -c $<
+#  Is that bug still there since I went non-literate??
+#Behavior.o	: Behavior.hs
+#		$(RM) $@
+#		$(GHC) $(GHC_FLAGS_ONOT) -c $<
 
 GHC_FLAGS_EXTRA	+= -optl-u -optl_NoRunnableThreadsHook
 LIBS		= -L. -L$(GCDIR)/win32ghc -L../SpriteLib/Debug \
@@ -66,7 +68,7 @@ clean		:
 ################################################################
 # DO NOT DELETE: Beginning of Haskell dependencies
 BaseTypes.o : BaseTypes.hs
-Behavior.o : Behavior.lhs
+Behavior.o : Behavior.hs
 Behavior.o : ./BaseTypes.hi
 Behavior.o : ./Event.hi
 Behavior.o : /fptools/lib/i386-unknown-cygwin32/ghc-2.06/imports/Maybe.hi
@@ -351,7 +353,9 @@ VectorSpaceB.o : ./BaseTypes.hi
 VectorSpaceB.o : ./Behavior.hi
 VectorSpaceB.o : ./VectorSpace.hi
 GHC/Compatibility.o : GHC/Compatibility.hs
+GHC/Compatibility.o : /Haskell/green-card/win32ghc/Win32.hi
 GHC/Compatibility.o : /fptools/lib/i386-unknown-cygwin32/ghc-2.06/imports/PrelNum.hi
+GHC/Compatibility.o : /fptools/lib/i386-unknown-cygwin32/ghc-2.06/imports/PrelRead.hi
 GHC/Compatibility.o : /fptools/lib/i386-unknown-cygwin32/ghc-2.06/imports/GHC.hi
 GHC/RandomIO.o : GHC/RandomIO.hs
 GHC/RandomIO.o : /Haskell/green-card/win32ghc/Win32.hi

@@ -1,0 +1,150 @@
+-------------- HSpriteLib
+
+type HDDSurface   -- DirectDraw surface
+type HDSBuffer    -- DirectSound Buffer
+type HMeshBuilder -- Direct3DRM mesh builder
+
+-- The size in pixels of a surface
+ddSurfaceSize :: HDDSurface -> SIZE
+
+-- Surface from a .BMP file.  See flipImage in ImageB.hs
+bitmapDDSurface :: String -> IO HDDSurface
+
+-- Sound buffer from a .WAV file.  See bufferSound in Sound.hs
+waveDSBuffer :: String -> HDSBuffer
+
+-- Mesh builder from a .X mesh file.  See meshG in GeometryB.hs
+meshBuilder :: String -> HMeshBuilder
+
+-- Light types.  See lightG in GeometryB.hs
+ambientLight, pointLight, spotLight,
+directionalLight, parallelPointLight :: LightType
+
+-- (width,height) in pixels of a flipbook
+flipBookSize :: HFlipBook -> SIZE
+
+-- Flip book from: surface, width and height, X,Y start pos on surface, 
+-- number of columns, and rows of pages
+flipBook :: HDDSurface -> Pixels -> Pixels -> Pixels -> Pixels
+         -> Int -> Int -> HFlipBook
+
+
+-------------- ImageB
+
+type ImageB
+
+-- The empty ImageB
+emptyI :: ImageB
+
+-- Solid color image.  Useful for background for now and later with
+-- stenciling.  Use with "withColor".
+solidImage :: ImageB
+
+-- Flipbook-based ImageB, given page # behavior
+flipImage :: HSpriteLib.HFlipBook -> RealB -> ImageB
+
+-- renders to a DDSurface
+renderImage :: RenderIO -> ImageB
+
+-- Embed a sound
+soundImage :: SoundB -> ImageB
+
+-- overlay
+over :: ImageB -> ImageB -> ImageB
+
+-- colored image
+withColor :: ColorB -> ImageB -> ImageB
+
+-- (*%) :: TransformI -> ImageB -> ImageB
+instance Transformable2B ImageB 
+
+-- timeTransform :: ImageB -> TimeB -> ImageB
+instance TimeTransformable ImageB
+
+-- untilB :: ImageB -> Event ImageB -> ImageB
+instance GBehavior ImageB
+
+-- Overlay of list of ImageB's.  First one is on top
+overs :: [ImageB] -> ImageB
+
+-- unit circle
+circle :: ImageB
+
+-- Some 2D geometry
+
+-- These ones allow the number of vertices to change
+polygonB    :: Behavior [S.Point2] -> ImageB
+polylineB   :: Behavior [S.Point2] -> ImageB
+polyBezierB :: Behavior [S.Point2] -> ImageB
+
+-- These ones are more convenient in the common case
+polygon    :: [Point2B] -> ImageB
+polyline   :: [Point2B] -> ImageB
+polyBezier :: [Point2B] -> ImageB
+
+bezier     :: Point2B -> Point2B -> Point2B -> Point2B -> ImageB
+square     :: ImageB
+line       :: Point2B -> Point2B -> ImageB
+textImage  :: TextB -> ImageB
+
+-- A regular polygon with given number of vertices
+regularPolygon :: IntB -> ImageB
+
+-- Star figure.  Arguments: skip and vertices.  For instance, (star 7 3)
+-- is a seven-pointed star connecting every third vertex of what would be
+-- a regular 7-gon.
+star :: IntB -> IntB -> ImageB
+
+
+-------------- GeometryB
+
+type GeometryB
+
+-- The empty geometry
+emptyG :: GeometryB
+
+-- Geometry based on polygon mesh.  See meshBuilder in SpriteLib
+meshG :: HSpriteLib.HMeshBuilder -> GeometryB
+
+-- Light geometry.  See LightType in SpriteLib
+lightG :: HSpriteLib.LightType -> GeometryB
+
+-- Sound embedded in Geometry.  Sorry -- not yet available.
+-- soundG :: SoundB -> GeometryB
+
+-- Form union of two geometric models
+unionG :: GeometryB -> GeometryB -> GeometryB
+
+withColorG :: ColorB -> GeometryB -> GeometryB
+
+-- timeTransform :: GeometryB -> TimeB -> GeometryB
+instance TimeTransformable GeometryB
+
+-- (**%) :: Transform3B -> GeometryB -> GeometryB
+instance Transformable3B GeometryB
+
+-- untilB :: GeometryB -> Event GeometryB -> GeometryB
+instance GBehavior GeometryB
+
+
+------------------- SoundB
+
+type SoundB
+
+silence :: SoundB
+
+bufferSound :: HSpriteLib.HDSBuffer -> SoundB
+
+mix :: SoundB -> SoundB -> SoundB
+
+-- multiplies (intensity, not dB) 
+volume :: RealB -> SoundB -> SoundB
+
+-- multiplies
+pitch :: RealB -> SoundB -> SoundB
+
+-- untilB :: SoundB -> Event SoundB -> SoundB
+instance GBehavior SoundB
+
+-- timeTransform :: SoundB -> TimeB -> SoundB
+instance TimeTransformable SoundB

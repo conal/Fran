@@ -1,46 +1,34 @@
 -- Working toward a simple Asteroids game.
+-- 
+-- Hit escape to start over with these flying demos.
 
 
 import Fran
 import qualified StaticTypes as S
 import Win32Key  -- for vkeys
 
-main = displayU flyShip2
+main = displayU flyShip
 
 -- Try out flying the ship
 
--- flyShip1, flyShip2, flyShip3, flyShipBombs4, flyShip5 :: User -> ImageB
-
-fireKey = vK_SPACE
+fireKey    = vK_SPACE
 restartKey = vK_ESCAPE
 
 restart, fire :: User -> Event User
-
 restart = keyUser restartKey
 fire    = keyUser fireKey
 
+keyUser :: VKey -> User -> Event User
 keyUser key = nextUser_ (keyPress key)
 
+rotateControl, thrustControl, thrustState :: User -> RealB
 rotateControl u = 5 * keysSign vK_LEFT vK_RIGHT u
 thrustControl u = 3 * thrustState u
 thrustState   u = keysSign vK_UP vK_DOWN u
 
--- Hit escape to start over with these flying demos.
-
--- With this guy, the up/down keys adjust *speed*, not velocity.
-
-flyShip1 u = ship pos vel angle u `untilB` restart u ==> flyShip1
- where
-   pos   = integral vel u
-   vel   = vector2Polar speed angle
-   angle = integral angularVel u
-   speed = integral forwardAccel u
-   angularVel   = rotateControl u
-   forwardAccel = thrustControl u
-
 -- The one you'd expect.
 
-flyShip2 u = ship pos vel angle u `untilB` restart u ==> flyShip2
+flyShip u = ship pos vel angle u `untilB` restart u ==> flyShip
  where
    pos   = integral vel u
    vel   = integral acc u
@@ -50,14 +38,26 @@ flyShip2 u = ship pos vel angle u `untilB` restart u ==> flyShip2
    accelMag   = thrustControl u
 
 
+-- With this guy, the up/down keys adjust *speed*, not velocity.  Try it,
+-- and you'll see what I mean.  The defs could be factored for reuse.
+flyShipSpeed u = ship pos vel angle u `untilB` restart u ==> flyShipSpeed
+ where
+   pos   = integral vel u
+   vel   = vector2Polar speed angle
+   angle = integral angularVel u
+   speed = integral forwardAccel u
+   angularVel   = rotateControl u
+   forwardAccel = thrustControl u
+
+
 -- Misc experimental
 
 -- Add some sound.  First just buzz upon each space press
 
-spaceBuzzer u = loop u `untilB` restart u ==> spaceBuzzer
- where
-  loop u = silence `untilB` fire u ==> \ u ->
-           shotSound u `mix` loop u
+-- spaceBuzzer u = loop u `untilB` restart u ==> spaceBuzzer
+--  where
+--   loop u = silence `untilB` fire u ==> \ u ->
+--            shotSound u `mix` loop u
 
 engineSound = importWave "..\\..\\Media\\sengine.wav"
 
@@ -74,12 +74,15 @@ shoot pos vel angle u = accumB over emptyImage missileE
                         `afterE`    u
                         ==>         shootMissile
    shootMissile ((p,v,a),u) =
-     move (constantB p + atRate (constantB v') u) (missile dur u)
-      `untilB` userTimeIs dur u -=> emptyImage
+     move (linear p v' u) (missile dur u) `untilB` userTimeIs dur u -=>
+     emptyImage
     where
       v' = v + S.vector2Polar boost a
       boost = 1  -- boost beyond ship velocity
-      dur   = 2  -- missile's duration
+      dur   = 5  -- missile's duration
+
+linear :: S.Vector2 -> S.Vector2 -> User -> Vector2B
+linear p v u = constantB p + atRate (constantB v) u
 
 missile :: DTime -> User -> ImageB
 missile dur u = soundImage (volume vol missileSound) `over` im
@@ -97,12 +100,12 @@ thrustSound u = volume vol engineSound
  where
    vol = abs (thrustState u)
 
-buzzyShip u = flyShip1 u `over` soundImage (spaceBuzzer u)
+--buzzyShip u = flyShip u `over` soundImage (spaceBuzzer u)
 
 ship pos vel angle u = move pos (
                          flipImage shipBook (shipPage angle) `over`
-                         soundImage (thrustSound u)          `over`
-                         shoot pos vel angle u )
+                         soundImage (thrustSound u))
+                       `over` shoot pos vel angle u
  where
    -- The pages start out pointing up, i.e., pi/2, and rotate clockwise
    -- (negative), so we have to adjust

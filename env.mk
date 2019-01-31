@@ -12,8 +12,9 @@ RM		= rm -f
 
 GCDIR		= /Haskell/green-card
 GC		= $(GCDIR)/green-card.exe
-# Note use "/Profile" when profiling, until I have a better scheme
-#WIN32DIR	= $(GCDIR)/win32ghc/Profile
+# Note: when profiling, be sure to use the appropriate win32ghc bit.  I
+# don't know how to manage this well, so for now I maintain two
+# directories of .o, .a, and .hi files.
 WIN32DIR	= $(GCDIR)/win32ghc
 
 AR     		= ar clqs
@@ -28,7 +29,9 @@ INCLUDES	= -i$(GHCLIB):$(FRAN)/src:$(FRAN)/src/GHC:$(FRAN)/gc/GHC:$(GCDIR)/win32
 GHC_FLAGS	+= -syslib hbc
 GHC_FLAGS	+= -fglasgow-exts -concurrent -recomp
 # Profiling.
-#GHC_FLAGS	+= -prof -auto
+#GHC_FLAGS	+= -prof
+# automagic cost center insertion
+#GHC_FLAGS	+= -auto
 GHC_FLAGS	+= $(INCLUDES)
 # For non-optimized compilation
 # GHC_FLAGS_ONOT	:= $(GHC_FLAGS)
