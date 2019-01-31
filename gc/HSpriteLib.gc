@@ -3,9 +3,8 @@
 module HSpriteLib where
 
 import StdDIS
-import Win32 (nullHANDLE, HWND, HDC, DWORD, UINT, LONG, Word32, COLORREF, SIZE
-             -- The rest are due to definitions that should be in Win32.
-             , WindowMessage, LPCTSTR, LPARAM, WPARAM
+import Win32 ( nullHANDLE, HWND, HDC, DWORD, UINT, LONG, Word32, COLORREF
+             , SIZE, WindowMessage, LPARAM, WPARAM
              )
 
 -- Open and Close SpriteLib
@@ -373,6 +372,11 @@ instance AkoSpriteTree Word32 where
 
 %#include <wintab.h>
 %#include "SimpleTablet.h"
+
+-- ## Strange!! If I use the name "TabCtx" in place of "HCTX" below,
+-- everything from this point on gets silently discarded, and
+-- _wordToSpriteTree doesn't get defined.
+type TabCtx = HCTX
 
 type   HCTX       = Addr
 %dis   hCTX     x = addr ({HCTX} x)

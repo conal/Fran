@@ -4,7 +4,6 @@ module Uist where
 
 import Fran
 import qualified StaticTypes as S
-import InputMonitor
 import NewCurve
 
 -- A control point is a Fran 2D point behavior and a boolean behavior

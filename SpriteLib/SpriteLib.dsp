@@ -138,6 +138,12 @@ SOURCE=$(InputPath)
 	copy $(OutDir)\SpriteLib.dll  %windir%%
 
 # End Custom Build
+# Begin Special Build Tool
+OutDir=.\.\ReleaseStatic
+SOURCE=$(InputPath)
+PostBuild_Desc=Building (static) SpriteLibStat.lib
+PostBuild_Cmds=cd $(Outdir)	lib /subsystem:windows /out:SpriteLibStat.lib *.obj
+# End Special Build Tool
 
 !ENDIF 
 

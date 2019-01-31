@@ -242,10 +242,10 @@ cacheLookup sampler cacheVar ts = unsafePerformIO $ do
         hd:tl ->
          putStrLn (
                "cache " ++ str ++ " after " ++ show n ++ " entries. "
-            ++ "ts " ++ show (unsafePtrToInt ts) ++ ". "
-            ++ "head " ++ show hd ++ ". "
+--            ++ "ts " ++ show (unsafePtrToInt ts) ++ ". "
+--            ++ "head " ++ show hd ++ ". "
 --             ++ "tail " ++ show (unsafePtrToInt tl) ++ ". "
-            ++ "cache " ++ show (unsafePtrToInt cacheVar)
+--            ++ "cache " ++ show (unsafePtrToInt cacheVar)
             )
 
       ts `matches` ts' = ts `seq` ts' `seq` ts `cacheMatch` ts'

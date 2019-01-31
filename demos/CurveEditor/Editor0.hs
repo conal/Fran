@@ -5,7 +5,7 @@ module Editor0 where
 
 import Fran
 import qualified StaticTypes as S
-import InputMonitor
+
 
 -- Initially we will represent control points by Fran 2D points.
 type CPoint  = S.Point2

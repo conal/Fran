@@ -14,7 +14,7 @@
 
 #else
 
-#ifdef _MSC_VER			// Microsoft Visual C++
+#if defined(_MSC_VER) //&& !defined(_STATIC_SPRITELIB)
 
 #define _IMPORT __declspec( dllimport )
 #define _STDCALL __stdcall

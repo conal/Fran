@@ -4,21 +4,21 @@
 <meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1252">
 <meta NAME="GENERATOR" CONTENT="Microsoft FrontPage 3.0">
 <title>Fran Users Manual</title>
+<meta NAME="Template" CONTENT="C:\Program Files\Microsoft Office\Office\html.dot">
 </head>
 
-<body>
+<body LINK="#0000ff" VLINK="#800080">
 
-<h1 align="center">Fran 1.1 Users Manual</h1>
+<h1 ALIGN="CENTER">Fran 1.1 Users Manual</h1>
 
-<h2 align="center">John Peterson<br>
+<h2 ALIGN="CENTER">John Peterson<br>
 Conal Elliott<br>
-Gary Shu Ling<br>
-</h2>
+Gary Shu Ling</h2>
 
 <p ALIGN="CENTER"><!--webbot bot="Timestamp" startspan S-Type="EDITED"
-S-Format="%B %d, %Y" -->May 07, 1998<!--webbot bot="Timestamp" i-checksum="11290" endspan --></p>
+S-Format="%B %d, %Y" -->June 17, 1998<!--webbot bot="Timestamp" i-checksum="14498" endspan --> </p>
 
-<h2><a NAME="sect1"></a>Introduction</h2>
+<h2><a NAME="Introduction"></a>Introduction</h2>
 
 <p>Fran (Function Reactive Animation) is a collection of data types and functions for
 composing interactive multimedia animations. It is implemented in Haskell and runs under
@@ -29,18 +29,18 @@ researchers. Currently Fran runs under the Microsoft Windows '95/NT systems. Thi
 research in progress; it is very likely that Fran will continue to change in the near
 future. We have tested all of the examples distributed with Fran but there are sure to be
 bugs in the current system. Please report any problems to <a
-href="mailto:fran-bugs@haskell.org">fran-bugs@haskell.org</a>. This document is associated
+HREF="mailto:fran-bugs@haskell.org">fran-bugs@haskell.org</a>. This document is associated
 with version 1.1 of Fran, which is available at the Fran home page: <a
 HREF="http://www.research.microsoft.com/~conal/Fran">http://www.research.microsoft.com/~conal/Fran</a>.
 Version 1.09 is distributed with January 1998 Hugs 1.4 distribution (<a
-href="http://haskell.systemsz.cs.yale.edu/hugs">http://haskell.systemsz.cs.yale.edu/hugs</a>).
+HREF="http://haskell.systemsz.cs.yale.edu/hugs">http://haskell.systemsz.cs.yale.edu/hugs</a>).
 </p>
 
 <p>This manual contains a short introduction to Fran and an overview of the pre-defined
 types and functions available in Fran. A more detailed Fran tutorial is available from the
 Fran home page.</p>
 
-<p>All of the examples used in this manual are found in the <a href="../demos/UsersMan.hs">../demos/UsersMan.hs</a>.
+<p>All of the examples used in this manual are found in the <a HREF="../demos/UsersMan.hs">../demos/UsersMan.hs</a>.
 If you are unfamiliar with Fran, the best way to use this manual is to open (double click)
 <tt>UsersMan.hs </tt>in the <tt>../demos</tt> directory. An individual example can be
 executed using the <tt>run</tt> function: <tt>run</tt> <i>n</i> executes the <i>n</i>th
@@ -58,7 +58,7 @@ of Fran. While this manual mainly discusses animations, the same model serves fo
 reactive systems. Indeed, this implementation cleanly separates the core behavior -- event
 interaction and the graphics library layered on top of it.</p>
 
-<h2><a NAME="sect2"></a>Behaviors</h2>
+<h2><a NAME="Behaviors"></a>Behaviors</h2>
 
 <p>In Fran, a value of type <tt>Behavior T</tt> is a time-varying value of type <tt>T</tt>.
 Behaviors are similar to functions over time: operationally, the type <tt>Behavior T</tt>
@@ -112,8 +112,7 @@ stretch    :: RealB -&gt; ImageB -&gt; ImageB   -- Enlarge (or reduce) the
                                           -- size of an image
 -- Display routine.  Initial screen scaled to (-1,-1) , (1,1)
 
-displayU   :: (User -&gt; ImageB) -&gt; IO ()  -- display a user-dependent animation
-</pre>
+displayU   :: (User -&gt; ImageB) -&gt; IO ()  -- display a user-dependent animation</pre>
 
 <p>To avoid clutter in type signatures involving <tt>Behavior</tt> many types have
 pre-defined synonyms for their behavioral counterparts. The <tt>type</tt> declarations
@@ -169,7 +168,7 @@ This program displays a ball that follows the mouse: </p>
 
 <p>&nbsp;</p>
 
-<h2><a NAME="sect3"></a>Events</h2>
+<h2><a NAME="Events"></a>Events</h2>
 
 <p>Behaviors are continuous, defined over a continuous range of time values. Events, in
 contrast, are instantaneous: an event occurs at a discrete set of times. Each event
@@ -201,7 +200,7 @@ are the start time and the time between events.</p>
 
 <p>&nbsp;</p>
 
-<h2><a NAME="sect4"></a>Reactive Behaviors</h2>
+<h2><a NAME="ReactiveBehaviors"></a>Reactive Behaviors</h2>
 
 <p>Events are used to build <i>reactive behaviors</i> which change course in response to
 events. Reactive behaviors are defined using the <tt>untilB</tt> function: </p>
@@ -235,11 +234,11 @@ lower fixity than <tt>-=&gt;</tt> .</p>
 
 <p>&nbsp;</p>
 
-<h2><a NAME="sect5"></a>Using Events and Behaviors</h2>
+<h2><a NAME="UsingEventsandBehaviors"></a>Using Events and Behaviors</h2>
 
 <p>Fran contains a rich library of functions involving events and behaviors. </p>
 
-<h3><a NAME="sect5_1"></a>Event Transformations and Utilities</h3>
+<h3><a NAME="EventTransformationsandUtilities"></a>Event Transformations and Utilities</h3>
 
 <p>The choice operator merges two events into a single one: </p>
 
@@ -344,7 +343,7 @@ suchThat ev pred  =  filterE ev (\a -&gt; if pred a then Just a else Nothing)</p
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect5_2"></a>User Interaction</h3>
+<h3><a NAME="UserInteraction"></a>User Interaction</h3>
 
 <p>These events and behaviors are derived from user input. </p>
 
@@ -366,6 +365,7 @@ mouseMove          :: User -&gt; Event Point2
 mouse              :: User -&gt; Point2B
 mouseMotion        :: User -&gt; Vector2B
 -- Stylus (tablet)
+stylusPresent        :: User -&gt; Bool
 stylusMove           :: User -&gt; Event Point2
 stylusPressureChange :: User -&gt; Event Double
 stylusButton         :: User -&gt; Event Bool
@@ -383,14 +383,13 @@ userTimeIs         :: Time -&gt; User -&gt; Event ()</pre>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect5_3"></a>Speed-based behaviors</h3>
+<h3><a NAME="RateBasedBehaviors"></a>Rate-Based Behaviors</h3>
 
 <p>The <tt>integral</tt> function integrates numeric behaviors over time. Both reals and
 vectors can be integrated. The type of <tt>integral</tt> is: </p>
 
 <pre>integral :: (VectorSpace v) =&gt; Behavior v -&gt; User -&gt; Behavior v
-atRate   :: (VectorSpace v) =&gt; Behavior v -&gt; User -&gt; Behavior v
-</pre>
+atRate   :: (VectorSpace v) =&gt; Behavior v -&gt; User -&gt; Behavior v</pre>
 
 <p>Function <tt>atRate</tt> is another name for <tt>integral</tt>. The types in <tt>VectorSpace</tt>
 include <tt>Real</tt>, <tt>Vector2</tt>, and <tt>Vector3</tt>. </p>
@@ -412,7 +411,7 @@ which determines the step size used by the underlying numerical method.</p>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect5_4"></a>Snapshots</h3>
+<h3><a NAME="Snapshots"></a>Snapshots</h3>
 
 <p>A snapshot samples the value of a behavior at an event occurrence. The snapshot
 functions are: </p>
@@ -437,7 +436,7 @@ example10 u = withColor red $
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect5_5"></a>Predicates</h3>
+<h3><a NAME="Predicates"></a>Predicates</h3>
 
 <p>The <tt>predicate</tt> function creates an event which monitors a boolean behavior: </p>
 
@@ -476,7 +475,7 @@ up out of the floor.</p>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect5_6"></a>Time Transformation</h3>
+<h3><a NAME="TimeTransformation"></a>Time Transformation</h3>
 
 <p>A <i>time transform</i> alters the time frame within a behavior. </p>
 
@@ -500,7 +499,7 @@ a transformed time-frame according to behavior <tt>tb</tt>. For example: </p>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect5_7"></a>Utilities</h3>
+<h3><a NAME="Utilitites"></a>Utilities</h3>
 
 <p>These are some miscellaneous utilities: </p>
 
@@ -542,12 +541,11 @@ rightButton u = toggle (rbp u) (rbr u)
 
 -- Debugging support
 data TraceEFlag = TraceOccsE | TraceAllE   deriving (Show, Eq)
-traceE :: Show a =&gt; String -&gt; TraceEFlag -&gt; Event a -&gt; Event a
-</pre>
+traceE :: Show a =&gt; String -&gt; TraceEFlag -&gt; Event a -&gt; Event a</pre>
 
 <p>&nbsp;</p>
 
-<h2><a NAME="sect6"></a><a NAME="lifting"></a>Lifted Behaviors</h2>
+<h2><a NAME="Lifting"></a>Lifted Behaviors</h2>
 
 <p>We say a type or function which has been raised from the domain of ordinary Haskell
 values to behaviors is &quot;lifted&quot;. For example, a function such as </p>
@@ -680,8 +678,7 @@ pairB            :: Behavior a -&gt; Behavior b -&gt; Behavior (a,b)
 fstB             :: Behavior (a,b) -&gt; Behavior a
 sndB             :: Behavior (a,b) -&gt; Behavior b
 pairBSplit       :: Behavior (a,b) -&gt; (Behavior a, Behavior b)
-showB            :: (Show a) =&gt; Behavior a -&gt; Behavior String
-</pre>
+showB            :: (Show a) =&gt; Behavior a -&gt; Behavior String</pre>
 
 <p>A few list-based functions are lifted, although most of the functions in <tt>PreludeList</tt>
 are not lifted. </p>
@@ -691,9 +688,8 @@ consB            :: Behavior a -&gt; Behavior [b] -&gt; Behavior [b]
 headB            :: Behavior [a] -&gt; Behavior a 
 tailB            :: Behavior [a] -&gt; Behavior [a] 
 nullB            :: Behavior [a] -&gt; BoolB
-(!!*)            :: Behavior [a] -&gt; IntB -&gt; Behavior a</pre>
-
-<pre>-- Turn a list of behaviors into a behavior over list
+(!!*)            :: Behavior [a] -&gt; IntB -&gt; Behavior a
+-- Turn a list of behaviors into a behavior over list
 bListToListB :: [Behavior a] -&gt; Behavior [a]
 bListToListB = foldr consB nilB
 
@@ -703,7 +699,7 @@ liftL f bs = lift1 f (bListToListB bs)</pre>
 
 <p>&nbsp;</p>
 
-<h2><a NAME="sect7"></a>Numeric Types</h2>
+<h2><a NAME="NumericTypes"></a>Numeric Types</h2>
 
 <p>The numeric types and functions are available both a static values and as behaviors.
 Since the same name is generally used for both the static and behavioral version of a
@@ -716,7 +712,7 @@ non-behavioral functions are needed, the convention is to add </p>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect7_1"></a>Basic Numeric Types</h3>
+<h3><a NAME="BasicNumericTypes"></a>Basic Numeric Types</h3>
 
 <p>All scalar types are essentially the same in Fran. Synonyms allow type signatures to
 contain extra descriptive information such as <tt>Fraction</tt> for values between 0 and 1
@@ -756,7 +752,7 @@ type Transform3B = Behavior Transform3</pre>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect7_2"></a>Points and Vectors</h3>
+<h3><a NAME="PointsAndVectors"></a>Points and Vectors</h3>
 
 <pre>
 origin2             :: Point2B                                   
@@ -799,7 +795,6 @@ vector3XYZCoords   :: Vector3B -&gt; (RealB, RealB, RealB)
 vector3Spherical   :: RealB -&gt; RealB -&gt; RealB -&gt; Vector3B
 vector3PolarCoords :: Vector3B -&gt; (RealB, RealB, RealB)
 instance Num Vector3 -- fromInteger, * not allowed/pre&gt;
-
 </pre>
 
 <p>Note that vectors and points have distinct types. You cannot use <tt>+</tt> to add a
@@ -812,7 +807,7 @@ Thus <tt>.+^</tt> means `point plus vector'. </p>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect7_3"></a>Vector Spaces</h3>
+<h3><a NAME="VectorSpaces"></a>Vector Spaces</h3>
 
 <pre>zeroVector       :: VectorSpace v =&gt; Behavior v
 (*^)             :: VectorSpace v =&gt; ScalarB -&gt; Behavior v -&gt; Behavior v
@@ -830,7 +825,7 @@ instance VectorSpace Vector3</pre>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect7_4"></a>Transformations</h3>
+<h3><a NAME="Transformations"></a>Transformations</h3>
 
 <p>The types <tt>Transformation2B</tt> and <tt>Transformation3B</tt> represent geometric
 transformation on images, points, or vectors. The basic transformations are translation,
@@ -838,8 +833,7 @@ rotation, and scaling. Complex transformations are created by composing basic
 transformations. The class <tt>Transformable2</tt> contains 2D transformable objects.</p>
 
 <pre>class Tranformable2B a where
-   (*%)    :: Transform2B -&gt; a -&gt; a   -- Applies a transform
-</pre>
+   (*%)    :: Transform2B -&gt; a -&gt; a   -- Applies a transform</pre>
 
 <p>These are the operations on 2D transforms: </p>
 
@@ -876,11 +870,11 @@ function composition operator <tt>(.)</tt>.</p>
 
 <p>&nbsp;</p>
 
-<h2><a NAME="sect8"></a>Rendered Objects</h2>
+<h2><a NAME="RenderedObjects"></a>Rendered Objects</h2>
 
 <p>Fran is capable of rendering 2-D images, 3-D images, and sounds. </p>
 
-<h3><a NAME="sect8_1"></a>Fonts</h3>
+<h3><a NAME="Fonts"></a>Fonts</h3>
 
 <p>Fonts are defined as follows: </p>
 
@@ -903,18 +897,14 @@ operators transform text objects by changing their font. </p>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect8_2"></a>Colors</h3>
+<h3><a NAME="Colors"></a>Colors</h3>
 
 <p>These functions define Fran colors: </p>
 
-<pre>colorRGB            :: RealB 
--&gt; RealB  -&gt; RealB  -&gt; ColorB
-colorHSL            :: RealB -&gt; RealB 
--&gt; RealB  -&gt; ColorB
-colorRGBCoords     :: ColorB -&gt; (RealB, RealB,
-RealB) 
-colorHSLCoords      :: ColorB -&gt; (RealB,
-RealB, RealB)
+<pre>colorRGB            :: RealB -&gt; RealB -&gt; RealB  -&gt; ColorB
+colorHSL            :: RealB -&gt; RealB -&gt; RealB  -&gt; ColorB
+colorRGBCoords      :: ColorB -&gt; (RealB, RealB, RealB) 
+colorHSLCoords      :: ColorB -&gt; (RealB, RealB, RealB)
 interpolateColorRGB :: ColorB -&gt; ColorB -&gt; RealB -&gt; ColorB
 interpolateColorHSL :: ColorB -&gt; ColorB -&gt; RealB -&gt; ColorB
 grey                :: FractionB -&gt; ColorB
@@ -936,7 +926,7 @@ colorRGB256 :: IntB -&gt; IntB -&gt; IntB -&gt; ColorB</pre>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect8_3"></a>Images</h3>
+<h3><a NAME="Images"></a>Images</h3>
 
 <p>The type <tt>ImageB</tt> represents reactive 2-D animations. </p>
 
@@ -1018,7 +1008,7 @@ following:</p>
 
 <pre>importFlipBook :: String -&gt; Int -&gt; Int -&gt; HFlipBook</pre>
 
-<p>Here's a tip: start with an animated GIF, and use <a href="http://www.gamani.com">GIF
+<p>Here's a tip: start with an animated GIF, and use <a HREF="http://www.gamani.com/">GIF
 Movie Gear</a> to view it. Do Tools/Unoptimize, and then File/Export As/GIF Filmstrip,
 with horizontal orientation, and a factor of the number of frames as the &quot;number of
 frames per strip&quot;. Then use another program (e.g., MS Photo Editor) to convert the
@@ -1087,7 +1077,7 @@ viewStretch          :: Vector2B -&gt; User -&gt; ImageB -&gt; ImageB </pre>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect8_4"></a>3-D Geometry</h3>
+<h3><a NAME="3DGeometry"></a>3-D Geometry</h3>
 
 <pre>emptyG               :: GeometryB
 unionG               :: GeometryB -&gt; GeometryB -&gt; GeometryB
@@ -1122,7 +1112,7 @@ turn3 axis angle = (rotate3 axis angle **%)</pre>
 
 <p>&nbsp;</p>
 
-<h3><a NAME="sect8_5"></a>Sound</h3>
+<h3><a NAME="Sound"></a>Sound</h3>
 
 <pre>-- import from .wav file, possibly repeating
 importWave :: String -&gt; Bool -&gt; SoundB 
@@ -1194,7 +1184,28 @@ withInitialViewSize :: RealVal -&gt; RealVal -&gt; IO a -&gt; IO a</pre>
 
 <p>&nbsp;</p>
 
-<h2><a NAME="sect9"></a>Fixities</h2>
+<h2><a NAME="InputMonitoring"></a>Input Monitoring</h2>
+
+<p>When giving a demo or recording an animation for later presentation, it is helpful to
+show the observer what the user is doing. Fran includes a few convenient functions for
+this purpose.</p>
+
+<pre>-- Echo button and keyboard input events at the bottom of the window
+inputMonitor :: User -&gt; ImageB
+
+-- displayU plus input monitor of given color
+displayUMonC :: ColorB -&gt; (User -&gt; ImageB) -&gt; IO ()
+
+displayUMon :: (User -&gt; ImageB) -&gt; IO ()
+displayUMon = displayUMonC blue
+
+-- displayEx plus input monitor of given color
+displayExMon :: ColorB -&gt; (User -&gt; (ImageB, Event (IO ()))) -&gt; Win32.HWND -&gt; IO ()
+</pre>
+
+<p>&nbsp;</p>
+
+<h2><a NAME="Fixities"></a>Fixities</h2>
 
 <p>Here are all fixities defined in Fran.&nbsp; Lifted versions of standard Haskell
 functions take on the same fixities as the unlifted versions.&nbsp; Infix event &nbsp;

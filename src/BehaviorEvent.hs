@@ -77,22 +77,27 @@ e `whenE` b = whenSnap e b (curry snd)
 predicate :: BoolB -> User -> Event ()
 
 -- Check once per update.  See Integral's stepSize for alternative.
-predicate b u = check `whenE` b
- where
-  check = updateDone u -=> ()
-  -- An alternative: check at regular intervals.  But then we're not 
-  -- adapting to changes in update rate, which can lead to exponential
-  -- degradation of the update rate.
-  -- check = alarmE (userStartTime u) 0.05
-
+predicate b u = timeToCheck u `whenE` b
 
 -- Generalization of predicate
 maybeBE :: MaybeB a -> User -> Event a
-maybeBE mbB u = check `snapshot_` mbB
-                      `suchThat`  isJust
-                      ==>         fromJust
+maybeBE mbB u = timeToCheck u `snapshot_` mbB
+                              `suchThat`  isJust
+                              ==>         fromJust
+
+timeToCheck :: User -> Event ()
+timeToCheck u =
+  updateDone u -=> ()
+  -- alarmE (userStartTime u) 0.05
+  -- possOccsE (map littleEarlier (possOccsOf (updateDone u))) -=> ()
+  .|. (updateDone u `whenE` falseB -=> ())
  where
-  check = updateDone u
+   littleEarlier (t, mb) = (t - eps, mb)
+   -- Bummer: when eps>0, I sometimes end up sampling user input before
+   -- it's ready.  Figure out a good solution.
+   eps = 0.001
+
+
 
 
 -- How much time has passed since an event occurrence

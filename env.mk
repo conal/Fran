@@ -19,11 +19,14 @@ GHC		= ghc
 HP2PS		= hp2ps -c
 RM		= rm -f
 
-GCDIR		= /usr/fptools/green-card/src
-GCLIBDIR        = /usr/fptools/green-card/lib/ghc
-WIN32DIR        = /usr/fptools/src/win32
+GCDIR		= /usr/fptools/green-card
+GCSRC		= $(GCDIR)/src
+GCLIBGHCDIR     = $(GCDIR)/lib/ghc
+GCLIBHUGSDIR    = $(GCDIR)/lib/hugs
+WIN32GHCDIR     = /usr/fptools/src/win32
+WIN32HUGSDIR    = $(WIN32GHCDIR)/hugs
 
-GC		= $(GCDIR)/green-card.exe -i$(GCLIBDIR):$(WIN32DIR)
+GC		= $(GCSRC)/green-card.exe
 
 AR     		= ar clqs
 RANLIB 		= ranlib
@@ -31,7 +34,7 @@ RANLIB 		= ranlib
 PS_VIEWER	= /gstools/gsview/gsview32
 
 # Include directories
-INCLUDES	= -i$(WIN32DIR):$(GCLIBDIR)
+INCLUDES	= -i$(WIN32GHCDIR):$(GCLIBGHCDIR)
 
 # GHC flags
 GHC_FLAGS	+= -fglasgow-exts -concurrent -recomp

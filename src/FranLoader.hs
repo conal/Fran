@@ -27,6 +27,7 @@ module FranLoader (
             , module HSpriteLib
             , module UtilsB
             , module ShowImageB
+            , module InputMonitor
           ) where
 
 import BaseTypes
@@ -59,4 +60,5 @@ import HSpriteLib(
                  , HFlipBook, flipBook, flipBookPages
                  )
 import UtilsB
-import ShowImageB ({-setViewSize,-} setInitialViewSize, withInitialViewSize)
+import ShowImageB 
+import InputMonitor

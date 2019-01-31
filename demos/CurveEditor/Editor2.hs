@@ -10,7 +10,7 @@ import Editor1 hiding (renderCurve, editCurve, editor, main)
 import Fran
 import qualified StaticTypes as S
 import FileUtils (load)
-import InputMonitor
+
 
 -- A "excitable point": position and whether excited.
 type XPoint = (Point2B, BoolB)

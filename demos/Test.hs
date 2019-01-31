@@ -274,9 +274,19 @@ growHowTo u = moveXY 0 (- winHeight / 2 + 0.1) $
               stringBIm messageB
   where
     winHeight = snd (vector2XYCoords (viewSize u))
-    messageB = selectLeftRight "Use mouse buttons to control pot's spin"
+    messageB = selectLeftRight "press a button"
                "left" "right" u
 
+
+-- For "modeled animation" paper
+growHowTo' u = 
+  translate2 (vector2XY 0 (-1)) *%
+  withColor yellow (
+   stringBIm messageB)
+  where
+    messageB = selectLeftRight
+      "(press a button)"
+      "left" "right" u
 
 grow, growExp :: User -> RealVal -> RealB
 
@@ -714,8 +724,10 @@ uscaleAtPoint2 factor point =
 
 -- Test the effects stuff.  Use tryEffects for these ones
 
-tryEffects imF = do
-  w <- displayEx imF
+tryEffects imF' = do
+  w <- makeWindow
+  let imF u = (imB, effectF w) where (imB, effectF) = imF' u
+  displayEx imF w
   Win32.setWindowText w "Fran with effects"
   eventLoop w
 

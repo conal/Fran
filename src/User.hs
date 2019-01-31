@@ -10,7 +10,7 @@ module User ( UserAction(..), User(..) , makeUser
             , updateDone, quit
             , userTimeIs
             , mouseMotion, stylusMotion
-            --, stylusPresent
+            , stylusPresent
             ) where
 
 
@@ -37,18 +37,8 @@ data User = User { leftButton     :: BoolB
                  , viewSize       :: Vector2B
                  , updatePeriod   :: Behavior DTime
                  , actions        :: Event UserAction
-                 , stylusPresentRef :: IORef Bool
+                 , stylusPresent  :: Bool
                  }
-
--- This stylusPresent Ref is a hack around a problem of mutual dependency
--- in Spritify.displayEx.  A better solution is to separate window
--- creation from ShowImageB.  Then return here and eliminate the Ref.  ## 
-
--- This hack doesn't work.  The setting in comes too late.  So don't
--- export stylusPresent.
-
-stylusPresent :: User -> Bool
-stylusPresent u = unsafePerformIO $ readIORef (stylusPresentRef u)
 
 instance GBehavior User where
   untilB        = untilBU
@@ -60,14 +50,14 @@ instance GBehavior User where
                stylus = stylusThen, stylusPressure = stylusPressureThen, 
                viewSize = viewSizeThen,
                updatePeriod = updatePeriodThen, actions = actionsThen,
-               stylusPresentRef = stylusPresentRefThen})
+               stylusPresent = stylusPresentThen})
         (User {leftButton = leftButtonElse, rightButton = rightButtonElse,
                mouse = mouseElse,
                stylus = stylusElse, stylusPressure = stylusPressureElse,
                viewSize = viewSizeElse,
                updatePeriod = updatePeriodElse, actions = actionsElse,
-               stylusPresentRef = stylusPresentRefElse}) =
-    if stylusPresentRefThen == stylusPresentRefElse then
+               stylusPresent = stylusPresentElse}) =
+    if stylusPresentThen == stylusPresentElse then
       User {leftButton = condBUnOpt c leftButtonThen leftButtonElse,
             rightButton = condBUnOpt c rightButtonThen rightButtonElse,
             mouse = condBUnOpt c mouseThen mouseElse,
@@ -76,14 +66,15 @@ instance GBehavior User where
             viewSize = condBUnOpt c viewSizeThen viewSizeElse,
             updatePeriod = condBUnOpt c updatePeriodThen updatePeriodElse,
             actions = condBUnOpt c actionsThen actionsElse,
-            stylusPresentRef = stylusPresentRefThen}
+            stylusPresent = stylusPresentThen}
      else
-       error "Conditional user: Branches disagree about stylusPresentRef."
+       error "Conditional user: Branches disagree about stylusPresent."
 
-makeUser :: Bool -> Bool -> S.Point2 -> S.Point2 -> Double -> S.Vector2 -> DTime 
+makeUser :: Bool -> Bool -> S.Point2 -> S.Point2 -> Double -> S.Vector2
+         -> DTime -> Bool
          -> Event UserAction -> User
 makeUser lButton0 rButton0 mpos0 spos0 press0 size0
-         updatePeriod0 actions = u
+         updatePeriod0 stylusPresent actions = u
   where
     u = User { leftButton   = toggle lButton0 (lbp u) (lbr u)
              , rightButton  = toggle rButton0 (rbp u) (rbr u)
@@ -93,7 +84,7 @@ makeUser lButton0 rButton0 mpos0 spos0 press0 size0
              , viewSize     = track size0 sizeFilt
              , updatePeriod = track updatePeriod0 updateFilt
              , actions
-             , stylusPresentRef = unsafePerformIO $ newIORef False
+             , stylusPresent
              }
 
     mouseFilt  (MouseMove  p)  = Just p
@@ -128,8 +119,8 @@ untilBU u eu =
        , viewSize     = viewSize u     `untilB` eu ==> viewSize
        , updatePeriod = updatePeriod u `untilB` eu ==> updatePeriod
        , actions      = actions u      `untilB` eu ==> actions
-       -- Hope eu doesn't change stylusPresentRef.  BUG##
-       , stylusPresentRef = stylusPresentRef u  
+       -- Hope eu doesn't change stylusPresent.  BUG##
+       , stylusPresent = stylusPresent u  
        }
 
 afterTimesU :: User -> [Time] -> [User]

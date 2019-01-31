@@ -23,7 +23,7 @@ tutorial$(exe)	: Tutorial.$(way_)o TutMain.$(way_)o
 spirokids$(exe)	: Tutorial.$(way_)o SpiroKids.$(way_)o
 
 
-SUBDIRS = Fifteen Collide Navigate CurveEditor Roids
+SUBDIRS = Collide CurveEditor Fifteen LiftSim Navigate Roids
 
 # For subdirectories.
 all clean depends ::

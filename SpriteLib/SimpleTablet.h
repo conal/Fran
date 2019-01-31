@@ -9,14 +9,15 @@
 #define PACKETMODE	PK_BUTTONS
 #include "pktdef.h"
 
+typedef HCTX TabCtx;
 
 // Open the tablet.  Returns the tablet context or NULL on failure (e.g.,
 // no tablet.
-EXT_API(HCTX) OpenTablet (HWND);
+EXT_API(TabCtx) OpenTablet (HWND);
 
-EXT_API(BOOL) XWTClose (HCTX hCtx);
-EXT_API(BOOL) XWTConfig(HCTX hCtx, HWND hWnd);
-EXT_API(BOOL) XWTPacket(HCTX hCtx, UINT serial, LPVOID pPacket);
+EXT_API(BOOL) XWTClose (TabCtx ctx);
+EXT_API(BOOL) XWTConfig(TabCtx ctx, HWND hWnd);
+EXT_API(BOOL) XWTPacket(TabCtx ctx, UINT serial, LPVOID pPacket);
 
 EXT_API(BOOL) TestForTablet(HWND hWnd);
 

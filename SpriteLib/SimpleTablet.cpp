@@ -20,7 +20,7 @@ EXT_API(BOOL) TestForTablet(HWND hWnd)
 }
 
 
-EXT_API(HCTX) OpenTablet (HWND hWnd)
+EXT_API(TabCtx) OpenTablet (HWND hWnd)
 {
     LOGCONTEXT lc;
     // Suppress error box, open, and restore error mode
@@ -54,9 +54,9 @@ EXT_API(HCTX) OpenTablet (HWND hWnd)
 // directly, but I ran into a problem with a cygwin32 clash.  See if this
 // approach solves the problem.
 
-EXT_API(BOOL) XWTClose (HCTX hCtx)
-{ return WTClose(hCtx); }
-EXT_API(BOOL) XWTConfig(HCTX hCtx, HWND hWnd)
-{ return WTConfig(hCtx, hWnd); }
-EXT_API(BOOL) XWTPacket(HCTX hCtx, UINT serial, LPVOID pPacket)
-{ return WTPacket(hCtx,serial,pPacket); }
+EXT_API(BOOL) XWTClose (TabCtx ctx)
+{ return WTClose(ctx); }
+EXT_API(BOOL) XWTConfig(TabCtx ctx, HWND hWnd)
+{ return WTConfig(ctx, hWnd); }
+EXT_API(BOOL) XWTPacket(TabCtx ctx, UINT serial, LPVOID pPacket)
+{ return WTPacket(ctx,serial,pPacket); }

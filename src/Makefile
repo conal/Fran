@@ -10,8 +10,8 @@ default		::
 HS		= BaseTypes.hs Behavior.hs VectorSpace.hs \
 		  BehaviorEvent.hs GBehavior.hs Color.hs ColorB.hs \
 		  Event.hs Font.hs Force.hs GeometryB.hs \
-		  ImageB.hs Integral.hs Point2.hs \
-		  Point2B.hs Point3.hs Point3B.hs Rect.hs RectB.hs \
+		  ImageB.hs InputMonitor.hs Integral.hs \
+		  Point2.hs Point2B.hs Point3.hs Point3B.hs Rect.hs RectB.hs \
 		  RenderImage.hs \
 		  ShowImageB.hs SoundB.hs Spritify.hs \
 		  Text.hs TextB.hs Transform2.hs Transform2B.hs \

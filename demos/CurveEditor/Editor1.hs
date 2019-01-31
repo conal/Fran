@@ -10,7 +10,7 @@ import Editor0 hiding (main)
 import Fran
 import qualified StaticTypes as S
 import FileUtils (load)
-import InputMonitor
+
 
 -- The looks of a curve.  The control points over a black polyBezier
 renderCurve :: [Point2B] -> ImageB

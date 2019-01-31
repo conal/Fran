@@ -13,7 +13,6 @@ import Editor4 hiding (editorWith, editor, main)
 import Fran
 import qualified StaticTypes as S
 import FileUtils
-import InputMonitor
 import Win32Key
 import Win32 (setWindowText)
 
@@ -110,8 +109,9 @@ recenter ps = map (S..-^ shift) ps
 editorWith :: String -> EditECurve -> String -> IO ()
 editorWith version editECurve fileName = do
   initPoints <- load fileName
-  window     <- displayExMon (editRenderSave initPoints)
+  window     <- makeWindow
   setWindowText window ("Curve editor " ++ version ++ ": " ++ fileName)
+  displayExMon blue (editRenderSave initPoints) window
   eventLoop window
  where
    editRenderSave initPoints u =
@@ -119,7 +119,7 @@ editorWith version editECurve fileName = do
        editMarker                       `over`
        renderECurve eCurve              `over`
        graphPaper
-     , const doSave )
+     , doSave )
     where
       (eCurve, pointsB, pointToEdit) = editECurve initPoints u
 

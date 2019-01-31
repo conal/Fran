@@ -33,12 +33,13 @@ staticTest ::
 	cd demos && $(HUGS) TestMain         <nul | grep ERROR || exit 0
 	cd demos && $(HUGS) TutMain          <nul | grep ERROR || exit 0
 	cd demos && $(HUGS) UsersMan         <nul | grep ERROR || exit 0
+	cd demos/Collide  && $(HUGS) Main <nul | grep ERROR || exit 0
+	cd demos/CurveEditor && $(HUGS) TestEditor <nul | grep ERROR || exit 0
+	cd demos/Fifteen  && $(HUGS) Main <nul | grep ERROR || exit 0
+	cd demos/LiftSim  && $(HUGS) Main <nul | grep ERROR || exit 0
+	cd demos/Navigate && $(HUGS) Main <nul | grep ERROR || exit 0
 	cd demos/Roids && $(HUGS) MainRoids  <nul | grep ERROR || exit 0
 	cd demos/Sokoban && $(HUGS) SokoMain <nul | grep ERROR || exit 0
-	cd demos/CurveEditor && $(HUGS) TestEditor <nul | grep ERROR || exit 0
-	cd demos/Navigate && $(HUGS) Main <nul | grep ERROR || exit 0
-	cd demos/Fifteen  && $(HUGS) Main <nul | grep ERROR || exit 0
-	cd demos/Collide  && $(HUGS) Main <nul | grep ERROR || exit 0
 
 # Note: there's another rule for "depends" in env.mk, and that rule
 # generates the following empty dependency section.  It's also why FRAN

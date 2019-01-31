@@ -1,6 +1,7 @@
 -- Show a sprite tree in a window.
 
 module ShowImageB ( updatePeriodGoal
+                  , makeWindow
                   , showSpriteTree
                   , initialViewSizeVar, setInitialViewSize, withInitialViewSize
                   ) where
@@ -18,9 +19,7 @@ import Concurrent (writeChan)
 import Event (EventChannel, newChannelEvent)
 import User
 import Word(word32ToInt)
-import Int(int32ToInt, Int32)
-import RenderImage (importPixelsPerLength, screenPixelsPerLength
-                   , toPixel32)
+import RenderImage (fromScreenPixel, toScreenPixel)
 import Compatibility (safeTry)
 import IO
 import Maybe 
@@ -30,28 +29,29 @@ type UserEventConsumer = Time -> UserAction -> IO ()
 
 -- Window stuff
 
--- Type of application-specific window proc extension.  Return True if
--- handled.
-
--- Make a window and route user events
-
--- Note: if SetMenu gets a GC interface, then there will be no need to
--- pass a menu into makeWindow, etc.
-
-makeWindow :: (Win32.HWND -> IO ())	-- create
-           -> IO ()			-- resize
+installFranWndProc
+           :: IO ()			-- resize
            -> IO ()			-- update
            -> IO ()			-- close
            -> SpriteTime		-- update goal interval
            -> UserEventConsumer		-- receives user events
-           -> Win32.MbHMENU
-           -> IO Win32.HWND             -- returns a window handle
+           -> Win32.HWND                -- returns a window handle
+           -> IO ()
 
 
-makeWindow createIO resizeIO updateIO closeIO
-           updateInterval userEventConsumer
-           mbMenu = do
+installFranWndProc resizeIO updateIO closeIO
+                   updateInterval userEventConsumer hwnd = do
+
+  --putStrLn "Installing Fran WndProc"
+
+  -- Set the (millisecond-based) update timer.  Question: if I do proper
+  -- "window subclassing", how to preserve the window's existing timers
+  -- and their handling?
+  Win32.setWinTimer hwnd 1 (round (1000 * updateInterval))
+  --putStrLn ("Update rate set for " ++ show updateInterval ++ " ms")
+
   prevMouseMovePosRef <- newIORef (point2XY 100 100)
+
   let 
       send userEvent = do
         -- Get time now.  Bogus, since the event really happened before
@@ -76,8 +76,8 @@ makeWindow createIO resizeIO updateIO closeIO
                  yRelWinCenter = yRelWinUL - winHeight `div` 2
              in
                  -- Throw in scaling, recalling that window positive == down
-                 point2XY (fromInt32 xRelWinCenter / screenPixelsPerLength)
-                          (fromInt32 yRelWinCenter / -screenPixelsPerLength) )
+                 point2XY (  fromScreenPixel xRelWinCenter)
+                          (- fromScreenPixel yRelWinCenter) )
 
       fireButtonEvent isLeft isDown =
         do --p <- posn hwnd lParam
@@ -88,7 +88,7 @@ makeWindow createIO resizeIO updateIO closeIO
         do --putStrLn ("fireKeyEvent " ++ show (wParam, char, isDown, t))
            send (Key isDown wParam) -- (Win32.VKey wParam)) -- GSL
 
-      wndProc2 hwnd msg wParam lParam
+      wndProc hwnd msg wParam lParam
 
         | msg == Win32.wM_DESTROY = do
           -- Kill the update timer
@@ -149,8 +149,7 @@ makeWindow createIO resizeIO updateIO closeIO
 
         | msg == Win32.wM_SIZE = do
           let (hPix,wPix) = lParam `divMod` 65536
-          send (Resize (vector2XY (fromInt32 wPix / screenPixelsPerLength)
-                                  (fromInt32 hPix / screenPixelsPerLength)))
+          send (Resize (vector2XY (fromScreenPixel wPix) (fromScreenPixel hPix)))
           resizeIO
           return 0
 
@@ -201,7 +200,18 @@ makeWindow createIO resizeIO updateIO closeIO
         | otherwise =
           Win32.defWindowProc (Just hwnd) msg wParam lParam
 
-      demoClass = Win32.mkClassName "Fran"
+  -- Now install
+  Win32.setWindowClosure hwnd wndProc
+
+
+-- Type of application-specific window proc extension.  Return True if
+-- handled.
+
+-- Make a window and route user events
+
+makeWindow :: IO Win32.HWND             -- returns a window handle
+makeWindow = do
+  let demoClass = Win32.mkClassName "Fran"
 
   icon <- Win32.loadIcon   Nothing Win32.iDI_APPLICATION
   cursor <- Win32.loadCursor Nothing Win32.iDC_ARROW
@@ -217,12 +227,7 @@ makeWindow createIO resizeIO updateIO closeIO
         demoClass)
 
   --putStrLn "In makeWindow"
-  w <- makeWindowNormal demoClass mainInstance wndProc2 mbMenu
-  createIO w
-
-  -- Set the (millisecond-based) update timer.
-  Win32.setWinTimer w 1 (round (1000 * updateInterval))
-  --putStrLn ("Update rate set for " ++ show updateInterval ++ " ms")
+  w <- makeWindowNormal demoClass mainInstance
 
   Win32.showWindow w Win32.sW_SHOWNORMAL
   -- This next line doesn't work.  The first time a process creates
@@ -231,13 +236,13 @@ makeWindow createIO resizeIO updateIO closeIO
 
   return w
 
-  -- Where should the window class get unregistered??
-  -- (Win32.unregisterClass demoClass mainInstance `catch` \_ -> return ())
+-- Because Win32.createWindow needs a wndProc
+nullWndProc hwnd msg wParam lParam =
+  Win32.defWindowProc (Just hwnd) msg wParam lParam
 
-makeWindowNormal demoClass mainInstance wndProc2 mbMenu = do
+makeWindowNormal demoClass mainInstance = do
+  --putStrLn "Making window"
   (sizeX,sizeY) <- map vector2XYCoords (readIORef initialViewSizeVar)
-  let sizePixX = round (sizeX * screenPixelsPerLength)
-      sizePixY = round (sizeY * screenPixelsPerLength)
   Win32.createWindow demoClass
                "Fran"
                Win32.wS_OVERLAPPEDWINDOW
@@ -246,12 +251,12 @@ makeWindowNormal demoClass mainInstance wndProc2 mbMenu = do
                -- when recording.
                Nothing    Nothing
                --(Just 200) (Just (-extraH+6))
-               (Just $ sizePixX + extraW)
-               (Just $ sizePixY + extraH)
+               (Just $ toScreenPixel sizeX + extraW)
+               (Just $ toScreenPixel sizeY + extraH)
                Nothing                  -- parent
-               mbMenu                   -- menu
+               Nothing                  -- menu
                mainInstance
-               wndProc2
+               nullWndProc
  where
   -- Extra space for window border.  Should probably use AdjustWindowRect
   -- instead.
@@ -298,36 +303,19 @@ updatePeriodGoal = 0.1
 
 -- Show a sprite tree
 
-showSpriteTree :: HSpriteTree -> IO () -> UserEventConsumer
-               -> Win32.MbHMENU -> User -> IO Win32.HWND
+showSpriteTree :: Win32.HWND -> Maybe TabCtx -> HSpriteTree -> IO () -> UserEventConsumer
+               -> User -> IO ()
 
-showSpriteTree spriteTree updateIO userEventConsumer mbMenu u = do
-  spriteEngineVar <- newIORef (error "spriteEngineVar not set")
+showSpriteTree hwnd mbTabCtx spriteTree updateIO userEventConsumer u = do
   updateCountVar  <- newIORef (0::Int)
-  windowVar       <- newIORef (error "windowVar not set")
-  mbTabCtxVar     <- newIORef (error "mbTabCtxVar not set")
 
-  t0 <- currentSpriteTime
-  makeWindow
-     -- Create IO
-     (\ w -> do
-          eng <- newSpriteEngine w spriteTree
-          writeIORef spriteEngineVar eng
-          Win32.showWindow w Win32.sW_SHOWNORMAL
-          writeIORef windowVar w
-          mbCtx <- openTablet w         -- Try to open a tablet
-          --when (not (isJust mbCtx)) $ putStr "no "
-          --putStrLn "tablet found"
-          -- This setting hack didn't work.  It comes too late.  See the
-          -- note in User.hs
-          when (not (isJust mbCtx)) $ do
-            putStrLn "Tablet found"
-            writeIORef (stylusPresentRef u) True
-          writeIORef mbTabCtxVar mbCtx
-     )
+  t0  <- currentSpriteTime
+  eng <- newSpriteEngine hwnd spriteTree
+
+  Win32.showWindow hwnd Win32.sW_SHOWNORMAL
+  installFranWndProc
      -- Resize IO.  Recreates the back buffer and clippers.
-     (do eng <- readIORef spriteEngineVar
-         onResizeSpriteEngine eng)
+     (onResizeSpriteEngine eng)
      -- Update IO
      (do -- garbageCollect
          updateIO
@@ -335,16 +323,13 @@ showSpriteTree spriteTree updateIO userEventConsumer mbMenu u = do
      -- Close IO
      (do --putStrLn "final updateIO"
          --updateIO  -- a last one for quit-based events
-         eng   <- readIORef spriteEngineVar
          frameCount <- deleteSpriteEngine eng
-         mbCtx <- readIORef mbTabCtxVar
          -- Close the tablet context if any
          -- Is there an applicable monad idiom?
-         case mbCtx of
-           Nothing -> return ()
+         case mbTabCtx of
+           Nothing  -> return ()
            Just ctx -> wTClose ctx
-         win   <- readIORef windowVar
-         Win32.destroyWindow win
+         Win32.destroyWindow hwnd
          -- Clean up
          deleteSpriteTree spriteTree
          -- Show performance stats
@@ -353,7 +338,7 @@ showSpriteTree spriteTree updateIO userEventConsumer mbMenu u = do
      -- update interval in seconds
      updatePeriodGoal
      userEventConsumer
-     mbMenu
+     hwnd
 
 
 -- To do: get frame count
@@ -417,7 +402,7 @@ withInitialViewSize w h io =
 setViewSize :: Win32.HWND -> Vector2 -> IO ()
 setViewSize hwnd (Vector2XY w h) = do
   Win32.sendMessage hwnd Win32.wM_SIZE Win32.sIZE_MAXSHOW
-                    (toPixel32 h * 65536 + toPixel32 w)
+                    (toScreenPixel h * 65536 + toScreenPixel w)
   return ()
 
 

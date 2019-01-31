@@ -16,7 +16,7 @@
 
 
 
-module Spritify (displayUs, displayEx, eventLoop) where
+module Spritify (displayUs, displayUIO, displayEx, eventLoop) where
 
 import Monad (when, zipWithM_)
 import BaseTypes
@@ -34,6 +34,7 @@ import ImageB
 import SoundB
 import User
 import RenderImage (screenPixelsPerLength, importPixelsPerLength)
+--import RenderImage (toScreenPixel, fromScreenPixel)
 import Concurrent
 import IOExts
 import Maybe (isJust, fromMaybe)
@@ -349,11 +350,12 @@ displayUs :: [User -> ImageB] -> IO ()
 displayUs imFs = do
   -- Make a list of windows, each with a state variable saying that it is
   -- still running.
-  ws <- mapM (\ imF -> displayEx (\u -> (imF u, \ w -> neverE))) imFs
+  ws <- mapM (const makeWindow) imFs
+  zipWithM_ (\ imF w -> displayEx (\u -> (imF u, neverE)) w) imFs ws
   eventLoops ws
 
 eventLoops :: [Win32.HWND] -> IO ()
-eventLoops [w] = eventLoop w
+eventLoops [w] = eventLoop w            -- typical case
 eventLoops ws  = do
   runningVars <- mapM (const (newIORef True)) ws
   -- Keep track of how many are still runnning.  When none, stop
@@ -395,97 +397,91 @@ eventLoop w = loop `catch` \ _ -> return ()
          loop
 
 -- Generalized version.  The argument produces not only an ImageB, but
--- also a function from the created window to an effect-valued event.
--- Upon each event occurence, execute the corresponding action.
---
--- Note: using fixIO, one can do without the window argument to the
--- effect-producer, but it's scary looking:
--- 
---   main = mkWindow >>= eventLoop
---    where
---    mkWindow = fixIO $ \ w -> do
---      let imF u = (circle, changeTitle)
---           where
---             changeTitle = (lbp u -=> "left" .|. rbp u -=> "right")
---                              ==> setWindowTextA' w
---      displayEx imF 
+-- also an effect-valued event.  Upon each event occurence, corresponding
+-- action is executed.
 
+-- Convenient form suggested by Enno Scholz.
+displayUIO :: (User -> (ImageB, Event (IO ()))) -> IO ()
+displayUIO imF = do
+  hwnd <- makeWindow
+  displayEx imF hwnd
+  eventLoop hwnd
 
-displayEx :: (User -> (ImageB, Win32.HWND -> Event (IO ())))
-          -> IO Win32.HWND
-displayEx imF {-mbMenu-} = do
-  fixIO $ \ hWnd -> do
-    let mbMenu = Nothing  -- out for now
-    -- garbageCollect
-    t0 <- currentSpriteTime
-    --putStrLn ("doing spritify for time " ++ show t0)
-    (userEv, userActionsChan) <- newChannelEvent t0
+displayEx :: (User -> (ImageB, Event (IO ()))) -> Win32.HWND -> IO ()
+displayEx imF hwnd = do
+  t0 <- currentSpriteTime
+  --putStrLn ("doing spritify for time " ++ show t0)
+  (userEv, userActionsChan) <- newChannelEvent t0
 
-    initWinSize <- readIORef initialViewSizeVar
+  initWinSize <- readIORef initialViewSizeVar
 
-    -- We might like to find out where the mouse is relative to the view,
-    -- but we cannot until making the window.
-    -- initMousePos <- getCursorPos ...
-    -- Instead, start the mouse outside of the view
-    let initMousePos = S.origin2 S..+^ 10 S.*^ initWinSize
+  -- We might like to find out where the mouse is relative to the view,
+  -- but we cannot until making the window.
+  -- initMousePos <- getCursorPos ...
+  -- Instead, start the mouse outside of the view
+  let initMousePos = S.origin2 S..+^ 10 S.*^ initWinSize
 
-    let user = makeUser False False initMousePos initMousePos
-               0 initWinSize 0.1 userEv
-        (imB, effectsF) = imF user
-    timeChan <- newChan
-    ts       <- getChanContents timeChan
-    -- Initialize SpriteLib.  I wish this could be done in SpriteLib's
-    -- DllMain, but DSound initialization bombs there.  Doing it here is
-    -- shaky, as it relies on the DDSurface and DSBuffer evaluations being
-    -- postponed due to laziness.
-    openSpriteLib screenPixelsPerLength
-    --set_ddhelpTimeTrace True           -- default is False
-    requestV <- newEmptyMVar
-    replyV   <- newEmptyMVar
-    let (halfWidth,halfHeight) = vector2XYCoords (0.5 *^ viewSize user)
-        cropRect = rectFromCorners (point2XY (-halfWidth) (-halfHeight))
-                                   (point2XY   halfWidth    halfHeight )
-    chain    <- spritifyImageB cropRect Nothing identity2 imB Nothing
-                t0 ts requestV replyV emptySpriteTreeChain
-    --putStrLn "Spritify done"
+  mbTabCtx <- openTablet hwnd         -- Try to open a tablet
+  --when (not (isJust mbCtx)) $ putStr "no "
+  --putStrLn "tablet found"
+  when (isJust mbTabCtx) $ do
+    putStrLn "Tablet found"
 
-    tPrevVar   <- newIORef t0
-    let effects = effectsF hWnd
-    effectsVar <- newIORef effects
-    let tick = do
-          tNow <- currentSpriteTime
-          -- Prepare for sprite tree updating
+  let user = makeUser False False initMousePos initMousePos
+             0 initWinSize 0.1 (isJust mbTabCtx) userEv
+      (imB, effects) = imF user
+  timeChan <- newChan
+  ts       <- getChanContents timeChan
+  -- Initialize SpriteLib.  I wish this could be done in SpriteLib's
+  -- DllMain, but DSound initialization bombs there.  Doing it here is
+  -- shaky, as it relies on the DDSurface and DSBuffer evaluations being
+  -- postponed due to laziness.
+  openSpriteLib screenPixelsPerLength
+  --set_ddhelpTimeTrace True           -- default is False
+  requestV <- newEmptyMVar
+  replyV   <- newEmptyMVar
+  let (halfWidth,halfHeight) = vector2XYCoords (0.5 *^ viewSize user)
+      cropRect = rectFromCorners (point2XY (-halfWidth) (-halfHeight))
+                                 (point2XY   halfWidth    halfHeight )
+  chain    <- spritifyImageB cropRect Nothing identity2 imB Nothing
+              t0 ts requestV replyV emptySpriteTreeChain
+  --putStrLn "Spritify done"
 
-          -- The benefit of the first choice, which distinguishes these
-          -- two times, is that external event times then arrive
-          -- monotonically.  On the other hand, this monotonicity is not
-          -- genuine, because the time associated with an external event
-          -- is the processing, not occurrence, time.
-          --let {tSample = tNow; tUpdate = tNow + updatePeriodGoal}
-          let {tSample = tUpdate; tUpdate = tNow + updatePeriodGoal}
-          --putStrLn ("tick " ++ show tSample)
-          -- Add sample time to ts
-          writeChan timeChan tSample
-          -- Add the update event for tSample.  This will stop the event
-          -- search done in doEffects and the updating triggered by putMVar
-          -- requestV below, which are only interested in events *before*
-          -- tNow.
-          tPrev <- readIORef tPrevVar
-          writeChan userActionsChan
-                    (tSample, Just (UpdateDone (tSample - tPrev)))
-          -- Do effects
-          updateIORef (doEffects tNow) effectsVar
-          -- Request a round of updates from the sprite threads and event
-          -- detector threads.
-          putMVar requestV True
-          -- Wait for them to finish one step
-          _ <- takeMVar replyV
-          writeIORef tPrevVar tSample
-    showSpriteTree chain tick
-                   (\ t act -> --trace ("user action: " ++ show act ++ "\n") $
-                               writeChan userActionsChan (t, Just act))
-                   mbMenu user
+  tPrevVar   <- newIORef t0
+  effectsVar <- newIORef effects
+  let tick = do
+        tNow <- currentSpriteTime
+        -- Prepare for sprite tree updating
 
+        -- The benefit of the first choice, which distinguishes these
+        -- two times, is that external event times then arrive
+        -- monotonically.  On the other hand, this monotonicity is not
+        -- genuine, because the time associated with an external event
+        -- is the processing, not occurrence, time.
+        --let {tSample = tNow; tUpdate = tNow + updatePeriodGoal}
+        let {tSample = tUpdate; tUpdate = tNow + updatePeriodGoal}
+        --putStrLn ("tick " ++ show tSample)
+        -- Add sample time to ts
+        writeChan timeChan tSample
+        -- Add the update event for tSample.  This will stop the event
+        -- search done in doEffects and the updating triggered by putMVar
+        -- requestV below, which are only interested in events *before*
+        -- tNow.
+        tPrev <- readIORef tPrevVar
+        writeChan userActionsChan
+                  (tSample, Just (UpdateDone (tSample - tPrev)))
+        -- Do effects
+        updateIORef (doEffects tNow) effectsVar
+        -- Request a round of updates from the sprite threads and event
+        -- detector threads.
+        putMVar requestV True
+        -- Wait for them to finish one step
+        _ <- takeMVar replyV
+        writeIORef tPrevVar tSample
+  showSpriteTree hwnd mbTabCtx chain tick
+                 (\ t act -> --trace ("user action: " ++ show act ++ "\n") $
+                             writeChan userActionsChan (t, Just act))
+                 user
 
 
 -- Do all of the external effects before t and return residual

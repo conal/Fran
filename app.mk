@@ -4,6 +4,7 @@
 
 include $(FRAN)/env.mk
 
+# Still used?
 OBJS	= $(addsuffix .$(way_)o,  $(basename $(HS)))
 
 
@@ -17,9 +18,10 @@ GHC_FLAGS_EXTRA	+= -optl-u -optl_NoRunnableThreadsHook
 #LIBS		+= -L$(FRAN)/src -lFran
 #endif
 
-LIBS		+= -L$(FRAN)/src -L$(WIN32DIR) -L$(GCLIBDIR) -lFran$(_way) -lWin32$(_way) -lgreencard$(_way)
+LIBS		+= -L$(FRAN)/src -lFran$(_way)
+LIBS		+= -L$(WIN32GHCDIR) -lHSWin32$(_way) 
+#LIBS		+= -L$(GCLIBGHCDIR) -lgreencard$(_way)
 LIBS		+= -L$(FRAN)/SpriteLib -lSpriteLib 
-#LIBS		+= -lWntab32x
 
 GUILIBS		+= -luser32 -lgdi32
 
@@ -33,7 +35,7 @@ FRANLIBS = $(FRAN)/SpriteLib/libSpriteLib.a $(FRAN)/src/libFran$(_way).a
 #FRANLIBS += $(FRAN)/SpriteLib/libWintab32.a
 
 clean		::
-		$(RM) *.$(exe) *.$(way_)o *.$(way_)hi *.ps *.hp
+		$(RM) *$(exe) *.$(way_)o *.$(way_)hi *.ps *.hp
 
 # Sample apps.  With these two rules, you just need to give a one-liner
 # for each app, stating the .o or .hs files it depends on.  The $^ make
@@ -46,13 +48,19 @@ else
 exe = $(_way).exe
 endif
 
+# The modules comprising an executable foo$(exe) are determined by a
+# variable called foo_modules.  Any suffixes are stripped off.
+#%$(exe)	: $(FRANLIBS) $(addsuffix .$(way_)o, $(basename $(%_modules)))
+#	$(GHC) $(GHC_FLAGS) $(GHC_FLAGS_EXTRA) -o $(basename $@) \
+#	$(addsuffix .$(way_)o, $(basename $($(basename $@)_modules))) $(LIBS) $(GUILIBS)
+
+
 # This FRANLIBS dependency line doesn't cause recompilation when
 # libFran_mr.a is updated :(
 %$(exe)	: $(FRANLIBS)
 %$(exe)	:
 	$(GHC) $(GHC_FLAGS) $(GHC_FLAGS_EXTRA) -o $(basename $@) \
 	  $^ $(LIBS) $(GUILIBS)
-
 
 PHEAP = -H60M -Sstderr
 

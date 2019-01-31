@@ -23,7 +23,7 @@ all :: $(EXES)
 
 # It seems a shame to have to list all of the transitive dependencies.
 
-DEPS0 = Editor0.$(way_)o FileUtils.$(way_)o InputMonitor.$(way_)o
+DEPS0 = Editor0.$(way_)o FileUtils.$(way_)o
 DEPS1 = Editor1.$(way_)o $(DEPS0)
 DEPS2 = Editor2.$(way_)o $(DEPS1)
 DEPS3 = Editor3.$(way_)o $(DEPS2)

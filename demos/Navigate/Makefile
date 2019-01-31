@@ -9,6 +9,6 @@ include $(FRAN)/app.mk
 
 all :: navigate$(exe)
 
-navigate$(exe) : $(OBJS)
+navigate$(exe) :: $(OBJS)
 
 include _depend

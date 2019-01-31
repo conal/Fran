@@ -26,7 +26,7 @@ import SoundB
 import GeometryB
 import User
 import Integral
-import RenderImage (screenPixelsPerLength, importPixelsPerLength)
+import qualified RenderImage as R
 import HSpriteLib
 import Spritify
 import IOExts (trace)
@@ -95,8 +95,7 @@ slower x   = faster (1/x)
 
 importBitmapWithSize :: String -> (ImageB, RealVal, RealVal)
 importBitmapWithSize fileName =
-  (flipImage book 0, fromInt32 w / importPixelsPerLength
-                   , fromInt32 h / importPixelsPerLength)
+  (flipImage book 0, R.fromImportPixel w, R.fromImportPixel h)
  where
   book  = --trace "Making flip book" $
           flipBook surf w h 0 0 1 1

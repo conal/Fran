@@ -10,7 +10,6 @@ import Editor2 hiding (editor, main)
 import Fran
 import qualified StaticTypes as S
 import FileUtils
-import InputMonitor
 import Win32 (setWindowText)
 
 -- Visual feedback to save request.  Message spins & shrinks
@@ -43,15 +42,16 @@ spinMessageTest u = spinMessage "goodbye" (keyPressAny u) `over` whiteIm
 editor :: String -> IO ()
 editor fileName = do
   initPoints <- load fileName
-  window     <- displayExMon (editRenderSave initPoints)
+  window     <- makeWindow
   setWindowText window ("Curve editor 3: " ++ fileName)
+  displayExMon blue (editRenderSave initPoints) window
   eventLoop window
  where
    editRenderSave initPoints u =
      ( spinMessage "Saving ..." saveNow `over`
        renderCurve xPoints              `over`
        graphPaper
-     , const doSave )
+     , doSave )
     where
       xPoints = editCurve initPoints u
       saveNow = charPress 's' u .|. quit u

@@ -25,20 +25,22 @@ $(FRANSRC)/HSpriteLib.dll : HSpriteLib.dll
 $(FRANSRC)/HSpriteLib.hs : HSpriteLib.hs
 	cp $< $@
 
-GC	    	+= --target Hugs
+GC_FLAGS       += --target Hugs
 
 .SUFFIXES	:
 .SUFFIXES	: .gc .dll .c .obj
 
 DLL_FLAGS	= -shared -nostdlib
-INCLUDES	= -I$(HUGSDIR)/src -I../SpriteLib
-INCLUDES       += -I$(WINTABDIR)/include
+INCLUDES	= -I$(HUGSDIR)/src -I../SpriteLib -I$(WIN32HUGSDIR)
+
+
+GC_INCLUDES     = -i$(GCLIBHUGSDIR):$(WIN32HUGSDIR)
 
 # Must manually delete the generated .c and .hs files, because
 # green-card.exe wants to append to them!!
 .gc.c	:
 	$(RM) $*.hs $*.c
-	$(GC) $(GC_INCLUDES) $*
+	$(GC) $(GC_FLAGS) $(GC_INCLUDES) $*
 #	cp $*.hs $*.hs.hugs
 
 HSpriteLib.obj : HSpriteLib.c errors.h
@@ -49,12 +51,18 @@ errors.obj : errors.c errors.h
 
 # This one is only here because HSpriteLib.gc contains some stuff at the
 # end that should really be in Win32.  Remove later
-WIN32LIBS = user32.lib
+WIN32LIBS = user32.lib $(WIN32HUGSDIR)/Win32Window.lib
 
-HSpriteLib.dll	: HSpriteLib.obj errors.obj ../SpriteLib/ReleaseStatic/SpriteLib.lib
+SpriteLibDir = ../SpriteLib/ReleaseStatic
+
+SpriteLibLibs = $(SpriteLibDir)/SpriteLib.lib
+# Static version, not working yet
+#SpriteLibLibs = $(SpriteLibDir)/SpriteLibStat.lib
+
+HSpriteLib.dll	: HSpriteLib.obj errors.obj $(SpriteLibLibs) 
 	cl /nologo /LD $(INCLUDES) -o HSpriteLib.dll HSpriteLib.obj \
-	errors.obj $(WIN32LIBS) ../SpriteLib/ReleaseStatic/SpriteLib.lib \
-	../SpriteLib/wntab32x.lib
+	errors.obj ../SpriteLib/wntab32x.lib $(WIN32LIBS) \
+	$(SpriteLibLibs)
 
 clean	:
 	$(RM) HSpriteLib.c HSpriteLib.hs

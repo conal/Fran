@@ -254,8 +254,13 @@ godzilla = moveXY 0 (-0.4) (
 
 -- 3D stuff
 
-sphere = stretch3 0.8 (importX "../Media/sphere2.x")
-teapot = stretch3 1.5 (importX "../Media/tpot2.x")
+sphere :: GeometryB
+sphere = stretch3 0.8 (
+          importX "../Media/sphere2.x")
+
+teapot :: GeometryB
+teapot = uscale3 1.5 **%
+         importX "../Media/tpot2.x"
 
 redSpinningPot () =
   turn3 zVector3 (time * pi) (
@@ -308,7 +313,7 @@ sphereLowRes = importX "../Media/sphere0.x"
 -- support for memoization.  For now, make them not be CAFs, which is
 -- unsatisfying as well.
 
-movingLight () =
+movingLight' () =
    move3 motion (
     stretch3 0.1 (
      withColorG yellow (
@@ -316,14 +321,26 @@ movingLight () =
  where
   motion = vector3Spherical 1.5 (pi*time) (2*pi*time)
 
+movingLight () =
+  translate3 motion **%
+  uscale3 0.1       **%
+  withColorG yellow (
+    sphereLowRes `unionG` pointLightG)
+ where
+  motion = vector3Spherical 1.5
+             (pi*time) (2*pi*time)
+
 potAndLight () = withColorG green teapot `unionG` movingLight ()
 
 delayAnims3 dt anims =
   unionGs (zipWith later [0, dt ..] anims)
+  -- unionGs [ later delay anim
+  --         | (delay,anim) <- zip [0, dt ..] anims ]
 
 potAndLights () =
   slower 5 (
    withColorG green teapot `unionG`
+   -- redSpinningPot () `unionG`
    delayAnims3 (2/5) (replicate 5 (movingLight ())))
 
 spiral3D () = delayAnims3 0.075 balls
@@ -331,6 +348,7 @@ spiral3D () = delayAnims3 0.075 balls
    ball   = move3 motion (stretch3 0.1 sphereLowRes)
    balls  = [ withColorG (bColor i) ball | i <- [1 .. n] ]
    motion = vector3Spherical 1.5 (10*time) time
+   
    n      = 20
    bColor i =
      colorHSL (2 * pi * fromInt i / fromInt n) 0.5 0.5

@@ -9,6 +9,6 @@ include $(FRAN)/app.mk
 
 all :: roids$(exe)
 
-roids$(exe) : $(OBJS)
+roids_modules = $(HS)
 
 include _depend

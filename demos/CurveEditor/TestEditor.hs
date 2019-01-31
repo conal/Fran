@@ -7,7 +7,6 @@ import Fran
 import NewCurve
 import FileUtils
 import Stacker
-import InputMonitor
 
 import qualified Editor0
 import qualified Editor1

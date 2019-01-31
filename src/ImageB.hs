@@ -358,12 +358,9 @@ type SurfaceULB = Behavior R.SurfaceUL
 -- Perhaps this should go elsewhere, but where?
 
 flipBookSize :: SL.HFlipBook -> S.Vector2
-flipBookSize book =
-  S.Vector2XY (fromInt (toInt wPix) / R.importPixelsPerLength)
-              (fromInt (toInt hPix) / R.importPixelsPerLength)
+flipBookSize book = S.Vector2XY (R.fromImportPixel wPix) (R.fromImportPixel hPix)
  where
    (wPix,hPix) = SL.flipBookSizePixels book
-   -- Note: the toInt is because Pixels == Int32
 
 
 -- Renderable class.  Phasing in.  To do: rename "renderGeometry" and
@@ -374,3 +371,16 @@ class Renderable a where
 
 instance Renderable a => Renderable [a] where
   render = overs . map render
+
+
+toScreenPixel :: Integral int => RealB -> Behavior int
+toScreenPixel = lift1 R.toScreenPixel
+
+fromScreenPixel :: Integral int => Behavior int -> RealB
+fromScreenPixel = lift1 R.fromScreenPixel
+
+toImportPixel :: Integral int => RealB -> Behavior int
+toImportPixel = lift1 R.toImportPixel
+
+fromImportPixel :: Integral int => Behavior int -> RealB
+fromImportPixel = lift1 R.fromImportPixel

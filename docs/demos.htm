@@ -26,9 +26,9 @@ Navigate. Some of the examples have space leaks. :( </p>
   <li><strong>Tutorial</strong>: Examples used in the Fran tutorial. See the file for a web
     pointer, which has lots of animated GIFs. Step forward through the examples with space,
     right arrow, or &quot;n&quot;. Step backward with left arrow or &quot;p&quot;. </li>
-  <li><strong>SpiroKids</strong>: Well, it's just weird. Try it out! You may want to adjust
-    numKids to suit your machine's performance. </li>
-  <li><strong>UsersMan</strong>: Goes with the users manual. See ..\docs\UsersMan.htm. </li>
+  <li><strong>SpiroKids</strong>: Well, it's just weird. Try it out! You may want to adjust <tt>numKids</tt>
+    to suit your machine's performance. </li>
+  <li><strong>UsersMan</strong>: Goes with the <a href="UsersMan.htm">User's Manual</a>.</li>
   <li><strong>Sokoban\SokoMain</strong>: The classic game of Sokoban. Try to push the gold
     ball into the black holders. Really too slow to be fun yet. </li>
   <li><strong>CurveEditor\Editor[0-6]</strong>: An interactive curve editor. This example
@@ -38,17 +38,23 @@ Navigate. Some of the examples have space leaks. :( </p>
     simultaneously. Move the mouse or stylus in these cases and see what happens. If you don't
     have a tablet, replace &quot;stylusHand&quot; with &quot;keyHand&quot; in the Main.hs.
     Then use shift to grab and arrow keys to move. (To do: make tablet availability a testable
-    property of users, so this change can be done automatically.) </li>
+    property of users, so this change can be done automatically.)&nbsp; If you want to use
+    your left hand for the mouse, swap <tt>RightH</tt> and <tt>LeftH</tt> in Main.hs.</li>
   <li><strong>Fifteen\Main</strong>: The classic &quot;fifteen puzzle&quot;, invented in the
-    1870's, apparently by Sam Loyd (1841-1911). Use the arrow keys to move pieces around. Try
-    main1 for the version with the numbers, main2 for Charlotte, or main3 (also main) for a
-    &quot;wiggly&quot; Charlotte. </li>
+    1870's, apparently by Sam Loyd (1841-1911). Use the arrow keys to move pieces around. Try <tt>main1</tt>
+    for the version with the numbers, <tt>main2</tt> for one based on a picture, or <tt>main3</tt>
+    (also <tt>main</tt>) for an undulating picture. </li>
   <li><strong>Collide\Main</strong>: Colliding balls. Use the mouse to add balls. Press the
     left button and hold it to create a new ball. Move around and release to impart initial
     position and velocity. Add some more, depending on how fast your machine is.</li>
+  <li><strong>LiftSim\Main</strong>: Lift (elevator) simulator by Simon Thompson. Click on the
+    &quot;up&quot; or &quot;down&quot; button to call the lift up or down. If the lift cannot
+    service your request right away, the call button lights up and the lift comes when it can.
+    &nbsp; See Simon's <a href="http://www.cs.ukc.ac.uk/pubs/1998/583/index.html">technical
+    report</a> about this example, which also sheds light on Fran programming in general.</li>
 </ul>
 
 <p><em>Last updated: <!--webbot bot="Timestamp" startspan S-Type="EDITED"
-S-Format="%B %d, %Y" -->May 07, 1998<!--webbot bot="Timestamp" i-checksum="11290" endspan --></em></p>
+S-Format="%B %d, %Y" -->June 19, 1998<!--webbot bot="Timestamp" i-checksum="14626" endspan --></em></p>
 </body>
 </html>

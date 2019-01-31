@@ -43,7 +43,7 @@ the "Environment" tab.  (Be sure to hit the "set" button after each
 change.)
 
 As directed in the README.txt, make a \bin and copy sh.exe there, and make
-a \tmp.
+a \tmp.  Make sure c:\bin is part of your PATH environment variable.
 
 If you're in Win95, reboot NT to get the changed environment.  In NT start
 a new shell (and a new emacs, if you run your shell from within emacs)
@@ -75,7 +75,7 @@ chars. Putting perl.exe in /bin solves this problem."]
 
 ** Configure GHC
 
-In "c:\usr\fptools", start up bash (sh.exe from cygwin), and type
+In "c:\usr\fptools", start up cd bash (sh.exe from cygwin), and type
 "./configure".  You'll get lots of output.  Look for error messages. I got
 a message saying "not updating unwritable cache ./config.cache".
 Apparently, this is a harmless bug in bash/the configure script generator.

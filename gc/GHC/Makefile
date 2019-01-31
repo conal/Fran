@@ -16,7 +16,7 @@ default		: all
 
 LIBOBJS		= $(OBJS) 
 
-INCLUDES	+= -i$(GCLIBDIR)
+INCLUDES	+= -i$(GCLIBGHCDIR):$(WIN32GHCDIR)
 # now copied into SpriteLib
 #INCLUDES        += -I$(WINTABDIR)/include
 
@@ -32,6 +32,8 @@ HSpriteLib.gc	: ../HSpriteLib.gc
 
 objs ::
 	echo $(LIBOBJS)
+
+#GC_INCLUDES     = -i$(GCLIBGHCDIR):$(WIN32GHCDIR)
 
 ################################################################
 # Programs
@@ -54,6 +56,8 @@ GHC_FLAGS	+= -concurrent -optc-freg-struct-return
 # GHC_FLAGS	+= -optCrts-Sstderr
 
 GHC_FLAGS	+= -I../../SpriteLib -I..
+# WIN32GHCDIR is for WndProc.h
+GHC_FLAGS	+= -I$(WIN32GHCDIR)
 GHC_FLAGS	+= -optc-Wp,-lang-c
 
 # Comment this one out if you don't want an optimized compile.  With
@@ -61,13 +65,7 @@ GHC_FLAGS	+= -optc-Wp,-lang-c
 #   Transform3.hs:24: Interface-file parse error: line 30 toks= []
 #GHC_FLAGS	+= -O
 
-# GC_FLAGS  	= --target Hugs --include-dir $(GCDIR)/lib/hugs 
-# GCPP_FLAGS	= -DTARGET_HUGS
-# INCLUDES	= -I $(HUGSDIR)/src
-
 GC_FLAGS	= --target ghc
-# Oh dear, what's the difference between -i and --include-dir ?
-#GC_FLAGS       += --include-dir $(WIN32DIR)
 # Verbosity, for debugging
 #GC_FLAGS += -v
 GCPP_FLAGS	= -DTARGET_GHC
@@ -91,7 +89,7 @@ GCPP_FLAGS	= -DTARGET_GHC
 
 %.hs		: %.gc
 		$(CPP) $(GCPP_FLAGS) $< | perl -pe 's#\\n#\n#g' >$*_cpp.gc
-		$(GC) $(GC_FLAGS) -I . $*_cpp.gc
+		$(GC) $(GC_FLAGS) -I . $(INCLUDES) $*_cpp.gc
 #		rm $*_cpp.gc
 		mv $*_cpp.hs $@
 #		cp $@ $*.hs.ghc

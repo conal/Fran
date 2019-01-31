@@ -16,7 +16,7 @@ data Inhab =
     BallInhab S.Vector2                 -- motion
               S.Vector2                 -- velocity
               RealVal                   -- radius & mass
-              S.Color
+              Int                       -- which kid
   | BoxInhab
 
 instance Bounded2 Inhab where
@@ -39,17 +39,30 @@ data InhabB =
     BallInhabB Vector2B                 -- motion
                Vector2B                 -- velocity
                RealB                    -- radius & mass
-               ColorB
+               IntB
   | BoxInhabB
 
 instance Renderable InhabB where
-  render (BallInhabB mot _ radius color) = 
+  render (BallInhabB mot _ radius which) = 
     move    mot     $
     stretch radius  $
-    withColor color $
-    circle
-  render BoxInhabB = boxIm
+    kidIm which
+  -- Temporary change: Hiding the box.
+  render BoxInhabB = emptyImage -- boxIm
 
+
+kidsBook = flipBook surf 158 169 0 0 4 1
+ where
+  surf  = bitmapDDSurface "../../media/kids.bmp"
+
+kidIm :: IntB -> ImageB
+kidIm = \ i -> stretch (2 / av) (flipImage kidsBook (fromIntB i))
+ where
+   av = constantB ((w + h) / 2)
+   S.Vector2XY w h = flipBookSize kidsBook
+
+numKids :: IntB
+numKids = constantB (flipBookPages kidsBook)
 
 boxIm :: ImageB
 boxIm = stretch boxSize $
@@ -97,9 +110,9 @@ type EnvB = Behavior Env
 -- To do: work on velocities only and take relative environment.
 startInhab :: EnvB -> User -> Inhab -> InhabB
 startInhab envB u BoxInhab = BoxInhabB
-startInhab envB u (BallInhab mot0 vel0 radius color) = inhabB
+startInhab envB u (BallInhab mot0 vel0 radius which) = inhabB
  where
-  inhabB  = BallInhabB mot vel (constantB radius) (constantB color)
+  inhabB  = BallInhabB mot vel (constantB radius) (constantB which)
   mot     = constantB mot0 + atRate vel u
   vel     = stepAccum vel0 (impulse ==> (+))
   impulse = maybeBE (collisionB envB inhabB) u
@@ -122,7 +135,7 @@ startAll u = accumB over ballFeedback (newInhabB ==> render)
    -- Add the box initially.  (Something of a hack, but what alternative?)
    addBox = userTimeIs 0 u -=> BoxInhab
 
--- Add-ball event, plus visual feedback.  Tracks mouse and wiggles color
+-- Add-ball event, plus visual feedback.  Tracks mouse and wiggles which
 -- and size.  Snapshotted when button released.
 addBallWithFeedback :: User -> (Event Inhab, ImageB)
 addBallWithFeedback u = (addE, im)
@@ -131,9 +144,9 @@ addBallWithFeedback u = (addE, im)
    im   = ifB (leftButton u) (render ball) emptyImage
    ball = BallInhabB (mouseMotion u)
                      (rate (mouseMotion u) u)
-                     (wiggleRange 0.1 0.3)
-                     (colorHSL (time * 1.5) 0.5 (wiggleRange 0.3 0.7))
-
+                     (wiggleRange 0.3 0.7)
+                     --(colorHSL (time * 1.5) 0.5 (wiggleRange 0.3 0.7))
+                     (roundB time `mod` numKids)
 
 collision :: Env -> Inhab -> Maybe Collision
 collision env BoxInhab = Nothing
@@ -184,11 +197,12 @@ collisionB envB inhabB = lift2 collision envB (inhabBToBvr inhabB)
 
 inhabBToBvr :: InhabB -> Behavior Inhab
 inhabBToBvr BoxInhabB = constantB BoxInhab
-inhabBToBvr (BallInhabB motB velB size color) =
-  lift4 BallInhab motB velB size color
+inhabBToBvr (BallInhabB motB velB size which) =
+  lift4 BallInhab motB velB size which
 
 
 main = displayU startAll
+       -- displayUMon startAll -- for presentation
 
 
 -- Misc settings

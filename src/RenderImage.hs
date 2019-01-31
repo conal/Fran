@@ -40,10 +40,10 @@ data SurfaceUL =
             RealVal RealVal             -- x and y motion
 
 -- Tiny dummy surface.  Useful for zero scaling and total cropping
-newDummySurfaceUL :: IO SurfaceUL
-newDummySurfaceUL = do
+dummySurfaceUL :: RealVal -> RealVal -> IO SurfaceUL
+dummySurfaceUL dx dy = do
   hSurface <- withNewHDDSurfaceHDC 1 1 0 $ \ hdc -> return ()
-  return (SurfaceUL hSurface 0 0 0 0)
+  return (SurfaceUL hSurface (-dx) (-dy) dx dy)
 
 
 type SurfGen = Rect -> Color -> Transform2 -> SurfaceUL
@@ -53,8 +53,13 @@ renderText text = render (textRenderer text)
 
 textRenderer :: TextT -> Renderer
 textRenderer (TextT (Font.Font fam bold italic) string) color
-             xf@(Transform2 _ stretch angle) =
-  (renderIt, natRect)
+             xf@(Transform2 _ stretch angle)
+  | fontHeight <= 0  =
+      -- createFont interprets fontHeight==0 as a request to choose a default
+      -- size.
+      (\ _ _ -> return (), rectFromCenterSize origin2 zeroVector)
+  | otherwise        =
+      (renderIt, natRect)
  where
    renderIt toPixPr hdc = do
      selectFont hdc font
@@ -81,18 +86,18 @@ textRenderer (TextT (Font.Font fam bold italic) string) color
                      dEFAULT_QUALITY
                      dEFAULT_PITCH
                      gdiFam
-    where
-      -- The "/ 5" was empirically determined
-      fontHeight = round (screenPixelsPerLength * stretch / 5.0)
-      escapement = round (angle * 1800/pi) -- hundredths of a degree
-      weight | bold      = fW_BOLD
-             | otherwise = fW_NORMAL
-      gdiFam = case fam of
-                 Font.System     -> "System"
-                 Font.TimesRoman -> "Times New Roman"
-                 Font.Courier    -> "Courier New"
-                 Font.Arial      -> "Arial"
-                 Font.Symbol     -> "Symbol"
+
+   -- The "/ 5" was empirically determined
+   fontHeight = toScreenPixel (stretch / 5.0)
+   escapement = round (angle * 1800/pi) -- hundredths of a degree
+   weight | bold      = fW_BOLD
+          | otherwise = fW_NORMAL
+   gdiFam = case fam of
+              Font.System     -> "System"
+              Font.TimesRoman -> "Times New Roman"
+              Font.Courier    -> "Courier New"
+              Font.Arial      -> "Arial"
+              Font.Symbol     -> "Symbol"
 
    -- Computed redundantly with render.  Make a renderer argument.
    -- The next line helps with debugging
@@ -116,8 +121,8 @@ textBox font string xf@(Transform2 mot _ angle) = (natRect, xf' *% ul)
 
    -- Should probably move all of this to Rect's (*%) method.
 
-   w2 = fromPixel horizWPix / 2         -- half width and height
-   h2 = fromPixel horizHPix / 2
+   w2 = fromScreenPixel horizWPix / 2         -- half width and height
+   h2 = fromScreenPixel horizHPix / 2
 
    ll = point2XY (-w2) (-h2)
    lr = point2XY   w2  (-h2)
@@ -186,7 +191,7 @@ circleRenderer color (Transform2 (Vector2XY dx dy) sc _) =
    radius  = abs sc
    twiceR  = 2 * radius
 
-   twiceRPix = toPixel32 twiceR
+   twiceRPix = toScreenPixel twiceR
 
 
 -----------------------------------------------------------------
@@ -222,7 +227,7 @@ render renderer cropRect color xf@(Transform2 (Vector2XY dx dy) _ _) =
   --trace (show (natRect,textUL) ++ "\n") $
   unsafePerformIO $
   if pixWidth<=0 || pixHeight<=0 then
-    newDummySurfaceUL
+    dummySurfaceUL dx dy
   else
     withNewHDDSurfaceHDC
       pixWidth pixHeight
@@ -239,10 +244,10 @@ render renderer cropRect color xf@(Transform2 (Vector2XY dx dy) _ _) =
     RectLLUR (Point2XY llx lly) (Point2XY urx ury) =
       cropRect `intersectRect` natRect
 
-    pixWidth  = toPixel (urx - llx)
-    pixHeight = toPixel (ury - lly)
+    pixWidth  = toScreenPixel (urx - llx)
+    pixHeight = toScreenPixel (ury - lly)
 
-    toPixPr = toPixelPoint2 . swapCoordSys4Pt (point2XY llx ury)
+    toPixPr = toScreenPixelPoint2 . swapCoordSys4Pt (point2XY llx ury)
     
     backColor | color == black  = white
               | otherwise       = black
@@ -315,21 +320,23 @@ withColor hdc color action = do
    colorRef = asColorRef color
 
 
--- To do: use type classes here to eliminate some functions
+toScreenPixel :: Integral int => RealVal -> int
+toScreenPixel r = round (r * screenPixelsPerLength)
 
-toPixel :: RealVal -> Int
-toPixel r = round (r * screenPixelsPerLength)
+fromScreenPixel :: Integral int => int -> RealVal
+fromScreenPixel p = fromIntegral p / screenPixelsPerLength
 
-toPixel32 :: RealVal -> Int32
-toPixel32 x = intToInt32 (toPixel x)
-
-fromPixel :: Integral int => int -> RealVal
-fromPixel p = fromIntegral p / screenPixelsPerLength
+toScreenPixelPoint2 :: Point2 -> (Int32, Int32)
+toScreenPixelPoint2 p = (toScreenPixel x, toScreenPixel y)
+ where (x, y) = point2XYCoords p
 
 
-toPixelPoint2 :: Point2 -> (Int32, Int32)
-toPixelPoint2 pt = (toPixel32 x, toPixel32 y)
- where (x, y) = point2XYCoords pt
+toImportPixel :: Integral int => RealVal -> int
+toImportPixel r = round (r * importPixelsPerLength)
+
+fromImportPixel :: Integral int => int -> RealVal
+fromImportPixel p = fromIntegral p / importPixelsPerLength
+
 
 -----------------------------------------------------------------
 -- bitmap -> Fran Coordinate System -> screen

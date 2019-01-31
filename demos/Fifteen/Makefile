@@ -2,7 +2,7 @@
 
 all ::
 
-HS = Grid.hs Main.hs Puzzle.hs UI.hs
+HS = Fifteen.hs
 
 FRAN = ../..
 include $(FRAN)/app.mk

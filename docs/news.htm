@@ -10,9 +10,30 @@
 
 <h1 ALIGN="CENTER">News on Recent Fran Releases</h1>
 
-<p ALIGN="left">&nbsp;</p>
+<h2 ALIGN="left"><a href="Zips/Fran1.12.zip">1.12</a> June 19, 1998</h2>
 
-<h2><a HREF="Zips/Fran1.11.zip">1.11</a> May 6, 1998</h2>
+<ul>
+  <li>Added to media: <a href="../media/halloween.bmp">halloween.bmp</a> and <a
+    href="../media/halloweenBig.bmp">halloweenBig.bmp</a> (now used in <a
+    href="../demos/Fifteen/Fifteen.hs">Fifteen demo</a>), and <a href="../media/kids.bmp">kids.bmp</a>
+    (now used in <a href="../demos/Collide/Main.hs">Collide demo</a>). </li>
+  <li>Added src/InputMonitor.hs, which defines functions for showing what actions the user is
+    taking. See the <a href="UsersMan.htm#InputMonitoring">brief treatment</a> in the &nbsp;
+    User's Manual. </li>
+  <li>Fixed a small but annoying bug that shows up in examples like Editor3.main
+    (Fran/demos/CurveEditor). Zero-scaled text was showing up as a default size. </li>
+  <li>Fixed another bug that showed up in various places, including Editor3.main. When you
+    pressed a mouse button, the text would move down from the middle of the window. </li>
+  <li>Added <tt>stylusPresent :: User -&gt; Bool</tt>, which determines whether the given user
+    has a stylus. See demos\Navigate\Hand.hs for a sample use.</li>
+  <li>Added lift (elevator) simulator by Simon Thompson, <a href="../demos/LiftSim/Main.hs">../demos/LiftSim/Main.hs</a>.
+    Click on the &quot;up&quot; or &quot;down&quot; button to call the lift up or down. If the
+    lift cannot service your request right away, the call button lights up and the lift comes
+    when it can.&nbsp; See Simon's <a href="http://www.cs.ukc.ac.uk/pubs/1998/583/index.html">technical
+    report</a> about this example, which also sheds light on Fran programming in general.</li>
+</ul>
+
+<h2><a HREF="Zips/Fran1.11-a.zip">1.11</a> May 6, 1998</h2>
 
 <ul>
   <li>Rendered text and 2D geometry can now be <em>much</em> bigger without crashing Fran,
@@ -32,9 +53,9 @@
     removing duplicates. </li>
   <li>Added <tt>rectLL</tt>, <tt>rectUR</tt>, <tt>rectLR</tt>, <tt>rectUL</tt>, <tt>rectCenter</tt>,
     <tt>rectSize</tt>, <tt>intersectRect</tt>, <tt>expandRect</tt>.&nbsp; (See the <a
-    href="file:///C:/Users/Conal/Fran/docs/UsersMan.htm">User's Manual</a>)</li>
-  <li>Added support for tablets, based on&nbsp; <a href="http://www.pointing.com/wintab.htm">Wintab</a>.
-    (See the <a href="file:///C:/Users/Conal/Fran/docs/UsersMan.htm">User's Manual</a>)</li>
+    href="UsersMan.htm#Images">User's Manual</a>)</li>
+  <li>Added support for tablets, based on&nbsp;<a href="http://www.pointing.com/wintab.htm">Wintab</a>.
+    (See the <a href="UsersMan.htm">User's Manual</a>)</li>
   <li>New demos: two-handed image navigation, fifteen puzzle, colliding balls. See <a
     href="demos.htm">demos.htm</a>. </li>
   <li>Switched to static linking of MFC, so there's no dependency on a user's machine having
@@ -46,18 +67,17 @@
 <ul>
   <li>Main new features (see details below):<ul>
       <li>animations with effects, via IO-valued events; and</li>
-      <li>simultaneously running Fran window.</li>
+      <li>multiple concurrent Fran windows.</li>
       <li>CurveEditor demo.&nbsp; Try <tt>main</tt> in Editor6.hs.&nbsp; (Upcoming paper based on
         this example.)</li>
     </ul>
   </li>
-  <li>Misc additions (see the <a href="file:///C:/Users/Conal/Fran/docs/UsersMan.htm">User's
-    Manual</a>):<ul>
+  <li>Misc additions (see the <a href="UsersMan.htm">User's Manual</a>):<ul>
       <li><tt>bufferSound</tt> and <tt>importWave</tt> now take a boolean second argument saying
         whether to repeat.&nbsp; For the old behavior, pass <tt>True</tt>.</li>
-      <li>Examples 6 and 7 in the <a href="file:///C:/Users/Conal/Fran/docs/UsersMan.htm">User's
-        Manual</a>, which demonstrates a new event programming style that avoids explicitly
-        recursive state machines and <tt>nextUser</tt> (or <tt>afterE</tt>).</li>
+      <li>Examples 6 and 7 in the <a href="UsersMan.htm">User's Manual</a>, which demonstrates a
+        new event programming style that avoids explicitly recursive state machines and <tt>nextUser</tt>
+        (or <tt>afterE</tt>).</li>
       <li><tt>moveTo</tt> and <tt>moveTo3</tt>.; <tt>nullB</tt> and <tt>!!*</tt>&nbsp; (liftings
         of <tt>null</tt> and <tt>!!</tt>); <tt>colorRGB256</tt> </li>
       <li><tt>accumE</tt> and <tt>stepAccum</tt> for cumulative events and piecewise-constant

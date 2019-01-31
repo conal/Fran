@@ -51,7 +51,7 @@ import SoundB
 import ImageB
 import Event
 import Transform3B
-import RenderImage (screenPixelsPerLength)
+--import RenderImage (screenPixelsPerLength)
 import Concurrent
 import Maybe
 
@@ -160,7 +160,7 @@ renderGeometry geom cameraXfB = renderImage renderIO
     -- For now, use a fixed scale.  Fix later to use scaleB.  The problem is
     -- I don't know how to resize the D3DRM device with a tolerable
     -- efficiency.  DirectX 5 fixes this problem.
-    putStrLn $ "new renderer with scale " ++ show scale0 ++ " and renderSize " ++ show geometryRenderSize ++ "\n"
+    --putStrLn $ "new renderer with scale " ++ show scale0 ++ " and renderSize " ++ show geometryRenderSize ++ "\n"
     renderer     <- SL.newRMRenderer sceneFrame cameraFrame scale0
                                      geometryRenderSize
     hSimpleSprite <- SL.newSimpleSprite SL.nullHDDSurface ulX ulY

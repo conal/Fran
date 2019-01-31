@@ -1,0 +1,16 @@
+# Dependencies go here
+# DO NOT DELETE: Beginning of Haskell dependencies
+Button.o Button.mc_o : Button.lhs
+Button.o : ../../src/GHC/Fran.hi
+Button.mc_o : ../../src/GHC/Fran.mc_hi
+Button.o : ../../src/GHC/StaticTypes.hi
+Button.mc_o : ../../src/GHC/StaticTypes.mc_hi
+TwoFloorSimBut2.o TwoFloorSimBut2.mc_o : TwoFloorSimBut2.lhs
+TwoFloorSimBut2.o : ../../src/GHC/Fran.hi
+TwoFloorSimBut2.mc_o : ../../src/GHC/Fran.mc_hi
+TwoFloorSimBut2.o : ./Button.hi
+TwoFloorSimBut2.mc_o : ./Button.mc_hi
+Main.o Main.mc_o : Main.hs
+Main.o : ./TwoFloorSimBut2.hi
+Main.mc_o : ./TwoFloorSimBut2.mc_hi
+# DO NOT DELETE: End of Haskell dependencies

@@ -7,7 +7,6 @@ import Editor4 hiding (editCurve, editorWith, editor, main)
 
 import Fran
 import qualified StaticTypes as S
-import InputMonitor
 import Win32Key
 import IOExts ( trace )
 

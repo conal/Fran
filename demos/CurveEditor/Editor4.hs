@@ -14,7 +14,6 @@ import Editor3 hiding (editXPoint, editCurve, editor, main)
 import Fran
 import qualified StaticTypes as S
 import FileUtils
-import InputMonitor
 import Win32 (setWindowText)
 
 editXPoint :: User -> S.Point2 -> XPoint
@@ -51,15 +50,16 @@ editCurve initPoints u = map (editXPoint u) initPoints
 editorWith :: String -> EditCurve -> String -> IO ()
 editorWith version editCurve fileName = do
   initPoints <- load fileName
-  window     <- displayExMon (editRenderSave initPoints)
+  window     <- makeWindow
   setWindowText window ("Curve editor " ++ version ++ ": " ++ fileName)
+  displayExMon blue (editRenderSave initPoints) window
   eventLoop window
  where
    editRenderSave initPoints u =
      ( spinMessage "Saving ..." saveNow `over`
        renderCurve xPoints              `over`
        graphPaper
-     , const doSave )
+     , doSave )
     where
       xPoints = editCurve initPoints u
       pointsB :: Behavior [S.Point2]
