@@ -60,7 +60,7 @@ type Spritifier = Time -> [Time]
 -- Make a sprite tree chain.  Accumulate a sprite chain *above* the
 -- current imageB and coloring an transformation behaviors.
 
-spritifyImageB :: RectB -> Maybe ColorB -> Transform2B -> ImageB -> TimeB
+spritifyImageB :: RectB -> Maybe ColorB -> Transform2B -> ImageB -> Maybe TimeB
                -> Spritifier
 
 -- Empty image.  If there's nothing to do next, then just return the
@@ -96,9 +96,9 @@ spritifyImageB rectB mbColorB xfB SolidImage _ t0 =
  where
    colorB = fromMaybe defaultColor mbColorB
 
-spritifyImageB rectB _ xfB (FlipImage flipBook pageB) _ t0 =
+spritifyImageB rectB _ xfB (FlipImage flipBook pageB) mbTT t0 =
   \ ts requestV replyV above -> do
-  let (page0, pages) = ats0 pageB t0 ts
+  let (page0, pages) = ats0 (pageB `mbTTrans` mbTT) t0 ts
       (S.RectLLUR (S.Point2XY llx0 lly0) (S.Point2XY urx0 ury0), rects) =
          ats0 rectB t0 ts
       (S.Transform2 (S.Vector2XY motX0 motY0) scale0 _, xfs) = ats0 xfB t0 ts
@@ -125,88 +125,121 @@ spritifyImageB rectB _ xfB (FlipImage flipBook pageB) _ t0 =
   forkIO $ update ts rects xfs pages
   return (toSpriteTree hFlipSprite)
 
-spritifyImageB rectB mbColorB xfB (RenderImage renderIO) tt t0 =
+spritifyImageB rectB mbColorB xfB (RenderImage renderIO) mbTT t0 =
   \ ts requestV replyV above -> do
   -- Get the render threads going
-  hSimpleSprite <- renderIO rectB mbColorB xfB tt t0 ts requestV replyV above
+  hSimpleSprite <- renderIO rectB mbColorB xfB mbTT t0 ts requestV replyV above
   return (toSpriteTree hSimpleSprite)
 
-spritifyImageB rectB _ xfB (SoundI sound) tt t0 =
+spritifyImageB rectB _ xfB (SoundI sound) mbTT t0 =
  -- Extract initial pan and volume from motion and scale
- spritifySoundB (abs scale) pan 1 sound tt t0
+ spritifySoundB vol pan 1 sound mbTT t0
   where
     -- Pan based on x coordinate.  The 7.0 is empirical.
     pan = 7.0 * fst (vector2XYCoords motion)
     (motion, scale, _) = factorTransform2 xfB
+    vol = ifB (rectContains rectB (xfB *% origin2)) (abs scale) 0
 
-spritifyImageB rectB mbColor xfB (imb1 `Over` imb2) tt t0 =
+spritifyImageB rectB mbColor xfB (imb1 `Over` imb2) mbTT t0 =
   \ ts requestV replyV above1 -> do
   -- Spritify the upper and then the lower.  Pass requests into imb1's
   -- sprite tree and use replies as request to imb2's sprite tree.  This
   -- threading is unnecessarily sequential, but it doesn't seem to hurt.
   syncV  <- newEmptyMVar
-  above2 <- spritifyImageB rectB mbColor xfB imb1 tt t0
+  above2 <- spritifyImageB rectB mbColor xfB imb1 mbTT t0
             ts requestV syncV above1  
-  spritifyImageB rectB mbColor xfB imb2 tt t0 ts syncV replyV above2
+  spritifyImageB rectB mbColor xfB imb2 mbTT t0 ts syncV replyV above2
 
 
 -- Treatment of IransformI uses the following fact:
 -- 
 --     transformI xfB $
---     timeTransform (transformI xfB' imb) tt $
+--     mbTTrans (transformI xfB' imb) mbTT
 -- 
 --       ==
 -- 
 --     transformI xfB $
---     transformI (timeTransform xfB' tt) $
---     timeTransform imb tt
+--     transformI (mbTTrans xfB' mbTT) $
+--     mbTTrans imb mbTT
 
-spritifyImageB rectB mbColor xfB (TransformI xfB' imb) tt t0 =
-  spritifyImageB rectB mbColor (xfB `compose2` timeTransform xfB' tt)
-                 imb tt t0
+spritifyImageB rectB mbColor xfB (TransformI xfB' imb) mbTT t0 =
+  spritifyImageB rectB mbColor (xfB `compose2` mbTTrans xfB' mbTT)
+                 imb mbTT t0
 
 -- withColor is similar
 
-spritifyImageB rectB mbColor xfB (WithColorI colorInner imb) tt t0 =
-  spritifyImageB rectB (mbColor ++ Just (timeTransform colorInner tt))
-                 xfB imb tt t0
+spritifyImageB rectB mbColor xfB (WithColorI colorInner imb) mbTT t0 =
+  spritifyImageB rectB (mbColor ++ Just (mbTTrans colorInner mbTT))
+                 xfB imb mbTT t0
 
 -- Cropping. Composes through intersection.
-
-spritifyImageB rectB mbColor xfB (CropI rectBInner imb) tt t0 =
+spritifyImageB rectB mbColor xfB (CropI rectBInner imb) mbTT t0 =
   spritifyImageB (rectB `intersectRect` transformedInner)
-                 mbColor xfB imb tt t0
+                 mbColor xfB imb mbTT t0
  where
-   transformedInner = xfB *% timeTransform rectBInner tt
+   transformedInner = xfB *% mbTTrans rectBInner mbTT
 
 
-spritifyImageB rectB mbColor xfB (imb1 `UntilI` e) tt t0 =
+-- Conditional
+spritifyImageB rectB mbColor xfB (CondI c imb imb') mbTT t0 =
+  \ ts requestV replyV above -> do
+  -- Update imb and imb' concurrently.  Wasteful, but otherwise reactive
+  -- behaviors in a false branch can get backed up.  Revisit.
+  thenRequestV <- newEmptyMVar ; thenReplyV <- newEmptyMVar
+  thenChain <- spritifyImageB rectB mbColor xfB imb  mbTT t0 ts
+               thenRequestV thenReplyV emptySpriteTreeChain
+  elseRequestV <- newEmptyMVar ; elseReplyV <- newEmptyMVar
+  elseChain <- spritifyImageB rectB mbColor xfB imb' mbTT t0 ts
+               elseRequestV elseReplyV emptySpriteTreeChain
+  let (cond0, conds) = ats0 (mbTTrans c mbTT) t0 ts
+  hCondTree <- newCondSpriteTree cond0 thenChain elseChain above
+  let update ~ts@(t:ts') ~(cond:conds') = do
+        continue <- takeMVar requestV
+        -- Continue or cancel then and else threads
+        putMVar thenRequestV continue ; takeMVar thenReplyV
+        putMVar elseRequestV continue ; takeMVar elseReplyV
+        if continue then do
+          updateCondSpriteTree hCondTree t cond
+          putMVar replyV True
+          update ts' conds'
+         else
+          putMVar replyV False
+
+  -- Avoid a space-time leak here: Don't hang onto the
+  -- original color, motion and scale.  Let them age.
+  forkIO $ update ts conds
+  return (toSpriteTree hCondTree)
+
+
+spritifyImageB rectB mbColor xfB (imb1 `UntilI` e) mbTT t0 =
   spritifyUntilB (\ (rectB,mbC,xfB) imb1 -> spritifyImageB rectB mbC xfB imb1)
-                   (rectB, mbColor, xfB) imb1 e tt t0
+                   (rectB, mbColor, xfB) imb1 e mbTT t0
 
 -- Remember that timeTransform == (.), semantically.
 
-spritifyImageB rectB mbColor xfB (TimeTransI imb ttInner) tt t0 =
-  spritifyImageB rectB mbColor xfB imb (timeTransform ttInner tt) t0
+spritifyImageB rectB mbColor xfB (TimeTransI imb ttInner) mbTT t0 =
+  spritifyImageB rectB mbColor xfB imb (Just (mbTTrans ttInner mbTT)) t0
 
 flipSpriteScaleAdjust = screenPixelsPerLength / importPixelsPerLength
 
 -- Generalized spritifier for untilB
 spritifyUntilB :: (GBehavior bv, GBehavior ctx)
-                 => (ctx -> bv -> TimeB -> Spritifier)
-                 -> (ctx -> bv -> Event bv -> TimeB -> Spritifier)
+                 => (ctx -> bv -> Maybe TimeB -> Spritifier)
+                 -> (ctx -> bv -> Event bv -> Maybe TimeB -> Spritifier)
 
-spritifyUntilB spritify ctx bv1 e tt t0 =
+spritifyUntilB spritify ctx bv1 e mbTT t0 =
   \ ts requestV replyV above -> do
   -- Fork a new thread that watches e and passes requests on to bv1's
   -- threads, but terminates when e occurs.  At that point, use requestV
   -- for the new bv.  (Verify !!)
   requestV1 <- newEmptyMVar                 -- request for bv1
   replyV1   <- newEmptyMVar                 -- reply   for bv1
-  spriteChain1 <- spritify ctx bv1 tt t0 ts
+  spriteChain1 <- spritify ctx bv1 mbTT t0 ts
                            requestV1 replyV1 emptySpriteTreeChain
   group  <- newSpriteGroup spriteChain1 above
-  let xts = tt `ats` ts
+  let xts = case mbTT of
+              Just tt -> tt `ats` ts
+              Nothing -> ts
       monitor ~ts@(t:ts') ~(xt:xts') ~(mbOcc:mbOccs') = do
         -- First pass on the next request to bv1's sprite tree threads,
         -- causing an update or termination.
@@ -225,7 +258,7 @@ spritifyUntilB spritify ctx bv1 e tt t0 =
               -- Non-occurrence.  Report one step done, and repeat.
               putMVar replyV True
               monitor ts' xts' mbOccs'
-            Just (xte, (bv2, ctx')) -> do
+            Just (xte, (bv2, (ctx',tt'))) -> do
               -- Don't report one step done.  Instead, spritify bv2 and
               -- start updating it.
               -- Note: using the untilB's request and reply channels
@@ -244,23 +277,23 @@ spritifyUntilB spritify ctx bv1 e tt t0 =
               -- to global event time.
               let te | t==xt     = xte
                      | otherwise = t
-              spriteChain2 <- spritify ctx' bv2 tt te ts
+              spriteChain2 <- spritify ctx' bv2 tt' te ts
 				       requestV replyV emptySpriteTreeChain
               resetSpriteGroup group spriteChain2 False
   -- Avoid a space-time leak here: Don't hang onto the
   -- original color, motion and scale.  Let them age.
-  forkIO $ monitor ts xts ((e `afterE` ctx) `occs` xts)
+  forkIO $ monitor ts xts ((e `afterE` (ctx, mbTT)) `occs` xts)
   return (toSpriteTree group)
 
 -- Similar to spritifyImageB, but on SoundB
-spritifySoundB :: RealB -> RealB -> RealB -> SoundB -> TimeB -> Spritifier
+spritifySoundB :: RealB -> RealB -> RealB -> SoundB -> Maybe TimeB -> Spritifier
 
 spritifySoundB _ _ _SilentS _ _ = \ _ requestV replyV above -> do
   forkIO $ forwardSyncVars requestV replyV
   return above
 
 
-spritifySoundB volB panB pitchB (BufferS buff repeat) tt t0 =
+spritifySoundB volB panB pitchB (BufferS buff repeat) mbTT t0 =
   \ ts requestV replyV above -> do
   let (vol0  , vols   ) = ats0 volB   t0 ts
       (pan0  , pans   ) = ats0 panB   t0 ts
@@ -279,36 +312,35 @@ spritifySoundB volB panB pitchB (BufferS buff repeat) tt t0 =
   return (toSpriteTree hSoundSprite)
 
 
-spritifySoundB volB panB pitchB (sound1 `MixS` sound2) tt t0 =
+spritifySoundB volB panB pitchB (sound1 `MixS` sound2) mbTT t0 =
   \ ts requestV replyV above1 -> do
   -- Like `Over`
   syncV  <- newEmptyMVar
-  above2 <- spritifySoundB volB panB pitchB sound1 tt t0
+  above2 <- spritifySoundB volB panB pitchB sound1 mbTT t0
             ts requestV syncV above1  
-  spritifySoundB volB panB pitchB sound2 tt t0 ts syncV replyV above2
+  spritifySoundB volB panB pitchB sound2 mbTT t0 ts syncV replyV above2
 
 -- For VolumeS, PanS, and PitchS, see comments before spritifyImageB of
 -- TransformI.
 
-spritifySoundB volB panB pitchB (VolumeS v sound') tt t0 =
-  spritifySoundB (volB * timeTransform v tt) panB pitchB sound' tt t0
+spritifySoundB volB panB pitchB (VolumeS v sound') mbTT t0 =
+  spritifySoundB (volB * mbTTrans v mbTT) panB pitchB sound' mbTT t0
 
 -- Pan is in dB and so combines additively.  Is this best??
-spritifySoundB volB panB pitchB (PanS p sound') tt t0 =
-  spritifySoundB volB (panB + timeTransform p tt) pitchB sound' tt t0
+spritifySoundB volB panB pitchB (PanS p sound') mbTT t0 =
+  spritifySoundB volB (panB + mbTTrans p mbTT) pitchB sound' mbTT t0
 
-spritifySoundB volB panB pitchB (PitchS p sound') tt t0 =
-  spritifySoundB volB panB (pitchB * timeTransform p tt) sound' tt t0
+spritifySoundB volB panB pitchB (PitchS p sound') mbTT t0 =
+  spritifySoundB volB panB (pitchB * mbTTrans p mbTT) sound' mbTT t0
 
-
-spritifySoundB volB panB pitchB (sound1 `UntilS` e) tt t0 =
+spritifySoundB volB panB pitchB (sound1 `UntilS` e) mbTT t0 =
   spritifyUntilB (\ (volB,panB,pitchB) sound ->
                      spritifySoundB volB panB pitchB sound)
-                 (volB,panB,pitchB) sound1 e tt t0
+                 (volB,panB,pitchB) sound1 e mbTT t0
 
-spritifySoundB volB panB pitchB (TimeTransS sound ttInner) tt t0 =
+spritifySoundB volB panB pitchB (TimeTransS sound ttInner) mbTT t0 =
   spritifySoundB volB panB pitchB sound
-                 (timeTransform ttInner tt) t0 
+                 (Just (mbTTrans ttInner mbTT)) t0 
 
 
 -- Display.
@@ -382,43 +414,42 @@ eventLoop w = loop `catch` \ _ -> return ()
 displayEx :: (User -> (ImageB, Win32.HWND -> Event (IO ())))
           -> IO Win32.HWND
 displayEx imF {-mbMenu-} = do
-  let mbMenu = Nothing  -- out for now
-  -- garbageCollect
-  t0 <- currentSpriteTime
-  --putStrLn ("doing spritify for time " ++ show t0)
-  (userEv, userActionsChan) <- newChannelEvent t0
-
-  initWinSize <- readIORef initialViewSizeVar
-
-  -- We might like to find out where the mouse is relative to the view,
-  -- but we cannot until making the window.
-  -- initMousePos <- getCursorPos ...
-  -- Instead, start the mouse outside of the view
-  let initMousePos = S.origin2 S..+^ 10 S.*^ initWinSize
-
-  let user = makeUser False False initMousePos initWinSize 0.1 userEv
-      (imB, effectsF) = imF user
-  timeChan <- newChan
-  ts       <- getChanContents timeChan
-  -- Initialize SpriteLib.  I wish this could be done in SpriteLib's
-  -- DllMain, but DSound initialization bombs there.  Doing it here is
-  -- shaky, as it relies on the DDSurface and DSBuffer evaluations being
-  -- postponed due to laziness.
-  openSpriteLib screenPixelsPerLength
-  --set_ddhelpTimeTrace True           -- default is False
-  requestV <- newEmptyMVar
-  replyV   <- newEmptyMVar
-  -- Initially the update and sample times are the same, but we might
-  -- want to make the sample times be later.
-  let (halfWidth,halfHeight) = vector2XYCoords (0.5 *^ viewSize user)
-      cropRect = rectFromCorners (point2XY (-halfWidth) (-halfHeight))
-                                 (point2XY   halfWidth    halfHeight )
-  chain    <- spritifyImageB cropRect Nothing identity2 imB time
-              t0 ts requestV replyV emptySpriteTreeChain
-  --putStrLn "Spritify done"
-
-  tPrevVar   <- newIORef t0
   fixIO $ \ hWnd -> do
+    let mbMenu = Nothing  -- out for now
+    -- garbageCollect
+    t0 <- currentSpriteTime
+    --putStrLn ("doing spritify for time " ++ show t0)
+    (userEv, userActionsChan) <- newChannelEvent t0
+
+    initWinSize <- readIORef initialViewSizeVar
+
+    -- We might like to find out where the mouse is relative to the view,
+    -- but we cannot until making the window.
+    -- initMousePos <- getCursorPos ...
+    -- Instead, start the mouse outside of the view
+    let initMousePos = S.origin2 S..+^ 10 S.*^ initWinSize
+
+    let user = makeUser False False initMousePos initMousePos
+               0 initWinSize 0.1 userEv
+        (imB, effectsF) = imF user
+    timeChan <- newChan
+    ts       <- getChanContents timeChan
+    -- Initialize SpriteLib.  I wish this could be done in SpriteLib's
+    -- DllMain, but DSound initialization bombs there.  Doing it here is
+    -- shaky, as it relies on the DDSurface and DSBuffer evaluations being
+    -- postponed due to laziness.
+    openSpriteLib screenPixelsPerLength
+    --set_ddhelpTimeTrace True           -- default is False
+    requestV <- newEmptyMVar
+    replyV   <- newEmptyMVar
+    let (halfWidth,halfHeight) = vector2XYCoords (0.5 *^ viewSize user)
+        cropRect = rectFromCorners (point2XY (-halfWidth) (-halfHeight))
+                                   (point2XY   halfWidth    halfHeight )
+    chain    <- spritifyImageB cropRect Nothing identity2 imB Nothing
+                t0 ts requestV replyV emptySpriteTreeChain
+    --putStrLn "Spritify done"
+
+    tPrevVar   <- newIORef t0
     let effects = effectsF hWnd
     effectsVar <- newIORef effects
     let tick = do
@@ -451,8 +482,9 @@ displayEx imF {-mbMenu-} = do
           _ <- takeMVar replyV
           writeIORef tPrevVar tSample
     showSpriteTree chain tick
-                   (\ t act -> writeChan userActionsChan (t, Just act))
-                   mbMenu
+                   (\ t act -> --trace ("user action: " ++ show act ++ "\n") $
+                               writeChan userActionsChan (t, Just act))
+                   mbMenu user
 
 
 

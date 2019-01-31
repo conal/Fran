@@ -1,0 +1,11 @@
+# Dependencies go here
+# DO NOT DELETE: Beginning of Haskell dependencies
+Hand.o : Hand.hs
+Hand.o : ../../src/GHC/Fran.hi
+Navigate.o : Navigate.hs
+Navigate.o : ../../src/GHC/Fran.hi
+Navigate.o : ../../src/GHC/StaticTypes.hi
+Navigate.o : ./Hand.hi
+Main.o : Main.hs
+Main.o : ./Navigate.hi
+# DO NOT DELETE: End of Haskell dependencies

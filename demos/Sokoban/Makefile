@@ -2,7 +2,7 @@
 # Makefile for Fran (!GHC!)
 ################################################################
 
-all	: sokoban.exe
+all ::
 
 HS	= SokoBoard.hs SokoDemo.hs SokoDraw.hs SokoType.hs \
 	  Sokoban.hs SokoMain.hs
@@ -10,7 +10,9 @@ HS	= SokoBoard.hs SokoDemo.hs SokoDraw.hs SokoType.hs \
 FRAN = ../..
 include $(FRAN)/app.mk
 
-sokoban.exe	: $(OBJS)
+all :: sokoban$(exe)
+
+sokoban$(exe)	: $(OBJS)
 
 
 include _depend

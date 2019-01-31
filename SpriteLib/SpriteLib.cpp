@@ -6,6 +6,7 @@
 #include "ddhelp.h"			// for init and fini
 #include "VBlankHandler.h"		// for init and fini
 #include "SpriteLib.h"
+#include "wintabx.h"                    // for _UnlinkWintab
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -13,8 +14,9 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
-// How many screen pixels correspond to one length unit
-double g_screenPixelsPerLength = 1;
+// How many screen pixels correspond to one length unit.  Gets initialized
+// in OpenSpriteLib call.
+double g_screenPixelsPerLength;
 
 static AFX_EXTENSION_MODULE SpriteLibDLL = { NULL, NULL };
 
@@ -90,6 +92,7 @@ EXT_API(void) CloseSpriteLib ()
 {
     if (g_SpriteLibIsOpen) {
         g_SpriteLibIsOpen = FALSE;
+        _UnlinkWintab();
         timeEndPeriod(timerResolutionMS);
         VBlankFini();
         DDHelpFini();		

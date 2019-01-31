@@ -15,6 +15,7 @@ import qualified StaticTypes as S
 import FileUtils
 import InputMonitor
 import Win32Key
+import Win32 (setWindowText)
 
 -- Editable curve.  A list of x-points, and an change event.  (BTW,
 -- there's a very common pattern here that should be captured in a type.)
@@ -37,13 +38,16 @@ editECurve initPoints u = ((firstCurve, newCurve), pointsB, pointToEdit)
             .|. okDelRight -=> deletePointsForward
             .|. okDelLeft  -=> deletePointsBackward
 
+   okInsert, okDelRight, okDelLeft :: Event ()
    okInsert   = charPress 'i'       u
    okDelRight = keyPress  vK_DELETE u `whenE` beforeEnd
    okDelLeft  = keyPress  vK_BACK   u `whenE` afterStart
 
+   beforeEnd, afterStart :: BoolB
    beforeEnd  = pointToEdit <* lengthB pointsB - 1
    afterStart = pointToEdit >* 0
 
+   firstCurve :: [XPoint]
    firstCurve = editCurve initPoints u
 
    newCurve :: Event [XPoint]
@@ -53,16 +57,18 @@ editECurve initPoints u = ((firstCurve, newCurve), pointsB, pointToEdit)
                      `afterE`   u
                      ==>        uncurry editCurve
 
-   pointToEdit = stepper 0 (moveEdit ==>        (* 3)
-                                     `snapshot` pointToEdit
-                                     ==>        uncurry (+))
+   pointToEdit :: IntB
+   pointToEdit = stepAccum 0 $ moveEdit ==> ((+) . (* 3))
 
+   moveEdit :: Event Int
    moveEdit = okRight -=>  1 .|. (okLeft .|. removedLast) -=> -1
 
+   okRight, okLeft, removedLast :: Event ()
    okRight = keyPress vK_RIGHT u `whenE` beforeEnd
    okLeft  = keyPress vK_LEFT  u `whenE` afterStart
    removedLast = okDelLeft `whenE` notB beforeEnd
 
+   pointsB :: Behavior [S.Point2]
    pointsB = mapSwitcher (bListToListB . map fst) firstCurve newCurve
 
 
@@ -105,7 +111,7 @@ editorWith :: String -> EditECurve -> String -> IO ()
 editorWith version editECurve fileName = do
   initPoints <- load fileName
   window     <- displayExMon (editRenderSave initPoints)
-  setWindowTextA window ("Curve editor " ++ version ++ ": " ++ fileName)
+  setWindowText window ("Curve editor " ++ version ++ ": " ++ fileName)
   eventLoop window
  where
    editRenderSave initPoints u =
@@ -126,7 +132,7 @@ editorWith version editECurve fileName = do
                    star 3 7
 
 editor :: String -> IO ()
-editor = editorWith "8" editECurve
+editor = editorWith "7" editECurve
 
 lengthB = lift1 length
 

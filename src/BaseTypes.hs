@@ -1,6 +1,6 @@
 -- Some basic types
 --
--- Last modified Wed Feb 25 11:04:51 1998
+-- Last modified Tue Apr 21 12:48:00 1998
 
 module BaseTypes
        ( RealVal
@@ -11,7 +11,7 @@ module BaseTypes
        , Time
        , DTime
        , minTime
-       , pair
+       , pair , cond
        , fromInt32
        , assoc
        ) where
@@ -38,6 +38,8 @@ type Scalar = Double
 
 -- For lifting and sections
 pair x y = (x,y)
+
+cond a b c = if a then b else c
 
 -- From Int32 to Int
 

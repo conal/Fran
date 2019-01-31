@@ -1,6 +1,6 @@
                       Notes on making a Fran Release
 
-             Last modified Thu Feb 26 12:10:07 1998 by conal
+             Last modified Thu May 07 10:32:14 1998 by conal
 
 
 - In ../, do "make staticTest", and make sure there are no errors.  Then
@@ -28,13 +28,14 @@
 
 - SpriteLib sometimes gets excluded, and I'm stumped as to why.  Check to
   make sure it's there, and if not, get it (recursively and writable)
-  explicitly to ToZip\Fran\SpriteLib.
+  explicitly to ToZip\Fran\SpriteLib.  (The "build tree" option in
+  recursive get avoids the problem.)
 
 - Delete any files from ToZip\Fran that should not go into the release.
   Currently none.
 
-- Copy Fran\SpriteLib\Debug\SpriteLib.dll to ToZip\Fran, and src\HSpriteLib.dll
-  and src\HSpriteLib.hs to ToZip\Fran\src.
+- Copy Fran\SpriteLib\ReleaseStatic\SpriteLib.dll to ToZip\Fran, and
+  src\HSpriteLib.dll and src\HSpriteLib.hs to ToZip\Fran\src.
 
 - Make a new file, like "Fran1.10.zip" in ToZip; open it; and do a
   recursive wildcard add.

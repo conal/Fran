@@ -1,3 +1,5 @@
+{-# OPTIONS -#include <windows.h> #-}
+
 -- Ad hoc collection of definitions. These are here for introductory use,
 -- to make it easier to do some simple things.  I'd like to make it so that
 -- kids can use this simple vocabulary.
@@ -27,6 +29,7 @@ import Integral
 import RenderImage (screenPixelsPerLength, importPixelsPerLength)
 import HSpriteLib
 import Spritify
+import IOExts (trace)
 
 -- Move
 
@@ -106,6 +109,17 @@ importBitmap :: String -> ImageB
 importBitmap fileName = imB
  where (imB, width, height) = importBitmapWithSize fileName
 
+importFlipBook :: String -> Int -> Int -> HFlipBook
+importFlipBook fileName columns rows =
+ --trace (show ((w,h), (pageW,pageH))) $
+ flipBook surf pageW pageH 0 0 columns rows
+   where
+     surf  = bitmapDDSurface fileName
+     (w,h) = ddSurfaceSize surf
+     pageW = w `div` fromInt columns
+     pageH = h `div` fromInt rows
+
+
 -- Import a .wav file.  Possibly repeat
 importWave :: String -> Bool -> SoundB
 importWave fileName repeat = bufferSound (waveDSBuffer fileName) repeat
@@ -151,21 +165,6 @@ stringIm  ::          String -> ImageB
 
 stringBIm str = textImage (simpleText str)
 stringIm      = stringBIm . constantB
-
--- Synonym
-
-atRate :: (Forceable v, S.VectorSpace v) => Behavior v -> User -> Behavior v
-atRate = integral
-
-ifB :: BoolB -> Behavior a -> Behavior a -> Behavior a
-ifB = condB
-
-
--- Mouse motion vector, i.e., where the mouse is relative to the origin
-
-mouseMotion :: User -> Vector2B
-
-mouseMotion u = mouse u .-. origin2
 
 -- More specialized 
 

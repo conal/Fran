@@ -1,4 +1,20 @@
+{-# OPTIONS -#include <windows.h> #-}
+
 -- Various routines to create and draw into surfaces.
+
+-- To do:
+-- + factor the rendering functions to remove commonalities.  Almost
+--   done.
+-- + 
+
+-- Explanation for the "OPTIONS" line from sof:
+--   The compiler is trying to be too clever, performing cross-module
+--   inlinings of _casm_s (i.e., doing a better job than most (all?)  C
+--   compilers :) This is not without its problems; in your case the C code
+--   snippet that is inlined from HSpriteLib mentions a typedef (HDC) that
+--   is not in scope when compiling RenderImage.hc
+--   To work around this, add ...
+--   as the first line in RenderImage.hs
 
 module RenderImage where
 
@@ -10,6 +26,7 @@ import VectorSpace
 import Vector2
 import qualified Font
 import Text
+import Rect
 import Win32 hiding (readFile, writeFile)
 import IOExts (unsafePerformIO, trace)
 import Bits((.|.))
@@ -19,115 +36,100 @@ import HSpriteLib
 data SurfaceUL =
   SurfaceUL HDDSurface
             RealVal RealVal             -- upperLeft w.r.t. the origin
+                                        --   *without translation*
             RealVal RealVal             -- x and y motion
 
--- text, angle, color, stretch
+-- Tiny dummy surface.  Useful for zero scaling and total cropping
+newDummySurfaceUL :: IO SurfaceUL
+newDummySurfaceUL = do
+  hSurface <- withNewHDDSurfaceHDC 1 1 0 $ \ hdc -> return ()
+  return (SurfaceUL hSurface 0 0 0 0)
 
-renderText :: TextT -> Color -> Transform2 -> SurfaceUL
-renderText (TextT (Font.Font fam bold italic) str) color
-	   xf@(Transform2 (Vector2XY x y) stretch angle) =
- -- HSurfaces are immutable, and there are no visible side-effects.
- -- ## BUT memory management is crucially important.  BUGGY!!
- unsafePerformIO $
- -- createFont interprets fontHeight==0 as a request to choose a default
- -- size.  Instead create a tiny surface.
- if fontHeight == 0 then do
-   hSurface <- (withNewHDDSurfaceHDC 1 1 0 $ \ hdc -> return ())
-   return (SurfaceUL hSurface 0 0 0 0)
- else
- --putStrLn ("renderText " ++ show xf)>>
- createFont fontHeight 0
-	    escapement			-- escapement
-	    escapement                  -- orientation
-	    weight
-	    italic False False    -- italic, underline, strikeout
-	    aNSI_CHARSET
-	    oUT_DEFAULT_PRECIS
-	    cLIP_DEFAULT_PRECIS
-	    dEFAULT_QUALITY
-	    dEFAULT_PITCH
-	    gdiFam                         >>= \ hf ->
 
- -- First figure out what size to make the new surface.
+type SurfGen = Rect -> Color -> Transform2 -> SurfaceUL
 
- (withScratchHDC $ \scratchHDC ->
-   selectFont scratchHDC hf	>>
-   getTextExtentPoint32 scratchHDC str)    >>= \ horizSize->
+renderText :: TextT -> SurfGen
+renderText text = render (textRenderer text)
 
- -- Sadly, getTextExtentPoint32 seems to ignore escapement and
- -- orientation, so we have to adjust.
- let ((surfWidth, surfHeight), (dulx,duly)) = rotateSize horizSize angle in
- (withNewHDDSurfaceHDC surfWidth surfHeight backColorREF $ \hdc ->
-   selectFont hdc hf                   >>
-   setBkColor hdc backColorREF	       >>
-   setTextColor hdc (asColorRef color) >>
-   -- setTextAlign hdc tA_TOP	       >>
-   setTextAlign hdc (tA_TOP .|. tA_LEFT)    >>
-   -- setTextAlign hdc tA_CENTER	       >>
-   -- setTextAlign hdc (tA_BOTTOM .|. tA_LEFT)	       >>
-   textOut hdc dulx (- duly) str) >>= \hSurface ->
- deleteFont hf                             >>
-
-{-
- putStrLn ("renderText: str " ++ show str ++
-	   ", color " ++ show color ++
-	   ", stretch " ++ show stretch ++
-	   ", angle " ++ show angle ++
-	   ", fontHeight " ++ show fontHeight ++
-	   ", horizSize " ++ show horizSize ++
-	   ", surfSize " ++ show (surfWidth,surfHeight) ++
-	   ", dul " ++ show (dulx,duly) ++
-	   ", esc " ++ show escapement ++
-	   "" ) >>
--}
- return (SurfaceUL hSurface
-                   (- fromInt surfWidth  / screenPixelsPerLength / 2)
-                   (  fromInt surfHeight / screenPixelsPerLength / 2)
-                   x y)
+textRenderer :: TextT -> Renderer
+textRenderer (TextT (Font.Font fam bold italic) string) color
+             xf@(Transform2 _ stretch angle) =
+  (renderIt, natRect)
  where
-  backColor | color == black =  white
-	    | otherwise      =  black
-  backColorREF = asColorRef backColor
-  -- The "/ 5" was empirically determined
-  fontHeight = round (screenPixelsPerLength * stretch / 5.0)
-  escapement = round (angle * 1800/pi)	-- hundredths of a degree
-  weight  | bold      = fW_BOLD
-          | otherwise = fW_NORMAL
-  gdiFam =
-   case fam of
-     Font.System     -> "System" -- this is going to break ..
-     Font.TimesRoman -> "Times New Roman"
-     Font.Courier    -> "Courier New"
-     Font.Arial      -> "Arial"
-     Font.Symbol     -> "Symbol"
+   renderIt toPixPr hdc = do
+     selectFont hdc font
+     setBkColor hdc backColorREF
+     setTextColor hdc (asColorRef color)
+     setTextAlign hdc (tA_TOP .|. tA_LEFT)
+     textOut hdc ulxPix ulyPix string
+     deleteFont font
+    where
+      (ulxPix, ulyPix) = toPixPr textUL
+
+   (natRect, textUL) = textBox font string xf
+
+   -- Make this guy a function of Font.Font and xf
+   font = unsafePerformIO $
+          createFont fontHeight 0
+                     escapement         -- escapement
+                     escapement         -- orientation
+                     weight
+                     italic False False -- italic, underline, strikeout
+                     aNSI_CHARSET
+                     oUT_DEFAULT_PRECIS
+                     cLIP_DEFAULT_PRECIS
+                     dEFAULT_QUALITY
+                     dEFAULT_PITCH
+                     gdiFam
+    where
+      -- The "/ 5" was empirically determined
+      fontHeight = round (screenPixelsPerLength * stretch / 5.0)
+      escapement = round (angle * 1800/pi) -- hundredths of a degree
+      weight | bold      = fW_BOLD
+             | otherwise = fW_NORMAL
+      gdiFam = case fam of
+                 Font.System     -> "System"
+                 Font.TimesRoman -> "Times New Roman"
+                 Font.Courier    -> "Courier New"
+                 Font.Arial      -> "Arial"
+                 Font.Symbol     -> "Symbol"
+
+   -- Computed redundantly with render.  Make a renderer argument.
+   -- The next line helps with debugging
+   --backColor = yellow
+   backColor | color == black  = white
+             | otherwise       = black
+   backColorREF = asColorRef backColor
 
 
--- Gives new size, and the position of the upper left w.r.t the upper left
--- of the new box.
-rotateSize :: (Int32, Int32) -> Radians -> ((Int, Int), (Int32, Int32))
 
-rotateSize (width, height) rotAngle =
-  -- Think of the bounding box as centered at the origin.  Rotate the
-  -- upper right and lower right points, and see which stick out further
-  -- horizontally and vertically.
-  let
-      w2 = fromInt32 width / 2			-- half width and height
-      h2 = fromInt32 height / 2
-      ur = point2XY w2 h2		-- upper right and lower right
-      lr = point2XY w2 (-h2)
-      xf = rotate2 rotAngle
-      Point2XY urx' ury' = xf *% ur     -- x,y of rotated versions
-      Point2XY lrx' lry' = xf *% lr
-      -- Two cases: new width&height determined by ur&lr or by lr&ur
-      (w2',h2')  |  abs urx' > abs lrx'  =  (abs urx', abs lry')
-		 |  otherwise		 =  (abs lrx', abs ury')
-      size' = (round (w2' * 2), round (h2' * 2))
-      -- ul' is (-lrx, -lry), and new box's upper left is (-w2',h2')
-      dul = (intToInt32 $ round (-lrx' - (- w2')), intToInt32 $ round (-lry' - h2'))
-  in
-      --trace ("angle " ++  show rotAngle ++ ".  ur = " ++ show ur ++ ".  ur' = " ++ show (xf *% ur) ++ "\n") $
-      (size', dul)
-	
+-- Gives bounding rectangle, and the position of the upper left
+textBox :: HFONT -> String -> Transform2 -> (Rect, Point2)
+
+textBox font string xf@(Transform2 mot _ angle) = (natRect, xf' *% ul)
+ where
+   (horizWPix, horizHPix) =
+     unsafePerformIO $
+     withScratchHDC $ \scratchHDC -> do
+      selectFont scratchHDC font
+      getTextExtentPoint32 scratchHDC string
+
+   -- Should probably move all of this to Rect's (*%) method.
+
+   w2 = fromPixel horizWPix / 2         -- half width and height
+   h2 = fromPixel horizHPix / 2
+
+   ll = point2XY (-w2) (-h2)
+   lr = point2XY   w2  (-h2)
+   ul = point2XY (-w2)   h2
+   ur = point2XY   w2    h2
+
+   -- The text has already been scaled, so we just need to rotate and
+   -- translate.
+   xf' = Transform2 mot 1 angle
+   
+   natRect = pointsBoundRect (map (xf' *%) [ll,lr,ul,ur])
+
 
 
 -- More convenient interfaces.  Put these somewhere else
@@ -147,12 +149,12 @@ withScratchHDC f =
     withDDrawHDC scratchSurf f
 
 withNewHDDSurfaceHDC :: Int -> Int -> COLORREF
-		     -> (HDC -> IO ()) -> IO HDDSurface
+                     -> (HDC -> IO ()) -> IO HDDSurface
 
 withNewHDDSurfaceHDC width height colRef f =
  do -- (+1) below is important. e.g. renderLine will sometimes
     -- crash without it (two pixels are adjacent to each other
-    -- the width should be 2 instead of 1
+    -- the width should be 2 instead of 1)
     surf <- newPlainDDrawSurface (width + 1) (height + 1) colRef
     -- Clear the surface first, since we're going to draw
     -- Maybe newPlainDDrawSurface should do that
@@ -164,28 +166,34 @@ withNewHDDSurfaceHDC width height colRef f =
 -- renderCircle: rendering the unit size circle
 -----------------------------------------------------------------
 
-renderCircle :: Color -> Transform2 -> SurfaceUL
-renderCircle color (Transform2 (Vector2XY x y) sc _) =
-  unsafePerformIO $
-    withNewHDDSurfaceHDC
-      pixWidth pixHeight (asColorRef black) (\ hdc ->
-        -- ## WithColor seems pretty heavyweight to use here
-        withColor hdc color $
-	ellipse hdc 0 0 (intToInt32 pixWidth) (intToInt32 pixHeight))
-    >>= \ hDDSurface -> return (SurfaceUL hDDSurface (- radius) radius x y)
-  where
-    radius    = abs sc
-    pixRadius = round (radius * screenPixelsPerLength)
-    pixWidth  = 2 * pixRadius
-    pixHeight = pixWidth
+renderCircle :: SurfGen
+renderCircle = render circleRenderer
+
+circleRenderer color (Transform2 (Vector2XY dx dy) sc _) =
+  (renderIt, natRect)
+ where
+   renderIt toPixPr hdc =
+     withColor hdc color $
+     ellipse hdc ulxPix ulyPix
+                 (ulxPix + twiceRPix) (ulyPix + twiceRPix)
+    where
+      (ulxPix, ulyPix) = toPixPr ul
+
+   natRect = rectFromCenterSize (point2XY dx dy) (vector2XY twiceR twiceR)
+
+   ul = point2XY (dx - radius) (dy + radius)
+
+   radius  = abs sc
+   twiceR  = 2 * radius
+
+   twiceRPix = toPixel32 twiceR
+
 
 -----------------------------------------------------------------
 -- renderPolyline, renderPolygon, renderPolyBezier
 -----------------------------------------------------------------
 
-renderPolyline   :: [Point2] -> Color -> Transform2 -> SurfaceUL
-renderPolygon    :: [Point2] -> Color -> Transform2 -> SurfaceUL
-renderPolyBezier :: [Point2] -> Color -> Transform2 -> SurfaceUL
+renderPolyline, renderPolygon, renderPolyBezier :: [Point2] -> SurfGen
 
 renderPolyline   = renderPoly polyline
 renderPolygon    = renderPoly polygon
@@ -202,55 +210,88 @@ renderIfLength pred render hdc points =
 bezierOK nPoints = nPoints > 1 && nPoints `mod` 3 == 1
 
 
-renderPoly :: (HDC -> [POINT] -> IO ()) -> [Point2] -> Color ->
-	      Transform2 -> SurfaceUL
-renderPoly polyF pts color xf@(Transform2 (Vector2XY motX motY) sc rot) =
+renderPoly :: (HDC -> [POINT] -> IO ()) -> [Point2] -> SurfGen
+renderPoly polyF pts = render (polyRenderer polyF pts)
+
+
+renderLine :: Point2 -> Point2 -> SurfGen
+renderLine p0 p1 = render (lineRenderer p0 p1)
+
+render :: Renderer -> SurfGen
+render renderer cropRect color xf@(Transform2 (Vector2XY dx dy) _ _) =
+  --trace (show (natRect,textUL) ++ "\n") $
   unsafePerformIO $
+  if pixWidth<=0 || pixHeight<=0 then
+    newDummySurfaceUL
+  else
     withNewHDDSurfaceHDC
-      (toPixel width) (toPixel height) (asColorRef backColor) (\ hdc ->
-        withColor hdc color $
-	polyF hdc (map toPixelPoint2 pts''))
-    >>= \ hDDSurface -> return (SurfaceUL hDDSurface minimumX maximumY motX motY)
+      pixWidth pixHeight
+      (asColorRef backColor) (\ hdc -> do
+        -- This next line is just for debugging.  It shows the ddraw
+        -- surface.  
+        --rectangle hdc 0 0 (fromInt pixWidth) (fromInt pixHeight)
+        renderIt toPixPr hdc)
+    >>= \ hDDSurface -> return $
+           SurfaceUL hDDSurface (llx-dx) (ury-dy) dx dy
   where
-    pts' = map (Transform2 zeroVector sc rot *%) pts
-    ptsTuples = map point2XYCoords pts'
-    xs = map fst ptsTuples
-    ys = map snd ptsTuples
-    width  = maximum xs - minimumX
-    height = maximumY - minimum ys
-    pts'' = map (swapCoordSys4Pt (point2XY minimumX maximumY)) pts'
-    minimumX = minimum xs
-    maximumY = maximum ys
+    (renderIt, natRect) = renderer color xf
+
+    RectLLUR (Point2XY llx lly) (Point2XY urx ury) =
+      cropRect `intersectRect` natRect
+
+    pixWidth  = toPixel (urx - llx)
+    pixHeight = toPixel (ury - lly)
+
+    toPixPr = toPixelPoint2 . swapCoordSys4Pt (point2XY llx ury)
+    
     backColor | color == black  = white
               | otherwise       = black
 
------------------------------------------------------------------
--- renderLine: takes 2 points
------------------------------------------------------------------
 
-renderLine :: Point2 -> Point2 -> Color -> Transform2 -> SurfaceUL
-renderLine p0 p1 color (Transform2 (Vector2XY motX motY) sc rot) =
-  unsafePerformIO $
-    withNewHDDSurfaceHDC
-      (toPixel width) (toPixel height) (asColorRef backColor) (\ hdc ->
-        withColor hdc color $ do
-	  moveToEx hdc x0' y0'
-	  lineTo   hdc x1' y1')
-    >>= \ hDDSurface -> return (SurfaceUL hDDSurface ulx uly motX motY)
-  where
-    p0' = (Transform2 zeroVector sc rot) *% p0
-    p1' = (Transform2 zeroVector sc rot) *% p1
-    (x0, y0) = point2XYCoords p0'
-    (x1, y1) = point2XYCoords p1'
-    (x0', y0') = toPixelPoint2 $ swapCoordSys4Pt newOrigin p0'
-    (x1', y1') = toPixelPoint2 $ swapCoordSys4Pt newOrigin p1'
-    width  = abs (x1 - x0)
-    height = abs (y1 - y0)
-    ulx    = x0 `min` x1
-    uly	   = y0 `max` y1
-    newOrigin = point2XY ulx uly
-    backColor | color == black  = white
-              | otherwise       = black
+type ToPixPr = Point2 -> (Int32,Int32)
+
+type Renderer = Color -> Transform2
+             -> (ToPixPr -> HDC -> IO () , Rect)
+
+lineRenderer :: Point2 -> Point2 -> Renderer
+lineRenderer p0 p1 color xf = (renderIt, natRect)
+ where
+   renderIt toPixPr hdc =
+     withColor hdc color $ do
+       moveToEx hdc x0Pix y0Pix
+       lineTo   hdc x1Pix y1Pix
+    where
+      (x0Pix, y0Pix) = toPixPr p0'
+      (x1Pix, y1Pix) = toPixPr p1'
+
+   p0' = xf *% p0
+   p1' = xf *% p1
+   (x0, y0) = point2XYCoords p0'
+   (x1, y1) = point2XYCoords p1'
+   minX = x0 `min` x1; maxX = x0 `max` x1
+   minY = y0 `min` y1; maxY = y0 `max` y1
+
+   natRect = rectFromCorners (point2XY minX minY) (point2XY maxX maxY)
+
+polyRenderer :: (HDC -> [POINT] -> IO ()) -> [Point2] -> Renderer
+polyRenderer polyF pts color xf = (renderIt, natRect)
+ where
+   renderIt toPixPr hdc = withColor hdc color $
+                          polyF hdc (map toPixPr pts')
+   natRect = pointsBoundRect pts'
+
+   pts' = map (xf *%) pts
+
+
+pointsBoundRect :: [Point2] -> Rect
+pointsBoundRect points = 
+  rectFromCorners (point2XY minX minY) (point2XY maxX maxY)
+ where
+   (xs,ys) = unzip (map point2XYCoords points)
+
+   minX = minimum xs; maxX = maximum xs
+   minY = minimum ys; maxY = maximum ys
+
 
 
 -----------------------------------------------------------------
@@ -274,12 +315,21 @@ withColor hdc color action = do
    colorRef = asColorRef color
 
 
+-- To do: use type classes here to eliminate some functions
+
 toPixel :: RealVal -> Int
 toPixel r = round (r * screenPixelsPerLength)
 
+toPixel32 :: RealVal -> Int32
+toPixel32 x = intToInt32 (toPixel x)
+
+fromPixel :: Integral int => int -> RealVal
+fromPixel p = fromIntegral p / screenPixelsPerLength
+
+
 toPixelPoint2 :: Point2 -> (Int32, Int32)
-toPixelPoint2 pt = let (x, y) = point2XYCoords pt
-		   in  (toPixel32 x, toPixel32 y)
+toPixelPoint2 pt = (toPixel32 x, toPixel32 y)
+ where (x, y) = point2XYCoords pt
 
 -----------------------------------------------------------------
 -- bitmap -> Fran Coordinate System -> screen
@@ -294,8 +344,3 @@ importPixelsPerLength = 75 :: RealVal
 -- faster display on video cards that don't do hardware scaling.
 
 screenPixelsPerLength = 1.2 * importPixelsPerLength :: RealVal
-
--- new utilities
-
-toPixel32 :: RealVal -> Int32
-toPixel32 x = intToInt32 (toPixel x)

@@ -387,10 +387,12 @@ renderGeometrySurf (HFrame sceneFrame, HFrame cameraFrame, double scale)
 // Encapsulates a D3DRM device, surface, and viewport
 class RMRenderer {
 public:
-    RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale);
+    RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame,
+                            double scale, double renderSize);
     HDDSurface Render ();
     void SetScale (double scale) {
-        d3check(m_view->SetField(D3DVAL(0.5/(scale + 1e-10)))); }
+        // To do: check and document the math here.
+        d3check(m_view->SetField(D3DVAL(m_renderSize * 0.25 /(scale + 1e-10)))); }
     // To do: make this destructor get called somewhere!
     ~RMRenderer() {
         // Release what the constructor created
@@ -398,6 +400,7 @@ public:
 
 private:
     int m_width, m_height;
+    double m_renderSize;
     HFrame m_sceneFrame;
     IDirectDrawSurface *m_surf;
     IDirect3DRMDevice *m_dev;
@@ -409,14 +412,15 @@ private:
 
 #define CKTIME {timeIs = timeGetTime(); TTRACE("Took %d MS.\n", timeIs-timeWas); timeWas=timeIs;}
 
-RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale)
+RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame,
+                        double scale, double renderSize)
     : m_sceneFrame(sceneFrame)
 {
     // The ddraw surface will space from -scale to scale in X and Y.
     TTRACE("Makeing Renderer.\n");
     //DWORD timeWas=timeGetTime(), timeIs;
 	extern double g_screenPixelsPerLength;
-    int trySize = (int) (2 * scale * g_screenPixelsPerLength);
+    int trySize = (int) (renderSize * scale * g_screenPixelsPerLength);
     TTRACE("Creating %dx%d surface...  ", trySize, trySize);
     m_surf =
         newDDrawSurface (trySize, trySize, RGB(0,0,0), DDSCAPS_3DDEVICE);
@@ -433,6 +437,7 @@ RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale)
     // adjusted, so get them from the device.
     m_width  = m_dev->GetWidth();
     m_height = m_dev->GetHeight();
+    m_renderSize = renderSize;
     //TTRACE("Creating viewport...  ");
     d3check(g_pD3DRM->CreateViewport(m_dev, cameraFrame, 0, 0,
                                      m_width, m_height, &m_view));
@@ -441,8 +446,9 @@ RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale)
     // To do: set quality parameters on the device
 }
 
-EXT_API(HRMRenderer) newRMRenderer(HFrame sceneFrame, HFrame cameraFrame, double scale)
-{ return new RMRenderer(sceneFrame, cameraFrame, scale); }
+EXT_API(HRMRenderer) newRMRenderer(HFrame sceneFrame, HFrame cameraFrame,
+                                   double scale, double renderSize)
+{ return new RMRenderer(sceneFrame, cameraFrame, scale, renderSize); }
 
 EXT_API(void) 
 hRendererSetScale(HRMRenderer renderer, double scale)

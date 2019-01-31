@@ -148,8 +148,6 @@ followMouseAndDelay' u =
 delayAnims dt anims =
   overs (zipWith later [0, dt ..] anims)
 
--- This one will be better when background transparency works
-
 kids u =
   delayAnims 0.5 (map (move (mouseMotion u) . stretch 0.7)
                       [jake, becky, charlotte, pat] )
@@ -385,6 +383,19 @@ tst2D n = turn (pi*time/3) (overs $ map ball [1 .. n])
 
 
 -- Packing it all up
+
+fmd u = later 1 (move (mouseMotion u) jake)
+
+fmd' u = move (later 1 (mouseMotion u)) jake
+
+{-
+delayAnims dt anims =
+  overs (zipWith later [0, dt ..] anims)
+
+kkids u =
+  delayAnims 0.5 (map (move (mouseMotion u) . stretch 0.7)
+                      [jake, becky] )
+-}
 
 titles = [ "leftRightCharlotte", "upDownPat", "charlottePatDance"
          , "charlottePatDoubleDance", "dance1", "dance2"

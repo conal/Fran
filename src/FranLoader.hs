@@ -57,8 +57,6 @@ import HSpriteLib(
                  , LightType, ambientLight, pointLight, spotLight
                  , directionalLight, parallelPointLight
                  , HFlipBook, flipBook, flipBookPages
-                 -- Belongs in Win32 somewhere, I think:
-                 , setWindowTextA
                  )
 import UtilsB
 import ShowImageB ({-setViewSize,-} setInitialViewSize, withInitialViewSize)

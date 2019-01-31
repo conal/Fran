@@ -122,7 +122,6 @@ EXT_API(SpriteTree *)
 soundSpriteToSpriteTree (SoundSprite *pSound)
 { return pSound; }
 
-// Update methods go here (volume, frequency)
 
 EXT_API(SpriteGroup *)
 newSpriteGroup (SpriteTreeChain elems, SpriteTreeChain rest)
@@ -136,7 +135,21 @@ EXT_API(void)
 ResetSpriteGroup (SpriteGroup *pSpriteGroup, SpriteTreeChain elems, BOOL isMutable)
 { pSpriteGroup->Reset(elems, isMutable); }
 
+EXT_API(CondSpriteTree *)
+newCondSpriteTree (
+    BOOL cond0,
+    SpriteTreeChain thenChain,
+    SpriteTreeChain elseChain,
+    SpriteTreeChain rest)
+{ return new CondSpriteTree (cond0, thenChain, elseChain, rest); }
 
+EXT_API(void) updateCondSpriteTree(
+    CondSpriteTree *pTree, SpriteTime t, BOOL cond)
+{ pTree->Update(t,cond); }
+
+EXT_API(SpriteTree *)
+condSpriteTreeToSpriteTree (CondSpriteTree *pCondSpriteTree)
+{ return pCondSpriteTree; }
 
 // End of C interface
 
@@ -531,4 +544,17 @@ void SpriteGroup::Paint (IDirectDrawSurface *pDest, SpriteTime t)
     // To do: optimize away this guy when m_isMutable is FALSE.
     PaintAll(m_elems, pDest, t);
     Unlock();
+}
+
+
+// Conditional sprite tree
+
+void CondSpriteTree::Paint (IDirectDrawSurface *pDest, SpriteTime t)
+{
+    PaintAll(m_cond ? m_thenChain : m_elseChain, pDest, t);
+}
+
+void CondSpriteTree::Update(SpriteTime t, BOOL cond) 
+{
+    m_cond = cond;
 }

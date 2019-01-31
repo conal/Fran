@@ -3,8 +3,7 @@
 ################################################################
 
 # This goes first to make it the default
-all		: HSpriteLib.$(way_)o ../errors.obj
-default		: all
+default		:
 
 SRCS		= HSpriteLib.gc
 HS		= $(patsubst %.gc,%.hs,$(SRCS))
@@ -12,7 +11,14 @@ HS		= $(patsubst %.gc,%.hs,$(SRCS))
 FRAN = ../..
 include $(FRAN)/env.mk
 
+all		: HSpriteLib.$(way_)o ../errors.obj
+default		: all
+
 LIBOBJS		= $(OBJS) 
+
+INCLUDES	+= -i$(GCLIBDIR)
+# now copied into SpriteLib
+#INCLUDES        += -I$(WINTABDIR)/include
 
 # Copy from parent directory, so we don't write over the files
 # generated for Hugs
@@ -40,7 +46,8 @@ CPP	= gcc -P -E -x c -traditional
 ################################################################
 
 GHC_FLAGS	+= -H10M
-GHC_FLAGS	+= -cpp
+#Redundant.  In $(FRAN)/env.mk
+#GHC_FLAGS	+= -cpp
 GHC_FLAGS	+= -fglasgow-exts -fno-prune-tydecls
 GHC_FLAGS	+= -concurrent -optc-freg-struct-return
 #GHC_FLAGS	+= -keep-hc-file-too
@@ -57,9 +64,6 @@ GHC_FLAGS	+= -optc-Wp,-lang-c
 # GC_FLAGS  	= --target Hugs --include-dir $(GCDIR)/lib/hugs 
 # GCPP_FLAGS	= -DTARGET_HUGS
 # INCLUDES	= -I $(HUGSDIR)/src
-
-GCLIBDIR        = /usr/fptools/green-card/lib/ghc
-GC += -i$(GCLIBDIR)
 
 GC_FLAGS	= --target ghc
 # Oh dear, what's the difference between -i and --include-dir ?
@@ -94,7 +98,7 @@ GCPP_FLAGS	= -DTARGET_GHC
 #		mv $*_cpp.c $*.c
 
 clean		:
-		rm -f *.o *.hs *.hi *.a
+		rm -f *.o *.hs *.hi *.a *_cpp.gc
 
 
 include _depend

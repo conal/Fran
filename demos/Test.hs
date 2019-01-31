@@ -5,6 +5,7 @@ module Test where
 import Fran
 import qualified Win32
 import qualified StaticTypes as S
+import Win32Key
 import IOExts ( trace )
 
 
@@ -13,11 +14,11 @@ import IOExts ( trace )
 donutSurface :: HDDSurface
 donutSurface = bitmapDDSurface "../Media/donuts.bmp"
 
-bounceBuffer, engineBuffer, monsoonBuffer, planeBuffer :: HDSBuffer
-bounceBuffer  = waveDSBuffer "../Media/bounce.wav"
-engineBuffer  = waveDSBuffer "../Media/sengine.wav"
-monsoonBuffer = waveDSBuffer "../Media/monsoon2.wav"
-planeBuffer   = waveDSBuffer "../Media/plane.wav"
+bounceSound, engineSound, monsoonSound, planeSound :: SoundB
+bounceSound  = importWave "../Media/bounce.wav" True
+engineSound  = importWave "../Media/sengine.wav" True
+monsoonSound = importWave "../Media/monsoon2.wav" True
+planeSound   = importWave "../Media/plane.wav" True
 
 donutFlipBook :: HFlipBook
 donutFlipBook = flipBook donutSurface 64 64 0 0 5 6
@@ -27,7 +28,7 @@ donut :: Vector2B -> RealB -> RealB -> ImageB
 donut motionB scaleB pageB =
   move motionB $
   stretch scaleB  $
-  soundImage (bufferSound bounceBuffer True) `over`
+  soundImage bounceSound `over`
   flipImage donutFlipBook pageB
 
 
@@ -161,18 +162,9 @@ seqD1 u = b `untilB` (userTimeIs 2.1111 u `afterE_` b)
  where
    b = donut1 u
 
-lotsODonuts u = accumB' over (donut6 u) another
+lotsODonuts u = accumB over (donut6 u) another
  where
   another = alarmUE 1.3 u ==> donut6
-
--- Alternative to accumB that avoids the need for afterE.  Less
--- polymorphic and slightly different semantics, agrees when the op is
--- associative and ident is an identity.
-accumB' :: GBehavior bv => (bv -> bv -> bv) -> bv -> Event bv -> bv
-accumB' op ident = loop
- where
-   loop e = ident `untilB` withRestE e ==> \ (b',e') ->
-            b' `op` loop e'
 
 
 alarmUE dt u = alarmE (userStartTime u) dt `afterE_` u
@@ -233,13 +225,10 @@ shifter u = marker p2 red  `over`
 
 -- Sound tests
 
-bounceS = bufferSound bounceBuffer True
-
-s0 u = soundImage $ pan (10 * sin (userTime u)) bounceS
+s0 u = soundImage $ pan (10 * sin (userTime u)) bounceSound
    
 
-snd0 u = donut0 u `over`
-         soundImage (bufferSound bounceBuffer True)
+snd0 u = donut0 u `over` soundImage bounceSound
 
 -- Left-to-right panning
 snd1 u = move (vector2XY (sin (userTime u)) 0) (snd0 u)
@@ -252,7 +241,7 @@ snd2 u = stretch (sin (userTime u / 5)) (snd0 u)
 snd3' u = stringBIm (constantB "Move the mouse around")
 
 snd3 u = stringBIm msg `over`
-         soundImage (pitch y (volume x (bufferSound planeBuffer True)))
+         soundImage (pitch y (volume (x-1) planeSound))
  where
   msg = constantB "Move the mouse around"
   (x, y) = vector2XYCoords (mouse u .-. point2XY (-1) (-1.5))
@@ -266,7 +255,7 @@ snd5 u = soundImage (loop u)
  where
   loop  u = accum u `untilB` nextUser_ (keyPress Win32.vK_ESCAPE) u ==> loop
   accum u = silence `untilB` nextUser_ (keyPress Win32.vK_SPACE) u ==> \ u' ->
-            bufferSound bounceBuffer True `mix` accum u'
+            bounceSound `mix` accum u'
 
 snd6 u = soundImage (loop u)
  where
@@ -275,7 +264,7 @@ snd6 u = soundImage (loop u)
   addSound u = withTimeE (bounceButton u)  ==> bounce
   bounceButton u = nextUser_ (keyPress Win32.vK_SPACE) u
   bounce (u',te) = --trace ("bounce at " ++ show (userStartTime u', te) ++ "\n") $
-                   bufferSound bounceBuffer True
+                   bounceSound
 
 
 growHowTo :: User -> ImageB
@@ -620,10 +609,27 @@ pause f u = f u `untilB`
 
 l9 = pause l2
 
+l10 u = moveTo (mouse u) circle
+l11 u = crop (rectFromCenterSize origin2 (vector2XY 1 1)) (l10 u)
 
--- Crop tests.
 
-flower = stretch 0.4 (importBitmap "../Media/rose medium.bmp")
+-- Crop tests.  Now with moving bugs.  Note: the sound magnification is
+-- not noticeable, because of the DirectSound limitation of only
+-- *reducing* volume. :(
+
+flower = stretch 0.4 $
+         -- The bugs have sounds that get cropped, panned, and magnified.
+         bugs `over` importBitmap "../Media/rose medium.bmp"
+ where
+   bugs = delayAnims (2 * pi * fromInt m / fromInt n) (replicate n bug)
+   bug = move (vector2Polar (sin time) (time / fromInt m)) $
+         (stretch 0.05 (withColor blue circle)) `over`
+         soundImage (volume (3 / fromInt n) monsoonSound)
+   n = 3; m = 5
+
+   -- borrowed from Tutorial.hs
+   delayAnims dt anims =
+     overs (zipWith later [0, dt ..] anims)
 
 cropFlower rect = crop rect (stretch 3 flower)
 
@@ -638,16 +644,16 @@ crop2' = cropMagnify 1 0.5 (stretch 3 flower)
 
 crop3 = cropFlower . rubberBandRect
 
-crop4 u = cropMagnify 3 1 flower u `over` flower
+crop4 u = cropMagnify mag 1 flower u `over` flower
+ where
+   mag = 3 + atRate (growDir * mag) u
+   growDir = ifB (leftButton u) (-1) (ifB (rightButton u) 1 0)
 
-crop5 u = cropMagnify 6 1 imB u `over` imB
+crop5 u = cropMagnify 10 1 imB u `over` imB
  where
    imB = stretch 0.3 (stringIm str)
-   -- ## If this string is too long, the DDraw CreateSurface call dies,
-   -- taking the process with it. Clipping synthetic images before
-   -- rendering should fix the problem. ##
-   str = "Animation can be fun."
-         --++ "  Just say what the animation is and let Fran do the rest."
+   str = "Animation programming can be fun.  "
+      ++ "Just say what the animation is and let Fran do the rest."
 
 crop6 u = cropMagnify 3 1 imB u `over` imB
  where
@@ -657,9 +663,10 @@ rubberBandRect :: User -> RectB
 rubberBandRect u = rectFromCorners ll ur
  where
    mousePos = mouse u
-   ll = stepper S.origin2 (lbp u `snapshot_` mousePos)
+   ll = stepper startPt (lbp u `snapshot_` mousePos)
    ur = condB (leftButton u) mousePos lastReleasePos
-   lastReleasePos = stepper S.origin2 (lbr u `snapshot_` mousePos)
+   lastReleasePos = stepper startPt (lbr u `snapshot_` mousePos)
+   startPt = S.point2XY 10 10
 
 cropMagnify :: RealB -> RealB -> ImageB -> User -> ImageB
 cropMagnify factor size imB u =
@@ -677,7 +684,7 @@ cropMagnify factor size imB u =
             polyline [ mousePos .+^ halfSize *^ vector2XY x y
                      | (x,y) <- last corners : corners ]
    -- The following should be equivalent, but looks much better, because
-   -- it moves at every frame (~50Hz) rather than ever update (~10Hz).
+   -- it moves at every frame (~60Hz) rather than ever update (~10Hz).
    frame = withColor white           $
            move (mousePos .-. origin2) $
            stretch halfSize          $
@@ -709,7 +716,7 @@ uscaleAtPoint2 factor point =
 
 tryEffects imF = do
   w <- displayEx imF
-  setWindowTextA w "Fran with effects"
+  Win32.setWindowText w "Fran with effects"
   eventLoop w
 
 effects1 u = (patMouse u,  const $
@@ -718,7 +725,7 @@ effects1 u = (patMouse u,  const $
 
 effects2 u = (circle, changeTitle)
   where
-    changeTitle w = press ==> ("Pressed " ++) ==> setWindowTextA w 
+    changeTitle w = press ==> ("Pressed " ++) ==> Win32.setWindowText w 
     press = (lbp u -=> "left" .|. rbp u -=> "right") ==> (++ " button")
         .|. charPressAny u ==> (: " key")
 
@@ -744,3 +751,144 @@ effects2 u = (circle, changeTitle)
 -- Simultaneous windows.  Use displayUs to test
 
 imFs1 = [wordy2, patMouse, crop4]
+
+
+-- Derivative test.
+
+-- A arrow that tracks the mouse and points in the direction of movement
+derivTest u =
+  move    mot  $
+  turn    ang  $
+  stretch size $
+  arrow
+ where
+   mot = mouseMotion u
+   vel = rate mot u
+   (speed,ang) = vector2PolarCoords vel
+   -- size is speed, but not more than 5, to avoid huge value
+   size = speed `min` 5
+
+arrow = withColor yellow shape
+ where
+   shape = polygon $ map (uncurry point2XY) $
+           [ (-0.5, 0.2), (-0.5, -0.2), (0.5,0) ]
+
+
+-- Conditional test
+
+-- Alternative version of ifB for ImageB.  I hadn't thought of this
+-- version when I implemented the one using the sprite engine.  It has the
+-- interesting property that it kind of morphs between the two over 1/10
+-- second.
+--
+-- cond4 below shows that the scaling technique doesn't work well.  The
+-- problem is that scaling an image moves it closer to or further from the
+-- origin.  Fast alpha-blending would fix this problem.
+
+ifBAlt c imb imb' = stretch s imb `over` stretch (1-s) imb'
+ where
+   s = ifB c 1 0
+
+patCharCond ifB u = stretch 1.5 $ ifB (leftButton u) pat charlotte
+
+cond1 = patCharCond ifB 
+cond2 = patCharCond ifBAlt
+
+shapeCond ifB u = shape `over` stretch 2 pat
+ where
+   shape = later 1 $
+           move (mouseMotion u) $
+           withColor green $
+           stretch   0.25   $
+           ifB (leftButton u) square circle
+
+cond3 = shapeCond ifB
+cond4 = shapeCond ifBAlt
+
+cond5 u = soundImage (ifB (leftButton u) monsoonSound planeSound)
+
+-- time trans test:
+
+tt1 u = faster 1 $ flipImage donutFlipBook (time * 60)
+
+
+
+stylus1 u = withColor white $
+            stretch 1.5     $
+            stringBIm msg
+ where
+   msg = stepper "Use the tablet" $
+         stylusDown u -=> "down" .|. stylusUp u -=> "up"
+
+stylus2 u = moveTo (stylus u) pat
+
+stylus3 u = withColor white  $
+            stretch (1 + pressure) $
+            showBIm pressure
+ where
+   pressure = stylusPressure u
+
+stylus4 u = moveTo (stylus u) $
+            stretch (0.5 + 4 * stylusPressure u) $
+            charlotte
+
+stylus5 u = stylus4 u `over`
+            (moveTo (mouse u) $ stretch 0.5 pat) `over`
+            horses
+
+stylus6 u = (moveTo (stylus u) $
+             stretch (0.5 + 4 * stylusPressure u) $
+             pat) `over`
+            (moveTo (mouse u) $ stretch psize charlotte)
+ where
+   psize = 0.3 + atRate pRate u
+   pRate = sign * psize
+   sign  = ifB (rightButton u)   1  $
+           ifB (leftButton  u) (-1) $
+           0
+
+stylus7 u = moveTo (stylus u) $
+            stretch (1 / (1 - stylusPressure u + 1.0e-3)) $
+            pat
+
+
+-- Many cache misses
+cache0 = donut0
+
+cache1 u = moveXY (b+b) 0 circle
+ where
+   b = sin time
+
+cache2 u = flipImage donutFlipBook (50 * time)
+
+cache3 = donut1
+ where
+   donut1 = linearDonut 0.40 0.35 0.0  50
+
+   linearDonut velX velY scaleRate pageRate u =
+     donut (vector2XY (x0 + dt * constantB velX) (y0 + dt * constantB velY))
+           scale
+           (dt * constantB pageRate)
+     where
+      dt = userTime u
+      scale = 1 + dt * constantB scaleRate
+      x0 = -1
+      y0 = x0
+
+   donut motionB scaleB pageB =
+     --move motionB $
+     stretch scaleB  $
+     --soundImage bounceSound `over`
+     flipImage donutFlipBook pageB
+
+cache4 u = stretch scaleB (flipImage donutFlipBook pageB)
+ where
+   scaleB = dt * 0
+   pageB  = dt * 50
+   dt = -- time - constantB (userStartTime u)
+        (time + 1) + 2
+
+
+-- imported from animated GIFs:
+
+book1 = flipImage (importFlipBook "spaceship.bmp" 6 4) (time * 20)

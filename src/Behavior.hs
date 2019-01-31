@@ -25,6 +25,7 @@ import Event
 import Maybe (isJust)
 import IOExts
 import Compatibility
+import Monad (when)
 
 infixr 8  ^*, ^^*
 infixr 5  ++*
@@ -53,6 +54,7 @@ doCaching = True
 newCache :: b -> IO (Maybe (CacheVar a))
 newCache = const $
  if doCaching then
+     --putStrLn "new cache" >>
      map Just (newIORef [])
  else return Nothing
 
@@ -153,8 +155,16 @@ Behavior bstruct mbCacheVar `afterTimesB` ts =
             Nothing       -> repeat Nothing
             Just cacheVar -> map Just (cacheVar `afterTimesCV` ts))
 
+
 timeTransformB :: Behavior a -> TimeB -> Behavior a
-timeTransformB b tt = samplerB (ats b . ats tt)
+
+timeTransformB b@(Behavior (ConstantB x) _) _ = b
+
+-- General case.  Problem: tt is often the identity (whenever no explicit
+-- time transform has been applied), but we're not recognizing that fact.
+timeTransformB b tt = --trace "timeTransformB\n" $
+                      samplerB (ats b . ats tt)
+
 
 afterTimesSt :: BStruct a -> [Time] -> [BStruct a]
 
@@ -214,28 +224,40 @@ cacheLookup sampler cacheVar ts = unsafePerformIO $ do
   -- Could probably use the "find" function in the List module, but for
   -- now I want to keep stats.
   let find [] n = do
-        --report "miss" n
+        when (n >= minCacheReport) $ report "miss" n
         let xs = sampler ts
         writeIORef cacheVar ((ts,xs) : allPairs)
         return xs
 
       find ((tsFound,xsFound) : pairs') n =
-        if ts `cacheMatch` tsFound then
-          --report "hit" n >>
+        if ts `matches` tsFound then
+          --report "hit " n >>
           return xsFound
          else
           --putStrLn ("cache skip " ++ show (head ts, head tsFound)) >>
-          find pairs' (n+1)
+          n `seq` find pairs' (n+1)
 
-      report str n = putStrLn ("cache " ++ str ++ " after "
-                            ++ show n ++ " entries.  head "
-                            ++ show (head ts))
+      report str n = 
+        case ts of
+        hd:tl ->
+         putStrLn (
+               "cache " ++ str ++ " after " ++ show n ++ " entries. "
+            ++ "ts " ++ show (unsafePtrToInt ts) ++ ". "
+            ++ "head " ++ show hd ++ ". "
+--             ++ "tail " ++ show (unsafePtrToInt tl) ++ ". "
+            ++ "cache " ++ show (unsafePtrToInt cacheVar)
+            )
+
+      ts `matches` ts' = ts `seq` ts' `seq` ts `cacheMatch` ts'
 
   find allPairs 0
+
+minCacheReport = 200
 
 -- Utility.  Make the initially empty cache.
 samplerB :: SamplerB a -> Behavior a
 samplerB sampler =
+  --trace "samplerB\n" $
   Behavior bstruct (unsafePerformIO (newCache bstruct))
  where
    bstruct = SamplerB sampler afterer
@@ -244,7 +266,8 @@ samplerB sampler =
 
 -- Non-memoizing simple sampler behavior.
 simpleSamplerB :: (Time -> a) -> Behavior a
-simpleSamplerB f = dontMemoizeB (samplerB (map f))
+simpleSamplerB f = --trace "simpleSamplerB\n" $
+                   dontMemoizeB (samplerB (map f))
 
 -- We define the usual assortment of behavior primitives and building
 -- blocks.
@@ -252,7 +275,11 @@ simpleSamplerB f = dontMemoizeB (samplerB (map f))
 -- Time is the identity ("I" combinator).
 
 time :: Behavior Time
-time = simpleSamplerB id
+-- This simple definition has a problem: it uses "map id", which copies
+-- its time list argument.  That copy means that time transforming by "time"
+-- will cause cache misses.
+--time = simpleSamplerB id
+time = dontMemoizeB (samplerB id)
 
 -- Was:
 -- 
@@ -270,18 +297,22 @@ constantB x = Behavior (ConstantB x) Nothing
 
 -- Fully constant case
 Behavior (ConstantB f) _ $* Behavior (ConstantB x) _ =
+ --trace "constantB f $* constantB x\n" $
  constantB (f x)
 
 -- untilB cases.  Especially good for optimizing sometimes-constant
 -- behaviors.  (Later generalize to piecewise-polynomial, etc.)
 
+-- Problem: these optimizations add a bit of strictness that is almost
+-- always benign, but breaks demos\Collide.hs
+
 -- (constantB f `untilB` e) $* constantB x
-Behavior (Behavior (ConstantB f) _ `UntilB` e) _ $* xb@(Behavior (ConstantB x) _) = 
-  constantB (f x) `untilBB` e ==> \ fb' -> fb' $* xb
+-- Behavior (Behavior (ConstantB f) _ `UntilB` e) _ $* xb@(Behavior (ConstantB x) _) = 
+--   constantB (f x) `untilBB` e ==> \ fb' -> fb' $* xb
 
 -- constantB f $* (constantB x `untilB` e)
-fb@(Behavior (ConstantB f) _) $* Behavior (Behavior (ConstantB x) _  `UntilB` e) _ = 
-  constantB (f x) `untilBB` e ==> \ xb' -> fb  $* xb'
+-- fb@(Behavior (ConstantB f) _) $* Behavior (Behavior (ConstantB x) _  `UntilB` e) _ = 
+--   constantB (f x) `untilBB` e ==> \ xb' -> fb  $* xb'
 
 
 -- This one seems like it should be useful, but slows down Mover.hs.  :(
@@ -309,14 +340,18 @@ fb $* Behavior (xb `UntilB` e) _ =
 
 -- constant/no-structure
 Behavior (ConstantB f) _ $* b =
-  samplerB (\ts -> map f (b `ats` ts))
+  --trace "constantB f $* b\n" $
+  samplerB (\ts -> {-_scc_ "$* 1"-} ( map f (b `ats` ts) ))
 
 fb $* Behavior (ConstantB x) _ =
-  samplerB (\ts -> map ($ x) (fb `ats` ts))
+  --trace "fb $* constantB x\n" $
+  samplerB (\ts -> {-_scc_ "$* 2"-} ( map ($ x) (fb `ats` ts)) )
 
 
 -- General case
-fb $* xb = samplerB (\ts -> zipWith ($) (fb `ats` ts) (xb `ats` ts))
+fb $* xb = --trace "fb $* xb\n" $
+           samplerB (\ts -> {-_scc_ "$* 3"-}
+                     ( zipWith ($) (fb `ats` ts) (xb `ats` ts) )) 
 
 
 -- Lifting.  All derived from constantB and ($*) !!
@@ -344,6 +379,8 @@ ats0 b t0 ts = (x0,xs)
 
 ---- End of primitives.
 
+{- BEGIN_NOT_FOR_GHC -}
+
 lift0                        = constantB
 lift1 f b1                   = lift0 f $* b1
 lift2 f b1 b2                = lift1 f b1 $* b2
@@ -352,6 +389,21 @@ lift4 f b1 b2 b3 b4          = lift3 f b1 b2 b3 $* b4
 lift5 f b1 b2 b3 b4 b5       = lift4 f b1 b2 b3 b4 $* b5
 lift6 f b1 b2 b3 b4 b5 b6    = lift5 f b1 b2 b3 b4 b5 $* b6
 lift7 f b1 b2 b3 b4 b5 b6 b7 = lift6 f b1 b2 b3 b4 b5 b6 $* b7
+
+{- ELSE_FOR_GHC
+
+-- Cost-center versions
+
+lift0 x                      = _scc_ "lift0" ( constantB x )
+lift1 f b1                   = _scc_ "lift1" ( lift0 f $* b1 )
+lift2 f b1 b2                = _scc_ "lift2" ( lift1 f b1 $* b2 )
+lift3 f b1 b2 b3             = _scc_ "lift3" ( lift2 f b1 b2 $* b3 )
+lift4 f b1 b2 b3 b4          = _scc_ "lift4" ( lift3 f b1 b2 b3 $* b4)
+lift5 f b1 b2 b3 b4 b5       = _scc_ "lift5" ( lift4 f b1 b2 b3 b4 $* b5 )
+lift6 f b1 b2 b3 b4 b5 b6    = _scc_ "lift6" ( lift5 f b1 b2 b3 b4 b5 $* b6 )
+lift7 f b1 b2 b3 b4 b5 b6 b7 = _scc_ "lift7" ( lift6 f b1 b2 b3 b4 b5 b6 $* b7 )
+
+   END_GHC_ONLY -}
 
 
 
@@ -374,12 +426,13 @@ waggle = simpleSamplerB $ \ t -> cos (pi * t)
 
 -- A few convenient type abbreviations:
 
-type BoolB   = Behavior Bool
-type TimeB   = Behavior Time
-type RealB   = Behavior RealVal
-type IntB    = Behavior Int
-type StringB = Behavior String
-type IOB a   = Behavior (IO a)
+type BoolB    = Behavior Bool
+type TimeB    = Behavior Time
+type RealB    = Behavior RealVal
+type IntB     = Behavior Int
+type StringB  = Behavior String
+type MaybeB a = Behavior (Maybe a)
+type IOB a    = Behavior (IO a)
 
 
 -- Now we define a bazillion liftings.  The naming policy is to use the
@@ -408,8 +461,8 @@ instance  (Eq a) => Eq (Behavior a)  where
 
 (==*),(/=*) :: Eq a => Behavior a -> Behavior a -> BoolB
 
-(==*) = lift2 (==)
-(/=*) = lift2 (/=)
+(==*) = {-_scc_ "(==)"-} ( lift2 (==) )
+(/=*) = {-_scc_ "(/=)"-} ( lift2 (/=) )
 
 
 instance  Ord a => Ord (Behavior a)  where
@@ -417,39 +470,39 @@ instance  Ord a => Ord (Behavior a)  where
   (<=)  =  noOverloadBOp "<="
   (>)   =  noOverloadBOp ">"
   (>=)  =  noOverloadBOp ">="
-  min   =  lift2 min
-  max   =  lift2 max
+  min   =  {-_scc_ "min"-} ( lift2 min )
+  max   =  {-_scc_ "max"-} ( lift2 max )
 
 (<*),(<=*),(>=*),(>*) :: Ord a => Behavior a -> Behavior a -> BoolB
 
-(<*)  = lift2 (<)
-(<=*) = lift2 (<=)
-(>=*) = lift2 (>=)
-(>*)  = lift2 (>)
+(<*)  = {-_scc_ "(<)"-} ( lift2 (<) )
+(<=*) = {-_scc_ "(<=)"-} ( lift2 (<=) )
+(>=*) = {-_scc_ "(>=)"-} ( lift2 (>=) )
+(>*)  = {-_scc_ "(>)"-} ( lift2 (>) )
 
 
 instance  Num a => Num (Behavior a)  where
-  (+)          =  lift2 (+)
-  (-)          =  lift2 (-)
-  (*)          =  lift2 (*)
-  negate       =  lift1 negate
-  abs          =  lift1 abs
+  (+)          =  {-_scc_ "(+)"-} ( lift2 (+) )
+  (-)          =  {-_scc_ "(-)"-} ( lift2 (-) )
+  (*)          =  {-_scc_ "(*)"-} ( lift2 (*) )
+  negate       =  {-_scc_ "negate"-} ( lift1 negate )
+  abs          =  {-_scc_ "abs"-} ( lift1 abs )
   fromInteger  =  constantB . fromInteger
   fromInt      =  constantB . fromInt
   signum       =  noOverloadBId "signum"
 
 fromIntegerB :: Num a => Behavior Integer -> Behavior a
-fromIntegerB = lift1 fromInteger
+fromIntegerB = {-_scc_ "fromInteger"-} ( lift1 fromInteger )
 
 fromIntB :: Num a => Behavior Int -> Behavior a
-fromIntB = lift1 fromInt
+fromIntB = {-_scc_ "fromInt"-} ( lift1 fromInt )
 
 
 instance  Real a => Real (Behavior a)  where
   toRational = noOverloadBId "toRational"
 
 toRationalB ::  Real a => Behavior a -> Behavior Rational
-toRationalB = lift1 toRational
+toRationalB = {-_scc_ "toRational"-} ( lift1 toRational )
 
 enumSorry =
  error "Sorry behavior enums currently only work for constant behaviors." 
@@ -465,12 +518,12 @@ instance Enum a => Enum (Behavior a) where
     enumFromThen _ _ = enumSorry
 
 instance (Integral a) => Integral (Behavior a) where
-    quot      = lift2 quot
-    rem       = lift2 rem
-    div       = lift2 div
-    mod       = lift2 mod
-    quotRem x y  = pairBSplit (lift2 quotRem x y)
-    divMod  x y  = pairBSplit (lift2 divMod  x y)
+    quot      = {-_scc_ "quot"-} ( lift2 quot )
+    rem       = {-_scc_ "rem"-} ( lift2 rem )
+    div       = {-_scc_ "div"-} ( lift2 div )
+    mod       = {-_scc_ "mod"-} ( lift2 mod )
+    quotRem x y  = pairBSplit ({-_scc_ "quotRem"-} ( lift2 quotRem x y) )
+    divMod  x y  = pairBSplit ({-_scc_ "divMod"-} ( lift2 divMod  x y) )
     toInteger = noOverloadBId "toInteger"
 --    even      = noOverloadBId "even"
 --    odd       = noOverloadBId "odd"
@@ -480,38 +533,38 @@ toIntegerB  :: Integral a => Behavior a -> Behavior Integer
 evenB, oddB :: Integral a => Behavior a -> BoolB
 toIntB      :: Integral a => Behavior a -> IntB
 
-toIntegerB = lift1 toInteger
-evenB      = lift1 even
-oddB       = lift1 odd
-toIntB     = lift1 toInt
+toIntegerB = {-_scc_ "toInteger"-} ( lift1 toInteger )
+evenB      = {-_scc_ "even"-} ( lift1 even )
+oddB       = {-_scc_ "odd"-} ( lift1 odd )
+toIntB     = {-_scc_ "toInt"-} ( lift1 toInt )
 
 instance Fractional a => Fractional (Behavior a) where
   -- fromDouble is not standard Haskell, so GHC objects.  On some tests,
   -- it improved speed by about 10%.
   --fromDouble   =  constantB . fromDouble
   fromRational =  constantB . fromRational
-  (/)          =  lift2 (/)
+  (/)          =  {-_scc_ "(/)"-} ( lift2 (/) )
 
 instance Floating a => Floating (Behavior a) where
-  sin  =  lift1 sin
-  cos  =  lift1 cos
-  tan  =  lift1 tan
-  asin =  lift1 asin
-  acos =  lift1 acos
-  atan =  lift1 atan
-  sinh =  lift1 sinh
-  cosh =  lift1 cosh
-  tanh =  lift1 tanh
-  asinh =  lift1 asinh
-  acosh =  lift1 acosh
-  atanh =  lift1 atanh
+  sin  =  {-_scc_ "sin"-} ( lift1 sin )
+  cos  =  {-_scc_ "cos"-} ( lift1 cos )
+  tan  =  {-_scc_ "tan"-} ( lift1 tan )
+  asin =  {-_scc_ "asin"-} ( lift1 asin )
+  acos =  {-_scc_ "acos"-} ( lift1 acos )
+  atan =  {-_scc_ "atan"-} ( lift1 atan )
+  sinh =  {-_scc_ "sinh"-} ( lift1 sinh )
+  cosh =  {-_scc_ "cosh"-} ( lift1 cosh )
+  tanh =  {-_scc_ "tanh"-} ( lift1 tanh )
+  asinh =  {-_scc_ "asinh"-} ( lift1 asinh )
+  acosh =  {-_scc_ "acosh"-} ( lift1 acosh )
+  atanh =  {-_scc_ "atanh"-} ( lift1 atanh )
 
   pi   =  constantB pi
-  exp  =  lift1 exp
-  log  =  lift1 log
-  sqrt =  lift1 sqrt
-  (**) =  lift2 (**)
-  logBase = lift2 logBase
+  exp  =  {-_scc_ "exp"-} ( lift1 exp )
+  log  =  {-_scc_ "log"-} ( lift1 log )
+  sqrt =  {-_scc_ "sqrt"-} ( lift1 sqrt )
+  (**) =  {-_scc_ "(**)"-} ( lift2 (**) )
+  logBase = {-_scc_ "logBase"-} ( lift2 logBase )
 
 
 -- The types are too general here.  For all (Integral b), we need to
@@ -528,11 +581,11 @@ properFractionB   :: (RealFrac a, Integral b) => Behavior a -> Behavior (b,a)
 truncateB, roundB :: (RealFrac a, Integral b) => Behavior a -> Behavior b
 ceilingB, floorB  :: (RealFrac a, Integral b) => Behavior a -> Behavior b
 
-properFractionB = lift1 properFraction
-truncateB = lift1 truncate
-roundB    = lift1 round
-ceilingB  = lift1 ceiling
-floorB    = lift1 floor
+properFractionB = {-_scc_ "properFraction"-} ( lift1 properFraction )
+truncateB = {-_scc_ "truncate"-} ( lift1 truncate )
+roundB    = {-_scc_ "round"-} ( lift1 round )
+ceilingB  = {-_scc_ "ceiling"-} ( lift1 ceiling )
+floorB    = {-_scc_ "floor"-} ( lift1 floor )
 
 
 {-
@@ -542,19 +595,19 @@ instance  RealFloat a => RealFloat (Behavior a)  where
 
 {- We could also add these.  Need type declarations.
 
-floatRadixB      = lift1 floatRadix
-floatDigitsB     = lift1 floatDigits
-floatRangeB      = pairBSplit . lift1 floatRange
-decodeFloatB     = pairBSplit . lift1 decodeFloat
-encodeFloatB     = lift2 encodeFloat
-exponentB        = lift1 exponent
-significandB     = lift1 significand
-scaleFloatB      = lift2 scaleFloat
-isNaNB           = lift1 isNaN
-isInfiniteB      = lift1 isInfinite
-isDenormalizedB  = lift1 isDenormalized
-isNegativeZeroB  = lift1 isNegativeZero
-isIEEEB          = lift1 isIEEE
+floatRadixB      = {-_scc_ "floatRadix"-} ( lift1 floatRadix )
+floatDigitsB     = {-_scc_ "floatDigits"-} ( lift1 floatDigits )
+floatRangeB      = pairBSplit . {-_scc_ "floatRange"-} ( lift1 floatRange )
+decodeFloatB     = pairBSplit . {-_scc_ "decodeFloat"-} ( lift1 decodeFloat )
+encodeFloatB     = {-_scc_ "encodeFloat"-} ( lift2 encodeFloat )
+exponentB        = {-_scc_ "exponent"-} ( lift1 exponent )
+significandB     = {-_scc_ "significand"-} ( lift1 significand )
+scaleFloatB      = {-_scc_ "scaleFloat"-} ( lift2 scaleFloat )
+isNaNB           = {-_scc_ "isNaN"-} ( lift1 isNaN )
+isInfiniteB      = {-_scc_ "isInfinite"-} ( lift1 isInfinite )
+isDenormalizedB  = {-_scc_ "isDenormalized"-} ( lift1 isDenormalized )
+isNegativeZeroB  = {-_scc_ "isNegativeZero"-} ( lift1 isNegativeZero )
+isIEEEB          = {-_scc_ "isIEEE"-} ( lift1 isIEEE )
 
 -}
   
@@ -566,8 +619,8 @@ isIEEEB          = lift1 isIEEE
 (^^*)   :: (Fractional a, Integral b) =>
              Behavior a -> Behavior b -> Behavior a
 
-(^*)  = lift2 (^)
-(^^*) = lift2 (^^)
+(^*)  = {-_scc_ "(^)"-} ( lift2 (^) )
+(^^*) = {-_scc_ "(^^)"-} ( lift2 (^^) )
 
 
 -- Boolean
@@ -577,17 +630,23 @@ trueB  = constantB True
 falseB = constantB False
 
 notB :: BoolB -> BoolB
-notB = lift1 (not)
+notB = {-_scc_ "(not)"-} ( lift1 (not) )
 
 (&&*) :: BoolB -> BoolB -> BoolB
-(&&*) = lift2 (&&) 
+(&&*) = {-_scc_ "(&&)"-} ( lift2 (&&)  )
 (||*) :: BoolB -> BoolB -> BoolB
-(||*) = lift2 (||)
+(||*) = {-_scc_ "(||)"-} ( lift2 (||) )
 
+-- condB overloading (see GBehavior)
 -- The non-strictness of "if" may be a problem here, since there may be a
 -- lot of catching up to do when a boolean behavior changes value.
-condB :: BoolB -> Behavior a -> Behavior a -> Behavior a
-condB = lift3 (\ a b c -> if a then b else c)
+condBB :: BoolB -> Behavior a -> Behavior a -> Behavior a
+condBB = {-_scc_ "condBB"-} ( lift3 cond )
+
+-- Strangely, condBB, and the triple constructor and selectors sometimes
+-- yield a weird error from ghc claiming that names like
+-- "CC_BehaviorZdcondBB_struct" and "CC_BehaviorZdcondBB" are being
+-- redefined.  Seems a fluke.  Try again later.
 
 
 -- Pair formation and extraction
@@ -598,9 +657,9 @@ pairB :: Behavior a -> Behavior b -> PairB a b
 fstB  :: PairB a b -> Behavior a
 sndB  :: PairB a b -> Behavior b
 
-pairB = lift2 pair
-fstB  = lift1 fst
-sndB  = lift1 snd
+pairB = {-_scc_ "pair"-} ( lift2 pair )
+fstB  = {-_scc_ "fst"-} ( lift1 fst )
+sndB  = {-_scc_ "snd"-} ( lift1 snd )
 
 pairBSplit :: PairB a b -> (Behavior a, Behavior b)
 
@@ -608,19 +667,17 @@ pairBSplit b = (fstB b, sndB b)
 
 -- triple formation/extraction
 
-type TripleB a b c = Behavior (a, b, c)
+tripleB  :: Behavior a -> Behavior b -> Behavior c -> Behavior (a, b, c)
+triple1B :: Behavior (a, b, c) -> Behavior a
+triple2B :: Behavior (a, b, c) -> Behavior b
+triple3B :: Behavior (a, b, c) -> Behavior c
 
-tripleB  :: Behavior a -> Behavior b -> Behavior c -> TripleB a b c
-triple1B :: TripleB a b c -> Behavior a
-triple2B :: TripleB a b c -> Behavior b
-triple3B :: TripleB a b c -> Behavior c
+tripleB  = {-_scc_ "tripleB"-}  ( lift3 (\ a b c -> (a, b, c)) )
+triple1B = {-_scc_ "triple1B"-} ( lift1 (\ (a, _, _) -> a) )
+triple2B = {-_scc_ "triple2B"-} ( lift1 (\ (_, b, _) -> b) )
+triple3B = {-_scc_ "triple3B"-} ( lift1 (\ (_, _, c) -> c) )
 
-tripleB  = lift3 (\ a b c -> (a, b, c))
-triple1B = lift1 (\ (a, _, _) -> a)
-triple2B = lift1 (\ (_, b, _) -> b)
-triple3B = lift1 (\ (_, _, c) -> c)
-
-tripleBSplit :: TripleB a b c -> (Behavior a, Behavior b, Behavior c)
+tripleBSplit :: Behavior (a, b, c) -> (Behavior a, Behavior b, Behavior c)
 tripleBSplit b = (triple1B b, triple2B b, triple3B b)
 
 -- List formation and extraction
@@ -633,11 +690,11 @@ nullB :: Behavior [a] -> BoolB
 (!!*) :: Behavior [a] -> IntB -> Behavior a
 
 nilB  = constantB []
-consB = lift2 (:)
-headB = lift1 head
-tailB = lift1 tail
-nullB = lift1 null
-(!!*) = lift2 (!!)
+consB = {-_scc_ "(:)"-} ( lift2 (:) )
+headB = {-_scc_ "head"-} ( lift1 head )
+tailB = {-_scc_ "tail"-} ( lift1 tail )
+nullB = {-_scc_ "null"-} ( lift1 null )
+(!!*) = {-_scc_ "(!!)"-} ( lift2 (!!) )
 
 -- Turn a list of behaviors into a behavior over list
 bListToListB :: [Behavior a] -> Behavior [a]
@@ -645,7 +702,7 @@ bListToListB = foldr consB nilB
 
 -- Lift a function over lists into a function over behavior lists
 liftL :: ([a] -> b) -> ([Behavior a] -> Behavior b)
-liftL f bs = lift1 f (bListToListB bs)
+liftL f bs = {-_scc_ "f"-} ( lift1 f (bListToListB bs) )
 
 
 -- Monads
@@ -654,13 +711,13 @@ liftL f bs = lift1 f (bListToListB bs)
 -- to monadPlus's.
 
 (++*) :: MonadPlus m => Behavior (m a) -> Behavior (m a) -> Behavior (m a)
-(++*) = lift2 (++)
+(++*) = {-_scc_ "(++)"-} ( lift2 (++) )
 
 -- Other
 
 showB :: (Show a) => Behavior a -> Behavior String
 
-showB = lift1 show
+showB = {-_scc_ "show"-} ( lift1 show )
 
 -- How to implement behavior tracing?
 
@@ -681,7 +738,7 @@ tstBAfter f = take 10 $ f 0 `afterTimesB` [0.0, 0.1 ..]
 tstBNth f n = (f 0 `ats` [0.1, 0.2 ..]) !! n
 
 -- To confirm that we do no redundant behavior sampling
-sinTB = lift1 sinT
+sinTB = {-_scc_ "sinT"-} ( lift1 sinT )
  where sinT x = trace ("(sinT " ++ show x ++ ") ") $ sin x
 
 

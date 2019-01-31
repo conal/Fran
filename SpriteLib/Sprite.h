@@ -97,6 +97,17 @@ EXT_API(HSpriteTree) spriteGroupToSpriteTree (HSpriteGroup);
 EXT_API(void) ResetSpriteGroup (HSpriteGroup hSpriteGroup,
                                SpriteTreeChain elems, BOOL isMutable);
 
+EXT_CLASS(CondSpriteTree);
+EXT_API(HCondSpriteTree) newCondSpriteTree
+  (BOOL cond0,
+   SpriteTreeChain thenChain,
+   SpriteTreeChain elseChain,
+   SpriteTreeChain rest);
+EXT_API(void) updateCondSpriteTree(
+    HCondSpriteTree pTree, SpriteTime t, BOOL cond);
+EXT_API(HSpriteTree) condSpriteTreeToSpriteTree (HCondSpriteTree);
+
+
 #ifdef __cplusplus
 // C++ interfaces to constructors, destructors, and methods.
 
@@ -312,6 +323,23 @@ private:
     void Lock   () { m_critSec.Lock()  ; }
     void Unlock () { m_critSec.Unlock(); }
     CCriticalSection m_critSec;
+};
+
+class AFX_EXT_CLASS CondSpriteTree : public SpriteTree {
+public:
+    CondSpriteTree (BOOL cond0,
+                    SpriteTreeChain thenChain,
+                    SpriteTreeChain elseChain,
+                    SpriteTreeChain rest)
+         : SpriteTree(rest), m_cond(cond0),
+           m_thenChain(thenChain), m_elseChain(elseChain) { }
+    void Update (SpriteTime t, BOOL cond);
+    ~CondSpriteTree() { DELETEIF(m_thenChain); DELETEIF(m_elseChain); }
+protected:
+    void Paint (IDirectDrawSurface *pDest, SpriteTime t);
+private:
+    BOOL m_cond;
+    SpriteTreeChain m_thenChain, m_elseChain;
 };
 
 #endif // __cplusplus

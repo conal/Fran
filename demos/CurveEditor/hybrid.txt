@@ -1,0 +1,117 @@
+          Notes on a hybrid C++/Haskell (MFC/Fran) Curve Editor
+
+                  Last modified Fri Mar 20 09:59:17 1998
+
+The app should be part in Haskell/Fran and half in C++/MFC.  The curve
+editor seems a good example, since it would benefit from an MFC interface
+for open/save/new.  Below I make some miscellaneous notes, then describe a
+simple design, and finally state some support requirements from Haskell
+tools.
+
+Misc notes:
+
+- MFC wants to be on top.  Let it.
+
+- Fran wants to handle the window messages for the view window, but MFC
+  wants to make the view window.  I could replace the wndProc with Fran's
+  after the window gets created, maybe delegating to the replaced one for
+  messages not handled by the Fran wndProc (i.e., "window subclassing").
+  For the sake of other applications, perhaps I could create an MFC
+  CFranView class.
+
+- Currently ShowImageB.makeWindow does the following: define the wndProc,
+  make the window, execute the createIO to create and start a sprite
+  engine thread, start the update timer, show the window, return the hWnd.
+  I could rework slightly so that the window comes in as an argument and
+  its wndProc gets replaced.  That's actually better for displayEx as well
+  (and it will remove the need for fixIO).  Also, the closeIO action
+  should no longer destroy the window, but it should restore the old
+  wndProc.
+
+- Event exchange.  When the MFC app senses a "save", it must get a message
+  to the Fran module to start the "Saving..." animation and either (a)
+  return the curve state as a string for the MFC app to save, or (b) do
+  the saving itself.  Could work synchronously or with two events.  I
+  think MFC expects a synchronous approach.  Fran could do the saving and
+  loading and maybe should, but the app produced by VC already handles the
+  file opening.  The CDocument Serialize method uses a CArchive, which has
+  a CFile, which has a GetFilePath method and an OS file handle (a UINT).
+  Probably the simplest thing would be to pass the file handle to the
+  Haskell for saving, and for loading.  Then MFC handles the file
+  open/close entirely, and Fran/Haskell handles the curve state reading
+  and writing.  Oops: MFC would close the file before the Haskell part
+  could write to it in an asynchronous approach.  Otherwise, I guess I'd
+  send the file path in the save event occurrence.  (I just came across
+  OnOpenDocument and OnSaveDocument.  These CDocument methods take file
+  names as arguments and may be overriden so as not to open the files and
+  archives.)  Alternatively, perhaps there could be an additional
+  synchronous communication mechanism, such as a way to query a behavior
+  value on demand.  In this case, the CDocument Serialize method could
+  sample a string-valued curve state behavior.
+
+- Memory management for asynchronous event handling.  Consider when a
+  C/C++ module must communicate something bigger than one or two words to
+  a Fran module.  The large value must passed by pointer in the lParam or
+  wParam, and memory allocation must be done carefully.  I guess the C/C++
+  module allocates and copies before sending the message, and the Haskell
+  handler action marshalls into a Haskell value and frees the allocated C
+  memory.  Sounds painfully tedious, dangerously error-prone, and
+  unnecessarily inefficient.
+
+- Synchronous event handing.  Suppose when an external event were sent,
+  all consequences were executed before the send call returns.  Then
+  resource management like file open/close and memory
+  allocation/deallocation could be handled more simply.  There may be a
+  simple way to implement this property in the short run: whenever a "user
+  event" is posted, do an updateIO (sprite tree updating and effect
+  execution).  And importantly, be sure to use the synchronous SendMessage
+  rather than asynchronous PostMessage.  There is one further tricky bit:
+  the sprite-time used in the updateIO must be slightly later than the one
+  used for the event occurrence, or there will be no reaction.  Because of
+  the resolution of Win32 TimeGetTime, the times will typically be equal.
+  I hacked around this problem for the final updateIO call on closing a
+  window by sleeping for a while before the updateIO.  Let's improve this
+  solution somewhat (say iterated short sleeps until the system time
+  changes) and use it.
+
+  I've also been exploring a radically different implementation
+  architecture that would guarantee synchronously executed event
+  consequences.
+
+- A cut at the overall hybrid application design:
+
+  + MFC starts things running, making the outer and inner windows ("frame"
+    and "view"), the toolbar and menus, and Help support.  Do an multiple
+    document interface (MDI) app, because it's a bit cooler and even
+    somewhat simpler than SDI.
+
+  + When a curve "document" is opened, pass a file handle to a Haskell
+    curve editor function that returns a function of type User->(ImageB,
+    Event (IO ())).  Then pass this function and the view window handle to
+    the Fran function displayEx, modified to take the window as an
+    argument and replace its wndProc.  Since displayEx causes a timer to
+    get set, the behavior updater will get invoked regularly.
+
+    Or to simplify the connection between Haskell and C, at the expense of
+    reduced modularity, package up the two Haskell functions of interest
+    into a single one that takes a window handle and file handle and
+    returns nothing.  Let's do this for now.
+
+  + The MFC CDocument's Serialize method does a SendMessage to the view
+    window, with the user message WM_EDITOR_SAVE and wParam being the file
+    handle.  In response, the editor's IO-valued event saves, and returns
+    control to MFC, which then closes the file.
+
+- What I need to make this design work:
+
+  + Compilation of Fran and the Editor modules (no "Main") into a form
+    (DLL, LIB, or set of .o files) that can be linked into a C++ MFC
+    executable.  Somehow there must be proper Haskell initialization,
+    which could be done explicitly in the MFC app's InitInstance method.
+
+  + C-callable interfaces to either (a) the displayEx and editor
+    functions (exposing Haskell heap values, including higher-order ones),
+    or (b) the single composed function (simpler, but not as modular).
+
+  + Ability to do hGetContents and hPutStr using a Win32 file handle.
+    (Works already?)

@@ -1,5 +1,5 @@
 -- Integration.  Handles systems of mutually recursive integral behaviors
--- (ODEs).
+-- (ODEs).  Differentiation is also here.
 --
 -- To do:
 --
@@ -27,7 +27,12 @@ import BehaviorEvent
 import IOExts ( trace )
 import User
 
-integral :: VS.VectorSpace v => Behavior v -> User -> Behavior v
+integral_sample, derivative_sample :: User -> Event ()
+integral_sample u = alarmE (userStartTime u) 0.05
+                    -- updateDone u -=> ()
+derivative_sample = integral_sample
+
+integral, atRate :: VS.VectorSpace v => Behavior v -> User -> Behavior v
 
 integral b u = bInt
  where
@@ -40,6 +45,28 @@ integral b u = bInt
      constantB y0 ^+^ (time - constantB t0) *^ constantB dy0
      -- The following may be faster
      -- lift1 (\t -> y0 VS.^+^ (t - t0) VS.*^ dy0) time
+
+-- Derivative.  For now implemented by sampling & difference.
+-- Warning: give initial bogus value, because it takes initial value to be
+-- the zero vector.
+-- 
+-- With multi-parameter type classes, try to make this function work over
+-- affine spaces and produce a behavior from the corresponding vector space.
+
+derivative, rate :: VS.VectorSpace v => Behavior v -> User -> Behavior v
+derivative b u =
+  stepper VS.zeroVector $
+    withTimeE (sample `snapshot_` b) `withPrevE` (VS.zeroVector, t0) ==> deriv
+ where
+   deriv ((xPrev, tPrev), (xNow, tNow)) | tNow > tPrev  = 
+     (xNow VS.^-^ xPrev) VS.^/ (tNow - tPrev)
+   sample = updateDone u
+   t0 = userStartTime u
+
+
+-- Synonyms
+atRate = integral
+rate   = derivative
 
 {-
 -- An older version.

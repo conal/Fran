@@ -15,6 +15,7 @@ import Fran
 import qualified StaticTypes as S
 import FileUtils
 import InputMonitor
+import Win32 (setWindowText)
 
 editXPoint :: User -> S.Point2 -> XPoint
 editXPoint u p0 = (pos, closeEnough)
@@ -51,7 +52,7 @@ editorWith :: String -> EditCurve -> String -> IO ()
 editorWith version editCurve fileName = do
   initPoints <- load fileName
   window     <- displayExMon (editRenderSave initPoints)
-  setWindowTextA window ("Curve editor " ++ version ++ ": " ++ fileName)
+  setWindowText window ("Curve editor " ++ version ++ ": " ++ fileName)
   eventLoop window
  where
    editRenderSave initPoints u =

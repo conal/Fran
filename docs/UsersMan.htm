@@ -16,7 +16,7 @@ Gary Shu Ling<br>
 </h2>
 
 <p ALIGN="CENTER"><!--webbot bot="Timestamp" startspan S-Type="EDITED"
-S-Format="%B %d, %Y" -->February 26, 1998<!--webbot bot="Timestamp" i-checksum="43116" endspan --></p>
+S-Format="%B %d, %Y" -->May 07, 1998<!--webbot bot="Timestamp" i-checksum="11290" endspan --></p>
 
 <h2><a NAME="sect1"></a>Introduction</h2>
 
@@ -365,9 +365,18 @@ viewSize           :: User -&gt; Vector2B
 mouseMove          :: User -&gt; Event Point2
 mouse              :: User -&gt; Point2B
 mouseMotion        :: User -&gt; Vector2B
+-- Stylus (tablet)
+stylusMove           :: User -&gt; Event Point2
+stylusPressureChange :: User -&gt; Event Double
+stylusButton         :: User -&gt; Event Bool
+stylusDown, stylusUp :: User -&gt; Event ()
+stylus               :: User -&gt; Point2B
+stylusMotion         :: User -&gt; Vector2B
+stylusPressure       :: User -&gt; RealB
+
 -- Allows synchronization with display events
 updateDone         :: User -&gt; Event Time
-updatePeriod       :: User -&gt; Behavior Double
+updatePeriod       :: User -&gt; TimeB
 -- Time since start of User.
 userTime           :: User -&gt; TimeB
 userTimeIs         :: Time -&gt; User -&gt; Event ()</pre>
@@ -965,24 +974,34 @@ Most of these objects are centered at the origin. Text is centered just below th
 must be stored in <tt>.bmp</tt> files. </p>
 
 <p>The <tt>RectB</tt> type used in cropping represents axis-aligned rectangles. &nbsp;
-Currently, there are two construction functions and intersection:</p>
+They may be constructed from any pair of opposite corners or from a center and size, by
+intersection, or by expansion about the center:.</p>
 
 <pre>rectFromCorners    :: Point2B -&gt; Point2B  -&gt; RectB
 rectFromCenterSize :: Point2B -&gt; Vector2B -&gt; RectB
-intersectRect   :: RectB -&gt; RectB -&gt; RectB</pre>
+intersectRect      :: RectB -&gt; RectB -&gt; RectB
+expandRect         :: RealB   -&gt; RectB    -&gt; RectB</pre>
+
+<p>Similarly, they may be&nbsp; inspected to extract any corner or the center or size:</p>
+
+<pre>rectLL, rectUR, rectLR, rectUL :: RectB -&gt; Point2B
+rectCenter :: RectB -&gt; Point2B
+rectSize   :: RectB -&gt; Vector2B</pre>
+
+<p>They may also be tested for containment:</p>
+
+<pre>rectContains       :: RectB   -&gt; Point2B  -&gt; BoolB</pre>
 
 <p>These rectangles are also 2D transformables, but a run-time check is made to ensure
 that no rotation is applied.&nbsp; Try the cropping examples in ../demos/Test.hs.</p>
 
 <p>Fast bitmap-based animation sequences are imported with <tt>flipImage</tt>, which takes
 a &quot;flip book&quot; and a page number behavior. </p>
-<font FACE="Courier New" SIZE="2">
 
 <pre>-- Make a flip book given: surface, width and height, X,Y start pos on surface, 
 -- number of columns, and rows of pages
 flipBook :: HDDSurface -&gt; Pixels -&gt; Pixels -&gt; Pixels -&gt; Pixels
             -&gt; Int -&gt; Int -&gt; HFlipBook</pre>
-</font>
 
 <p>A &quot;surface&quot; is made by the following function, which takes the name of a .bmp
 file:</p>
@@ -991,8 +1010,20 @@ file:</p>
 
 <p>Note that static imported bitmaps are a degenerate case of flip-book animation:</p>
 
-<pre>importBitmap fileName = flipImage book 0
- where book = flipBook surf w h 0 0 1 1</pre>
+<pre>importBitmap         :: String -&gt; ImageB
+importBitmapWithSize :: String -&gt; (ImageB, RealVal, RealVal)</pre>
+
+<p>For convenience if you have a bitmap file with just one bitmap, you can use the
+following:</p>
+
+<pre>importFlipBook :: String -&gt; Int -&gt; Int -&gt; HFlipBook</pre>
+
+<p>Here's a tip: start with an animated GIF, and use <a href="http://www.gamani.com">GIF
+Movie Gear</a> to view it. Do Tools/Unoptimize, and then File/Export As/GIF Filmstrip,
+with horizontal orientation, and a factor of the number of frames as the &quot;number of
+frames per strip&quot;. Then use another program (e.g., MS Photo Editor) to convert the
+resulting non-animated GIF into a BMP. Then use importFlipBook to bring it into Fran.
+Someday maybe Fran will import animated GIFs directly. (Volunteers?) </p>
 
 <p>It is sometimes convenient to put more than one flipbook into a bitmap file, so Fran
 provides a convenience function for parsing a DDSurface into a bunch of flip books. The

@@ -43,8 +43,6 @@ editXPointTest u = renderXPoint (editXPoint u S.origin2) `over`
 -- control-Z will undo each control point's most recent change!  Save the
 -- solution for the next version.
 
-editXPointTest u = renderXPoint (editXPoint u S.origin2)
-
 editCurve :: [S.Point2] -> User -> [XPoint]
 editCurve initPoints u = map (editXPoint u) initPoints
 

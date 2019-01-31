@@ -11,6 +11,7 @@ import Fran
 import qualified StaticTypes as S
 import FileUtils
 import InputMonitor
+import Win32 (setWindowText)
 
 -- Visual feedback to save request.  Message spins & shrinks
 spinMessage :: String -> Event a -> ImageB
@@ -43,7 +44,7 @@ editor :: String -> IO ()
 editor fileName = do
   initPoints <- load fileName
   window     <- displayExMon (editRenderSave initPoints)
-  setWindowTextA window ("Curve editor 3: " ++ fileName)
+  setWindowText window ("Curve editor 3: " ++ fileName)
   eventLoop window
  where
    editRenderSave initPoints u =

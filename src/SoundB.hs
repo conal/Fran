@@ -50,6 +50,12 @@ instance  GBehavior SoundB  where
   untilB        = UntilS
   afterTimes	= afterTimesS
   timeTransform = TimeTransS
+  condBUnOpt c snd snd' =
+    -- tweak volume's and mix
+    volume v snd `mix` volume v' snd'
+   where
+     v  = ifB c 1 0
+     v' = 1 - v
 
 afterTimesS :: SoundB -> [Time] -> [SoundB]
 

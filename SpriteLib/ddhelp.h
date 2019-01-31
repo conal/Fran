@@ -101,7 +101,8 @@ EXT_API(void) HFrameTranslate (HFrame frame, double x, double y, double z);
 EXT_CLASS(RMRenderer);
 
 EXT_API(HRMRenderer)
-newRMRenderer(HFrame sceneFrame, HFrame cameraFrame, double scale);
+newRMRenderer(HFrame sceneFrame, HFrame cameraFrame,
+              double scale, double renderSize);
 
 EXT_API(void) 
 hRendererSetScale(HRMRenderer renderer, double scale);

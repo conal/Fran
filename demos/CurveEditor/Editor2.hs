@@ -20,13 +20,16 @@ renderXPoint :: XPoint -> ImageB
 renderXPoint (pos, excited) =
   withColor (ifB excited excitedColor red) (
     renderPoint pos)
-
-excitedColor = shade (faster 4 (wiggleRange 0.1 0.25)) green
-               -- colorHSL (5*time) 0.5 0.5
-               -- brighter (5*wiggle) red
-               -- shade (faster 7 (wiggleRange (-0.5) 0.5)) red
-               -- colorHSL
-               -- colorRGB256 0 255 0  -- dark green
+ where
+   -- This definition must be local.  If it's a CAF, we get a bad
+   -- space-time leak from the caching done by behaviors.  (The GC needs
+   -- to be fixed to understand weak pair.)
+   excitedColor = shade (faster 4 (wiggleRange 0.1 0.25)) green
+                  -- colorHSL (5*time) 0.5 0.5
+                  -- brighter (5*wiggle) red
+                  -- shade (faster 7 (wiggleRange (-0.5) 0.5)) red
+                  -- colorHSL
+                  -- colorRGB256 0 255 0  -- dark green
                -- shade 0.15 green
 
 -- Test: tracks mouse position and left button state

@@ -1,6 +1,10 @@
 # Hugs, GHC and Cygwin path dependencies.  Set FRAN before including.
 # Also LIBOBJS, if making a .a
 
+# How to compile: mc = concurrent.  mr = profiled&concurrent.
+way=mc
+
+
 # Note: I'm unsure whether to use c:/, //c/, or just / for these paths.
 # NT and Win95 seem to have different preferences.  Needs experimentation.
 
@@ -12,13 +16,14 @@ GHCLIB		= /usr/fptools/lib/i386-unknown-cygwin32/ghc-2.10
 #GHC		= $(GHCDIR)/ghc 
 #HP2PS		= $(GHCDIR)/hp2ps
 GHC		= ghc 
-HP2PS		= hp2ps
+HP2PS		= hp2ps -c
 RM		= rm -f
 
 GCDIR		= /usr/fptools/green-card/src
-WIN32DIR        = /usr/fptools/hslibs/win32/src
+GCLIBDIR        = /usr/fptools/green-card/lib/ghc
+WIN32DIR        = /usr/fptools/src/win32
 
-GC		= $(GCDIR)/green-card.exe -i$(WIN32DIR)
+GC		= $(GCDIR)/green-card.exe -i$(GCLIBDIR):$(WIN32DIR)
 
 AR     		= ar clqs
 RANLIB 		= ranlib
@@ -26,10 +31,7 @@ RANLIB 		= ranlib
 PS_VIEWER	= /gstools/gsview/gsview32
 
 # Include directories
-#  Hmm... without the src directory, lots of .hi files are not found.
-#  This situation seems wrong.
-#INCLUDES	= -i$(FRAN)/src:$(FRAN)/src/GHC:$(FRAN)/gc/GHC:$(WIN32DIR):$(GCLIBDIR)
-INCLUDES	= -i$(WIN32DIR)
+INCLUDES	= -i$(WIN32DIR):$(GCLIBDIR)
 
 # GHC flags
 GHC_FLAGS	+= -fglasgow-exts -concurrent -recomp
@@ -41,28 +43,19 @@ GHC_FLAGS_ONOT	:= $(GHC_FLAGS)
 #Uncomment this if you want it to be the default.
 #GHC_FLAGS	+= -O
 
-#
-# Combining concurrent and profiled-concurrent builds
-# inside the same directory.
-#
-# If $(way) is set to pc, we're compiling
-# profiled concurrent code.
-#way=pc
-
-# Generate dependencies both for conc and prof-conc
-#  This doesn't work when $(way) is "".
-#  Should it go into the next conditional, or should it have pc wired in?
-#MKDEPENDHS_FLAGS += -optdep-s -optdep$(way) -optdep-o -optdepo
+MKDEPENDHS_FLAGS += -optdep-o -optdepo
 
 ifneq "$(way)" ""
 GHC_FLAGS	  += -hisuf $(way)_hi -osuf o
 way_		  := $(way)_
 _way		  := _$(way)
+MKDEPENDHS_FLAGS  += -optdep-s -optdep$(way)
 endif
 
-# Add -auto/-auto-all etc. below.
-ifeq "$(way)" "pc"
+ifeq "$(way)" "mr"
 GHC_FLAGS	  += -prof
+# Add -auto/-auto-all etc. below.
+GHC_FLAGS	  += -auto-all
 endif
 
 # The next two lines cause the dependencies to be written to and read from
@@ -89,11 +82,11 @@ depend	:: depends
 
 %.$(way_)o	: %.lhs
 		$(RM) $@
-		$(GHC) $(GHC_FLAGS) -c $< -o $@ -ohi $*.$(way_)hi
+		$(GHC) $(GHC_FLAGS) $($*_GHC_FLAGS) -c $< -o $@ -ohi $*.$(way_)hi
 
 %.$(way_)o	: %.hs
 		$(RM) $@
-		$(GHC) $(GHC_FLAGS) -c $< -o $@ -ohi $*.$(way_)hi
+		$(GHC) $(GHC_FLAGS) $($*_GHC_FLAGS) -c $< -o $@ -ohi $*.$(way_)hi
 
 %.o		: %.c
 		gcc -c $<

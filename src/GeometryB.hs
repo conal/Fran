@@ -1,3 +1,5 @@
+{-# OPTIONS -#include <windows.h> #-}
+
 -- "Geometry behavior" type.
 
 -- To do:
@@ -106,6 +108,7 @@ instance  GBehavior GeometryB  where
   untilB	= UntilG
   afterTimes    = error "afterTime not yet implemented for GeometryB, sorry."
   timeTransform = TimeTransG
+  condBUnOpt    = error "condBUnOpt not yet implemented for GeometryB, sorry."
 
 
 --transformG :: Transform3B -> GeometryB -> GeometryB
@@ -122,6 +125,12 @@ spotLightG          = lightG SL.spotLight
 directionalLightG   = lightG SL.directionalLight
 parallelPointLightG = lightG SL.parallelPointLight
 
+-- Because of a D3D problem before DirectX 5.0, I need to use a fixed view
+-- size (sorry!), multiplied by the initial 2D scale factor.  This
+-- constant product give the height and width in Fran units of the
+-- rendered image.  2.2 is about big enough to fill up the initial window
+geometryRenderSize :: RealVal
+geometryRenderSize = 3.0
 
 -- Render a geometry with a transformed default camera.  Currently there
 -- is no Camera type, so just provide the transform.
@@ -130,29 +139,37 @@ renderGeometry :: GeometryB -> Transform3B -> ImageB
 
 renderGeometry geom cameraXfB = renderImage renderIO
  where
-  renderIO rectB mbColorB xfB tt t0 ts requestV replyV above = do
+  renderIO rectB mbColorB xfB mbTT t0 ts requestV replyV above = do
     -- Make the scene and camera
     --putStrLn ("rG: making scene from geometry" ++ show geom)
     sceneFrame   <- SL.newScene
     geomRequestV <- newEmptyMVar
     geomReplyV   <- newEmptyMVar
     --putStrLn "rG: fillFrame"
-    fillFrame sceneFrame geom' tt t0 ts geomRequestV geomReplyV
+    fillFrame sceneFrame geom' mbTT t0 ts geomRequestV geomReplyV
     cameraFrame  <- SL.newHFrame sceneFrame
-    -- For now, use 1 for scale.  Fix later to use scaleB.  The problem is
-    -- I don't know how to resize the D3DRM device with a tolerable
-    -- efficiency.  DirectX 5 fixes this problem.
-    renderer     <- SL.newRMRenderer sceneFrame cameraFrame 1
     let (S.RectLLUR (S.Point2XY llx0 lly0) (S.Point2XY urx0 ury0), rects) =
            ats0 rectB t0 ts
+        (S.Transform2 _ scale0 _, xfs) = ats0 xfB t0 ts
+
+        ulX = - geometryRenderSize/2 * scale0
+        ulY =   geometryRenderSize/2 * scale0
     -- Initialization: it's awkward to come up with an initial surface, so
     -- give a null surface.  Improve this stuff later.  Then I'll need to
     -- pass t0 around in fillFrameRec
+    -- For now, use a fixed scale.  Fix later to use scaleB.  The problem is
+    -- I don't know how to resize the D3DRM device with a tolerable
+    -- efficiency.  DirectX 5 fixes this problem.
+    putStrLn $ "new renderer with scale " ++ show scale0 ++ " and renderSize " ++ show geometryRenderSize ++ "\n"
+    renderer     <- SL.newRMRenderer sceneFrame cameraFrame scale0
+                                     geometryRenderSize
     hSimpleSprite <- SL.newSimpleSprite SL.nullHDDSurface ulX ulY
                      llx0 lly0 urx0 ury0
-                     0 0 1 1 above
+                     0 0 scale0 scale0 above
 
-    let xts = tt `ats` ts
+    let xts = case mbTT of
+                Just tt -> tt `ats` ts
+                Nothing -> ts
         update ~(t:ts')
                ~(S.RectLLUR (S.Point2XY llx lly)
                             (S.Point2XY urx ury) : rects')
@@ -188,11 +205,9 @@ renderGeometry geom cameraXfB = renderImage renderIO
            else do
             _ <- takeMVar geomReplyV
             putMVar replyV False
-    forkIO $ update ts rects (cameraXfB `ats` xts) (xfB `ats` xts)
+    forkIO $ update ts rects (cameraXfB `ats` xts) xfs
     return hSimpleSprite
 
-  ulX = -1
-  ulY = 1
   -- Throw in light.  I was coloring the geometry, but I realized it's
   -- bogus to do so.  I think that the proper, but not very useful,
   -- meaning would be to apply the color and use flat shading.
@@ -222,13 +237,13 @@ defaultCamera = rotate3 xVector3 (pi/2) `compose3`
 
 -- Construct D3DRM frames and update them
 
-fillFrame :: SL.HFrame -> GeometryB -> TimeB -> Time -> [Time]
+fillFrame :: SL.HFrame -> GeometryB -> Maybe TimeB -> Time -> [Time]
           -> SyncVar -> SyncVar -> IO ()
 
 fillFrame parentFrame = fillFrameRec parentFrame Nothing
 
 
-fillFrameRec :: SL.HFrame -> Maybe ColorB -> GeometryB -> TimeB
+fillFrameRec :: SL.HFrame -> Maybe ColorB -> GeometryB -> Maybe TimeB
              -> Time -> [Time]
              -> SyncVar -> SyncVar -> IO ()
 
@@ -268,16 +283,16 @@ fillFrameRec parentFrame _ (SoundG sound) t0 xt0 =
   ...
 -}
 
-fillFrameRec parentFrame mbColorB@(Just _) (ColorG colB geom) tt =
+fillFrameRec parentFrame mbColorB@(Just _) (ColorG colB geom) mbTT =
   -- Being colored from outside, which paints over the coloring here.
   -- (Unconventional, but simpler functional semantics, in my opinion.)
-  fillFrameRec parentFrame mbColorB geom tt
+  fillFrameRec parentFrame mbColorB geom mbTT
 
-fillFrameRec parentFrame Nothing (ColorG colorB geom) tt =
+fillFrameRec parentFrame Nothing (ColorG colorB geom) mbTT =
   -- No color from the outside.  Just pass down time-transformed color
-  fillFrameRec parentFrame (Just (timeTransform colorB tt)) geom tt
+  fillFrameRec parentFrame (Just (mbTTrans colorB mbTT)) geom mbTT
 
-fillFrameRec parentFrame mbColorB (TransformG xfB geomB) tt =
+fillFrameRec parentFrame mbColorB (TransformG xfB geomB) mbTT =
   \ t0 ts requestV replyV -> do
   -- Make a new frame, which will be the parent for geomB.  The update
   -- action sets the frame's transform.  To do: introduce only one frame
@@ -287,8 +302,8 @@ fillFrameRec parentFrame mbColorB (TransformG xfB geomB) tt =
   -- Make a new frame so the color doesn't affect the siblings.
   --putstrLn "making new frame for transformed geometry"
   newFrame <- SL.newHFrame parentFrame
-  fillFrameRec newFrame mbColorB geomB tt t0 ts geomRequestV geomReplyV
-  let (xf0, xfs) = ats0 (timeTransform xfB tt) t0 ts
+  fillFrameRec newFrame mbColorB geomB mbTT t0 ts geomRequestV geomReplyV
+  let (xf0, xfs) = ats0 (mbTTrans xfB mbTT) t0 ts
       update ~(xf:xfs') = do
         continue <- takeMVar requestV
         putMVar geomRequestV continue
@@ -305,30 +320,32 @@ fillFrameRec parentFrame mbColorB (TransformG xfB geomB) tt =
   forkIO $ update xfs
 
   
-fillFrameRec parentFrame mbColorB (geomB `UnionG` geomB') tt =
+fillFrameRec parentFrame mbColorB (geomB `UnionG` geomB') mbTT =
   \ t0 ts requestV replyV -> do
   syncV  <- newEmptyMVar
   -- Add both parts to the frame.
-  fillFrameRec parentFrame mbColorB geomB  tt t0 ts requestV syncV
-  fillFrameRec parentFrame mbColorB geomB' tt t0 ts syncV    replyV
+  fillFrameRec parentFrame mbColorB geomB  mbTT t0 ts requestV syncV
+  fillFrameRec parentFrame mbColorB geomB' mbTT t0 ts syncV    replyV
 
 
-fillFrameRec parentFrame mbColorB (TimeTransG geomB ttInner) tt =
-  fillFrameRec parentFrame mbColorB geomB (timeTransform ttInner tt)
+fillFrameRec parentFrame mbColorB (TimeTransG geomB ttInner) mbTT =
+  fillFrameRec parentFrame mbColorB geomB (Just (mbTTrans ttInner mbTT))
 
 
 -- Try to factor better to reuse spritifyUntilB in Spritify.hs
 
-fillFrameRec parentFrame mbColorB (geomB1 `UntilG` e) tt =
+fillFrameRec parentFrame mbColorB (geomB1 `UntilG` e) mbTT =
   \ t0 ts requestV replyV -> do
   -- Fork a new thread that watches e and passes requests on to bv1's
   -- threads, but terminates when e occurs.  At that point, use requestV
   -- for the new bv.  (Verify !!)
   requestV1 <- newEmptyMVar                 -- request for bv1
   replyV1   <- newEmptyMVar                 -- reply   for bv1
-  fillFrameRec parentFrame mbColorB geomB1 tt t0 ts
+  fillFrameRec parentFrame mbColorB geomB1 mbTT t0 ts
                            requestV1 replyV1
-  let xts = tt `ats` ts
+  let xts = case mbTT of
+              Just tt -> tt `ats` ts
+              Nothing -> ts
       monitor ~ts@(t:ts') ~(xt:xts') ~(mbOcc:mbOccs') = do
         -- First pass on the next request to bv1's sprite tree threads,
         -- causing an update or termination.
@@ -372,7 +389,7 @@ fillFrameRec parentFrame mbColorB (geomB1 `UntilG` e) tt =
               let te | t==xt     = xte
                      | otherwise = t
               --putStrLn "re-filling frame"
-              fillFrameRec parentFrame mbColorB' geomB2 tt
+              fillFrameRec parentFrame mbColorB' geomB2 mbTT
                            te ts requestV replyV
   -- Avoid a space-time leak here: Don't hang onto the
   -- original color, motion and scale.  Let them age.

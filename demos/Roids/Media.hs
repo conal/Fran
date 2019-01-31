@@ -48,7 +48,7 @@ parseSpikeys = head . parseFlipBooks [(6,10)] 0 . bitmapDDSurface
 spikeyBook    = parseSpikeys "spikeys60 small.bmp" -- 721Kb
 spikeyBookBig = parseSpikeys "spikeys60 big.bmp"   -- 2.9Mb
 
-engineSound   = importWave "..\\..\\Media\\sengine.wav"
+engineSound   = importWave "..\\..\\Media\\sengine.wav" True
 
 
 -- Missile image and radius
@@ -61,6 +61,6 @@ missileImage = \ radius ->
                   star 3 7
    missileSound = pitch 100 $
                   volume 3  $
-                  importWave "..\\..\\Media\\bounce.wav"
+                  importWave "..\\..\\Media\\bounce.wav" True
 
 

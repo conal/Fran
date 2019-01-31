@@ -1,7 +1,5 @@
 -- Event combinators that involve events.  Separated out from Event.hs to
 -- avoid a mutual module recursion.
---
--- Last modified Fri Jan 30 12:24:50 1998
 
 module BehaviorEvent where
 
@@ -9,7 +7,7 @@ import BaseTypes (pair)
 import Event
 import User
 import Behavior
-import Maybe (isJust)
+import Maybe (isJust, fromJust)
 
 import IOExts ( trace )
 
@@ -86,6 +84,16 @@ predicate b u = check `whenE` b
   -- adapting to changes in update rate, which can lead to exponential
   -- degradation of the update rate.
   -- check = alarmE (userStartTime u) 0.05
+
+
+-- Generalization of predicate
+maybeBE :: MaybeB a -> User -> Event a
+maybeBE mbB u = check `snapshot_` mbB
+                      `suchThat`  isJust
+                      ==>         fromJust
+ where
+  check = updateDone u
+
 
 -- How much time has passed since an event occurrence
 

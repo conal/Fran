@@ -12,7 +12,36 @@
 
 <p ALIGN="left">&nbsp;</p>
 
-<h2><a HREF="Zips/Fran1.10.zip">1.10</a> February 20, 1998</h2>
+<h2><a HREF="Zips/Fran1.11.zip">1.11</a> May 6, 1998</h2>
+
+<ul>
+  <li>Rendered text and 2D geometry can now be <em>much</em> bigger without crashing Fran,
+    because I no longer render outside of the crop region. (Well, a little outside, to make up
+    for the infrequency of update w.r.t. display.) As an example, crop5 in <tt>demos\Test.hs</tt>
+    is now much longer and bigger. (Yes, this is obviously the way to go, but I didn't realize
+    it before.) </li>
+  <li>importFlipBook. Here's a tip: start with an animated GIF, and use <a
+    href="http://www.gamani.com">GIF Movie Gear</a> to view it. Do Tools/Unoptimize, and then
+    File/Export As/GIF Filmstrip, with horizontal orientation, and a factor of the number of
+    frames as the &quot;number of frames per strip&quot;. Then use another program (e.g., MS
+    Photo Editor) to convert the resulting non-animated GIF into a BMP. Then use
+    importFlipBook to bring it into Fran. Someday maybe Fran will import animated GIFs
+    directly. (Volunteers?) </li>
+  <li>I was surprised to learn that Windows generates <tt>WM_MOUSEMOVE</tt> messages as long
+    as the mouse is in the window, even if it's not moving. Reduced the message volume by
+    removing duplicates. </li>
+  <li>Added <tt>rectLL</tt>, <tt>rectUR</tt>, <tt>rectLR</tt>, <tt>rectUL</tt>, <tt>rectCenter</tt>,
+    <tt>rectSize</tt>, <tt>intersectRect</tt>, <tt>expandRect</tt>.&nbsp; (See the <a
+    href="file:///C:/Users/Conal/Fran/docs/UsersMan.htm">User's Manual</a>)</li>
+  <li>Added support for tablets, based on&nbsp; <a href="http://www.pointing.com/wintab.htm">Wintab</a>.
+    (See the <a href="file:///C:/Users/Conal/Fran/docs/UsersMan.htm">User's Manual</a>)</li>
+  <li>New demos: two-handed image navigation, fifteen puzzle, colliding balls. See <a
+    href="demos.htm">demos.htm</a>. </li>
+  <li>Switched to static linking of MFC, so there's no dependency on a user's machine having
+    MFC, which tripped up several would-be users.</li>
+</ul>
+
+<h2><a HREF="Zips/Fran1.10.zip">1.10</a> February 27, 1998</h2>
 
 <ul>
   <li>Main new features (see details below):<ul>
@@ -24,6 +53,8 @@
   </li>
   <li>Misc additions (see the <a href="file:///C:/Users/Conal/Fran/docs/UsersMan.htm">User's
     Manual</a>):<ul>
+      <li><tt>bufferSound</tt> and <tt>importWave</tt> now take a boolean second argument saying
+        whether to repeat.&nbsp; For the old behavior, pass <tt>True</tt>.</li>
       <li>Examples 6 and 7 in the <a href="file:///C:/Users/Conal/Fran/docs/UsersMan.htm">User's
         Manual</a>, which demonstrates a new event programming style that avoids explicitly
         recursive state machines and <tt>nextUser</tt> (or <tt>afterE</tt>).</li>

@@ -3,6 +3,7 @@ module Compatibility
        ( double2Float
        , cacheMatch
        , safeTry
+       , unsafePtrToInt
        ) where
 
 import Win32(Word32)
@@ -17,3 +18,6 @@ x `cacheMatch` x' = reallyUnsafePtrEq x x'
 -- as useful as in Hugs's interpretive environment.
 safeTry :: IO a -> IO (Either IOError a)
 safeTry io = map Right io
+
+unsafePtrToInt :: a -> Int
+unsafePtrToInt = error "There is no unsafePtrToInt for GHC."

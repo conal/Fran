@@ -17,3 +17,5 @@
 #include "ddutil.h"         // Copied from DirectX SDK
 #include <dsound.h>			// DirectSound
 #include <d3drm.h>			// Direct3D Retained Mode
+
+#include "wintab.h"

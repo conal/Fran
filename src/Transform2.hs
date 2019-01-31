@@ -1,10 +1,11 @@
 -- 2D transforms.
 -- 
--- Last modified Mon Oct 27 14:42:58 1997
+-- Last modified Wed May 06 22:01:18 1998
 module Transform2 
         (
            Transform2(..)
          , Transformable2((*%))
+         , translateUscaleRotate2-- ::  Vector2 -> RealVal -> RealVal -> Transform2
          , identity2             -- :: Transform2
          , translate2            -- :: Vector2 -> Transform2
          , rotate2               -- :: Radians -> Transform2
@@ -25,7 +26,10 @@ infixr 7 *%,`compose2`           -- transform apply and compose
 
 -- Form is translate of scale of rotate, with the rotation angle in
 -- radians.
-data Transform2 = Transform2 Vector2 RealVal RealVal deriving Show
+data Transform2 = Transform2 Vector2 RealVal Radians deriving Show
+
+translateUscaleRotate2 ::  Vector2 -> RealVal -> Radians -> Transform2
+translateUscaleRotate2 = Transform2
 
 factorTransform2 :: Transform2 -> (Vector2, RealVal, RealVal)
 factorTransform2 (Transform2 mot sc rot) = (mot,sc,rot)

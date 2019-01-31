@@ -4,6 +4,7 @@
 # from an MS .LIB import lib.
 #
 # $1 -- MS .LIB file
+# $2 -- dlltool flags: -U adds "_" prefix; -k omits @n suffixes
 #
 # Creates a .a file in cwd.
 base=`basename "$1" .lib`
@@ -12,6 +13,6 @@ libname=lib$base.a
 echo LIBRARY $base > $def
 echo EXPORTS >> $def
 nm -o "$1" | grep " \? __imp__" | sed -e "s/.* __imp__\(..*\)$/\1/g" >> $def
-dlltool -U --def $def --dllname $base.dll --output-lib $libname
-rm $def
+dlltool $2 --def $def --dllname $base.dll --output-lib $libname
+#rm $def
 echo Built $libname

@@ -5,55 +5,105 @@ module User ( UserAction(..), User(..) , makeUser
             , userTime, lbp, rbp, lbr, rbr
             , keyPressAny, keyReleaseAny, keyPress, keyRelease
             , charPressAny, charPress
-            -- Could export the following, but let's not
             , resize, mouseMove
+            , stylusMove, stylusPressureChange, stylusDown, stylusUp
             , updateDone, quit
             , userTimeIs
+            , mouseMotion, stylusMotion
+            --, stylusPresent
             ) where
+
 
 import BaseTypes (Time, DTime)
 import Event
 import qualified StaticTypes as S
 import Vector2B
 import Point2B
-import Win32 (VKey, WindowMessage, LPARAM, WPARAM, wM_COMMAND)
-import IOExts ( trace )
+import Win32 (UINT, DWORD, VKey, WindowMessage, LPARAM, WPARAM {-, wM_COMMAND-})
+import IOExts
 
 import Behavior
 import Event
 import GBehavior
+import HSpriteLib (WTPacket)
 
 -- A "user" is just a UserAction-valued event.
 -- type User = Event UserAction
-data User = User { leftButton   :: BoolB
-                 , rightButton  :: BoolB
-                 , mouse        :: Point2B
-                 , viewSize     :: Vector2B
-                 , updatePeriod :: Behavior DTime
-                 , actions      :: Event UserAction
+data User = User { leftButton     :: BoolB
+                 , rightButton    :: BoolB
+                 , mouse          :: Point2B
+                 , stylus         :: Point2B
+                 , stylusPressure :: RealB
+                 , viewSize       :: Vector2B
+                 , updatePeriod   :: Behavior DTime
+                 , actions        :: Event UserAction
+                 , stylusPresentRef :: IORef Bool
                  }
+
+-- This stylusPresent Ref is a hack around a problem of mutual dependency
+-- in Spritify.displayEx.  A better solution is to separate window
+-- creation from ShowImageB.  Then return here and eliminate the Ref.  ## 
+
+-- This hack doesn't work.  The setting in comes too late.  So don't
+-- export stylusPresent.
+
+stylusPresent :: User -> Bool
+stylusPresent u = unsafePerformIO $ readIORef (stylusPresentRef u)
 
 instance GBehavior User where
   untilB        = untilBU
   afterTimes    = afterTimesU
   timeTransform = timeTransformU
+  condBUnOpt c 
+        (User {leftButton = leftButtonThen, rightButton = rightButtonThen,
+               mouse = mouseThen,
+               stylus = stylusThen, stylusPressure = stylusPressureThen, 
+               viewSize = viewSizeThen,
+               updatePeriod = updatePeriodThen, actions = actionsThen,
+               stylusPresentRef = stylusPresentRefThen})
+        (User {leftButton = leftButtonElse, rightButton = rightButtonElse,
+               mouse = mouseElse,
+               stylus = stylusElse, stylusPressure = stylusPressureElse,
+               viewSize = viewSizeElse,
+               updatePeriod = updatePeriodElse, actions = actionsElse,
+               stylusPresentRef = stylusPresentRefElse}) =
+    if stylusPresentRefThen == stylusPresentRefElse then
+      User {leftButton = condBUnOpt c leftButtonThen leftButtonElse,
+            rightButton = condBUnOpt c rightButtonThen rightButtonElse,
+            mouse = condBUnOpt c mouseThen mouseElse,
+            stylus = condBUnOpt c stylusThen stylusElse,
+            stylusPressure = condBUnOpt c stylusPressureThen stylusPressureElse,
+            viewSize = condBUnOpt c viewSizeThen viewSizeElse,
+            updatePeriod = condBUnOpt c updatePeriodThen updatePeriodElse,
+            actions = condBUnOpt c actionsThen actionsElse,
+            stylusPresentRef = stylusPresentRefThen}
+     else
+       error "Conditional user: Branches disagree about stylusPresentRef."
 
--- makeUser: make a new user
-
-makeUser :: Bool -> Bool -> S.Point2 -> S.Vector2 -> DTime 
+makeUser :: Bool -> Bool -> S.Point2 -> S.Point2 -> Double -> S.Vector2 -> DTime 
          -> Event UserAction -> User
-makeUser lButton0 rButton0 pos0 size0 updatePeriod0 actions = u
+makeUser lButton0 rButton0 mpos0 spos0 press0 size0
+         updatePeriod0 actions = u
   where
     u = User { leftButton   = toggle lButton0 (lbp u) (lbr u)
              , rightButton  = toggle rButton0 (rbp u) (rbr u)
-             , mouse        = track pos0  moveFilt
+             , mouse        = track mpos0  mouseFilt
+             , stylus       = track spos0  stylusFilt
+             , stylusPressure = track press0  pressureFilt
              , viewSize     = track size0 sizeFilt
              , updatePeriod = track updatePeriod0 updateFilt
              , actions
+             , stylusPresentRef = unsafePerformIO $ newIORef False
              }
 
-    moveFilt   (MouseMove p)   = Just p
-    moveFilt   _               = Nothing
+    mouseFilt  (MouseMove  p)  = Just p
+    mouseFilt   _              = Nothing
+
+    stylusFilt (StylusMove p)  = Just p
+    stylusFilt _               = Nothing
+
+    pressureFilt (StylusPressure p) = Just p
+    pressureFilt _                  = Nothing
 
     sizeFilt   (Resize size)   = Just size
     sizeFilt   _               = Nothing
@@ -64,8 +114,8 @@ makeUser lButton0 rButton0 pos0 size0 updatePeriod0 actions = u
     track v0 filt = stepper v0 (actions `filterE` filt)
 
     toggle :: Bool -> Event a -> Event b -> BoolB
-    toggle init go stop =  stepper init (   (go   -=> True)
-                                        .|. (stop -=> False))
+    toggle init go stop =  stepper init (   go   -=> True
+                                        .|. stop -=> False)
 
 
 untilBU :: User -> Event User -> User
@@ -73,28 +123,36 @@ untilBU u eu =
   User { leftButton   = leftButton u   `untilB` eu ==> leftButton
        , rightButton  = rightButton u  `untilB` eu ==> rightButton
        , mouse        = mouse u        `untilB` eu ==> mouse
+       , stylus       = stylus u       `untilB` eu ==> stylus
+       , stylusPressure = stylusPressure u `untilB` eu ==> stylusPressure
        , viewSize     = viewSize u     `untilB` eu ==> viewSize
        , updatePeriod = updatePeriod u `untilB` eu ==> updatePeriod
        , actions      = actions u      `untilB` eu ==> actions
+       -- Hope eu doesn't change stylusPresentRef.  BUG##
+       , stylusPresentRef = stylusPresentRef u  
        }
 
 afterTimesU :: User -> [Time] -> [User]
-afterTimesU u ts = group lbs rbs mms vss ups acs
+afterTimesU u ts = group lbs rbs mms sms sps vss ups acs
   where
-    group :: [BoolB] -> [BoolB] -> [Point2B] -> [Vector2B]
+    group :: [BoolB] -> [BoolB] -> [Point2B] -> [Point2B] -> [RealB] -> [Vector2B]
           -> [Behavior DTime] -> [Event UserAction] -> [User]
-    group (lb:lbs) (rb:rbs) (mm:mms) (vs:vss) (up:ups) (ac:acs) =
+    group (lb:lbs) (rb:rbs) (mm:mms) (sm:sms) (sp:sps) (vs:vss) (up:ups) (ac:acs) =
       User { leftButton   = lb
            , rightButton  = rb
            , mouse        = mm
+           , stylus       = sm
+           , stylusPressure = sp
            , viewSize     = vs
            , updatePeriod = up
            , actions      = ac
-           } : group lbs rbs mms vss ups acs
+           } : group lbs rbs mms sms sps vss ups acs
 
     lbs = leftButton u   `afterTimes` ts
     rbs = rightButton u  `afterTimes` ts
     mms = mouse u        `afterTimes` ts
+    sms = stylus u       `afterTimes` ts
+    sps = stylusPressure u `afterTimes` ts
     vss = viewSize u     `afterTimes` ts
     ups = updatePeriod u `afterTimes` ts
     acs = actions u      `afterTimes` ts
@@ -105,6 +163,8 @@ timeTransformU u tb =
   User { leftButton   = leftButton u   `timeTransform` tb
        , rightButton  = rightButton u  `timeTransform` tb
        , mouse        = mouse u        `timeTransform` tb
+       , stylus       = stylus u       `timeTransform` tb
+       , stylusPressure = stylusPressure u `timeTransform` tb
        , viewSize     = viewSize u     `timeTransform` tb
        , updatePeriod = updatePeriod u `timeTransform` tb
        , actions      = actions u      `timeTransform` tb
@@ -169,10 +229,30 @@ resize u = actions u `filterE` f
 mouseMove :: User -> Event S.Point2
 mouseMove u = actions u `filterE` f
  where
-  f (MouseMove pos) = --trace ("MouseMove " ++ show pos ++ "\n")$
-                      Just pos
-  f _               = --trace "not mouse move\n"$
-                      Nothing
+  f (MouseMove pos) = Just pos
+  f _               = Nothing
+
+stylusMove :: User -> Event S.Point2
+stylusMove u = actions u `filterE` f
+ where
+  f (StylusMove pos) = Just pos
+  f _                = Nothing
+
+stylusButton :: User -> Event Bool
+stylusButton u = actions u `filterE` f
+ where
+   f (StylusButton upDown) = Just upDown
+   f _                     = Nothing
+
+stylusDown, stylusUp :: User -> Event ()
+stylusDown u = stylusButton u `suchThat_` id
+stylusUp   u = stylusButton u `suchThat_` not
+
+stylusPressureChange :: User -> Event Double
+stylusPressureChange u = actions u `filterE` f
+ where
+   f (StylusPressure pressure) = Just pressure
+   f _                         = Nothing
 
 updateDone :: User -> Event Time
 updateDone u = actions u `filterE` f
@@ -241,6 +321,14 @@ data UserAction
       VKey      -- what key (its ASCII code - a first approx.)
   | CharKey
       Char      -- the ASCII key press (no up/down)
+  | StylusButtonState
+      DWORD     -- Change to button state (temporary)
+  | StylusMove
+      S.Point2
+  | StylusPressure  -- zero is min, one is max
+      Double
+  | StylusButton
+      Bool      -- down(True) or up(False)?
   | ExtAction   -- for application-specific extensions
       WindowMessage
       WPARAM
@@ -266,3 +354,13 @@ userStartTime :: User -> Time
 userStartTime u = userStartTime' (actions u)
   where
     userStartTime' (Event ((t0,_) : _))  = t0
+
+
+-- Mouse and stylus motion vectors, i.e., where the mouse or stylus is
+-- relative to the origin
+
+mouseMotion :: User -> Vector2B
+mouseMotion u = mouse u .-. origin2
+
+stylusMotion :: User -> Vector2B
+stylusMotion u = stylus u .-. origin2

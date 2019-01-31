@@ -1,6 +1,6 @@
 -- Transform behaviors
 -- 
--- Last modified Tue Nov 04 08:57:41 1997
+-- Last modified Mon Mar 23 11:19:23 1998
 
 module Transform2B where
 
@@ -19,6 +19,7 @@ rotate2		  = lift1 T.rotate2
 uscale2		  = lift1 T.uscale2
 compose2	  = lift2 T.compose2
 inverse2	  = lift1 T.inverse2
+translateUscaleRotate2 = lift3 T.translateUscaleRotate2
 
 class Transformable2B a where
   (*%)  ::  Transform2B -> a -> a

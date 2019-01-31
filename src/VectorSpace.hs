@@ -1,7 +1,5 @@
 -- Vector spaces
 -- 
--- Last modified Tue Nov 04 09:37:19 1997
--- 
 -- Doesn't work as well as we'd like.  Lacking type relations, we have to
 -- hardwire the scalar type, which means we can't use behaviors, so we
 -- can't lift a VectorSpace instance into another one.
@@ -43,9 +41,16 @@ magnitude :: VectorSpace v =>  v -> Scalar
 magnitude = sqrt . magnitudeSquared
 
 normalize :: VectorSpace v =>  v -> v
-normalize v = v ^/ magnitude v
+normalize v | mag /= 0 = v ^/ mag
+ where
+   mag = magnitude v
 
 
+-- May be useful sometime:
+-- 
+-- checkVal pred who x | pred x    = x
+--                     | otherwise = error $
+--                         "checkVal failure (" ++ who ++ ") " ++ show x
 
 {- Does this make sense?  I get "Illegal type expression" 
   Yes it makes perfect sense to me, but Haskell type classes does

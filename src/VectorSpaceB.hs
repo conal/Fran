@@ -1,6 +1,4 @@
 -- Behavior-level vector spaces
--- 
--- Last modified Thu Dec 18 17:26:54 1997
 
 module VectorSpaceB where
 

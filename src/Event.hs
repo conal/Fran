@@ -127,19 +127,22 @@ Event possOccs .|. Event possOccs' = Event (merge possOccs possOccs')
    merge [] os' = os'
    merge os []  = os
 
--- Remaps event data and removes some occurrences.  Maybe this guy should be
--- replaced by a simplified function: Event (Maybe a) -> Event a, to be
--- used in conjunction with ==>.
-
+-- Remaps event data and removes some occurrences.
 filterE :: Event a -> (a -> Maybe b) -> Event b
 Event possOccs `filterE` f = Event (map filt possOccs)
  where
    filt (te, mb) = (te, mb >>= f)
 
+-- Replacement for filterE.  Can be used with ==>.
+isJustE :: Event (Maybe a) -> Event a
+isJustE (Event possOccs) = Event (map filt possOccs)
+ where
+   filt (te, mb) = (te, mb >>= id)
+
+
 -- Question: are monadic definitions like that of filt above too obscure?
 -- It says that Nothing goes to Nothing, and Just x goes to (f x), which
 -- might be a Nothing or a Just.  Similarly, handleE uses ++ on Maybe.
-
 
 -- Pair up members of a list with occurrences of an event
 withElemE :: Event a -> [b] -> Event (a,b)

@@ -13,7 +13,7 @@ import VectorSpace
 import Point2
 import qualified Win32
 import IOExts
-import Monad (when)
+import Monad (when,unless)
 import Concurrent (writeChan)
 import Event (EventChannel, newChannelEvent)
 import User
@@ -23,6 +23,8 @@ import RenderImage (importPixelsPerLength, screenPixelsPerLength
                    , toPixel32)
 import Compatibility (safeTry)
 import IO
+import Maybe 
+import qualified Bits
 
 type UserEventConsumer = Time -> UserAction -> IO ()
 
@@ -48,7 +50,8 @@ makeWindow :: (Win32.HWND -> IO ())	-- create
 
 makeWindow createIO resizeIO updateIO closeIO
            updateInterval userEventConsumer
-           mbMenu =
+           mbMenu = do
+  prevMouseMovePosRef <- newIORef (point2XY 100 100)
   let 
       send userEvent = do
         -- Get time now.  Bogus, since the event really happened before
@@ -69,7 +72,7 @@ makeWindow createIO resizeIO updateIO closeIO
                  (yRelWinUL,xRelWinUL)  = lParam `divMod` 65536
                  -- subtract position of window center relative to UL, to get
                  -- coords relative to window center
-                 xRelWinCenter = xRelWinUL - winWidth `div` 2
+                 xRelWinCenter = xRelWinUL - winWidth  `div` 2
                  yRelWinCenter = yRelWinUL - winHeight `div` 2
              in
                  -- Throw in scaling, recalling that window positive == down
@@ -106,7 +109,7 @@ makeWindow createIO resizeIO updateIO closeIO
           -- that this problem has other symptoms as well.  For instance,
           -- a button release following very shortly after a press will
           -- look like it happened at the same time.
-          sleep 100 ; updateIO          -- do final update
+          Win32.sleep 100 ; updateIO    -- do final update
           closeIO                       -- and the close action
           return 0
 
@@ -124,7 +127,16 @@ makeWindow createIO resizeIO updateIO closeIO
 
         | msg == Win32.wM_MOUSEMOVE = do
           p <- posn hwnd lParam
-          send (MouseMove p)
+          -- I was surprised to learn that Windows generates WM_MOUSEMOVE
+          -- messages as long as the mouse is in the window, even if it's
+          -- not moving.  Reduce the message volume by removing
+          -- duplicates.
+          prev <- readIORef prevMouseMovePosRef
+          if (p == prev) then
+             return 0
+           else do
+             writeIORef prevMouseMovePosRef p
+             send (MouseMove p)
 
         | msg == Win32.wM_KEYDOWN =
           fireKeyEvent wParam True
@@ -146,15 +158,41 @@ makeWindow createIO resizeIO updateIO closeIO
         | msg == Win32.wM_TIMER = do
           -- putStrLn "WM_TIMER"
           -- Handle errors gracefully.
-          res <- safeTry updateIO
-          case res of
-            Left _ -> do putStrLn "Fran: Error while updating behaviors"
-                         closeIO
-                         return ()
-            _      -> return ()
+          if safeUpdate then do
+            res <- safeTry updateIO
+            case res of
+              Left err -> do
+                 putStrLn "Fran: Error while updating behaviors"
+                 print err
+                 closeIO
+                 return ()
+              _      -> return ()
+           else
+            updateIO
           return 0
 
-        | msg >= {-Win32.-}wM_USER = do
+        | msg == wT_PACKET = do
+          --putStrLn "WT_PACKET"
+          -- ctx <- map fromJust (readIORef mbTabCtxVar)
+          (changed, buttons, pressure, x, y) <- getWTPacket lParam wParam
+          when (changed Bits..&. (pK_X Bits..|. pK_Y) /= 0) $ do
+            send (StylusMove (stylusPosToPoint x y))
+            return ()
+          when (changed Bits..&. pK_NORMAL_PRESSURE /= 0) $ do
+            -- Should really query DVC_NPRESSURE here for min and max
+            send (StylusPressure (fromInt (toInt pressure) / 64))
+            return ()
+          when (changed Bits..&. pK_BUTTONS /= 0) $ do
+            send (StylusButtonState buttons)
+            -- Tip down is 2 * 65536 and tip up is 65536.  Where are the
+            -- button state constants defined?
+            let isDown = buttons `div` 65536 > 1
+            --putStrLn ("stylus button " ++ if isDown then "down" else "up")
+            send (StylusButton isDown)
+            return ()
+          return 0
+
+        | msg >= Win32.wM_USER = do
           -- Try extension handler.
           -- Put back the "Win32." when wM_USER moves from HSpriteLib.gc
           -- to Win32WinMessage.gc.
@@ -165,37 +203,36 @@ makeWindow createIO resizeIO updateIO closeIO
 
       demoClass = Win32.mkClassName "Fran"
 
-  in do
-        icon <- Win32.loadIcon   Nothing Win32.iDI_APPLICATION
-        cursor <- Win32.loadCursor Nothing Win32.iDC_ARROW
-        blackBrush <- Win32.getStockBrush Win32.bLACK_BRUSH
-        mainInstance <- Win32.getModuleHandle Nothing
-        Win32.registerClass (
-              0, -- Win32.emptyb, -- no extra redraw on resize
-              mainInstance,
-              (Just icon),
-              (Just cursor),
-              (Just blackBrush),
-              Nothing,
-              demoClass)
+  icon <- Win32.loadIcon   Nothing Win32.iDI_APPLICATION
+  cursor <- Win32.loadCursor Nothing Win32.iDC_ARROW
+  blackBrush <- Win32.getStockBrush Win32.bLACK_BRUSH
+  mainInstance <- Win32.getModuleHandle Nothing
+  Win32.registerClass (
+        0, -- Win32.emptyb, -- no extra redraw on resize
+        mainInstance,
+        (Just icon),
+        (Just cursor),
+        (Just blackBrush),
+        Nothing,
+        demoClass)
 
-        --putStrLn "In makeWindow"
-        w <- makeWindowNormal demoClass mainInstance wndProc2 mbMenu
-        createIO w
+  --putStrLn "In makeWindow"
+  w <- makeWindowNormal demoClass mainInstance wndProc2 mbMenu
+  createIO w
 
-        -- Set the (millisecond-based) update timer.
-        Win32.setWinTimer w 1 (round (1000 * updateInterval))
-        --putStrLn ("Update rate set for " ++ show updateInterval ++ " ms")
+  -- Set the (millisecond-based) update timer.
+  Win32.setWinTimer w 1 (round (1000 * updateInterval))
+  --putStrLn ("Update rate set for " ++ show updateInterval ++ " ms")
 
-        Win32.showWindow w Win32.sW_SHOWNORMAL
-        -- This next line doesn't work.  The first time a process creates
-        -- a window, it is at the bottom.
-        Win32.bringWindowToTop w
+  Win32.showWindow w Win32.sW_SHOWNORMAL
+  -- This next line doesn't work.  The first time a process creates
+  -- a window, it is at the bottom.
+  Win32.bringWindowToTop w
 
-        return w
+  return w
 
-        -- Where should the window class get unregistered??
-        -- (Win32.unregisterClass demoClass mainInstance `catch` \_ -> return ())
+  -- Where should the window class get unregistered??
+  -- (Win32.unregisterClass demoClass mainInstance `catch` \_ -> return ())
 
 makeWindowNormal demoClass mainInstance wndProc2 mbMenu = do
   (sizeX,sizeY) <- map vector2XYCoords (readIORef initialViewSizeVar)
@@ -221,6 +258,23 @@ makeWindowNormal demoClass mainInstance wndProc2 mbMenu = do
   extraW = 8
   extraH = extraW + 20
 
+{-
+stylusPosToPoint sx sy = point2XY x y
+ where
+   x = fromInt (toInt sx - 65536) / 1000.0
+   y = fromInt (toInt sy - 65536) / 1000.0
+-}
+
+stylusPosToPoint sx sy = point2XY (toCoord sx) (toCoord sy)
+ where
+   toCoord s =
+     fromInt (toInt s - 65536) * franUnitsPerTabletUnits
+
+franUnitsPerTabletUnits = tabletHeight / 2000.0
+tabletHeight = 5 :: Double
+
+
+
 -- Get the width and height of a window's client area, in pixels.
 
 getViewSize :: Win32.HWND -> IO (Win32.LONG,Win32.LONG)
@@ -242,25 +296,35 @@ updateRefStrict var f =
 updatePeriodGoal :: SpriteTime
 updatePeriodGoal = 0.1
 
--- ## Eliminate the t0 argument.
-
 -- Show a sprite tree
 
 showSpriteTree :: HSpriteTree -> IO () -> UserEventConsumer
-               -> Win32.MbHMENU -> IO Win32.HWND
+               -> Win32.MbHMENU -> User -> IO Win32.HWND
 
-showSpriteTree spriteTree updateIO userEventConsumer mbMenu = do
+showSpriteTree spriteTree updateIO userEventConsumer mbMenu u = do
   spriteEngineVar <- newIORef (error "spriteEngineVar not set")
   updateCountVar  <- newIORef (0::Int)
   windowVar       <- newIORef (error "windowVar not set")
+  mbTabCtxVar     <- newIORef (error "mbTabCtxVar not set")
 
   t0 <- currentSpriteTime
   makeWindow
      -- Create IO
-     (\ w ->
-       do writeIORef windowVar w
+     (\ w -> do
           eng <- newSpriteEngine w spriteTree
-          writeIORef spriteEngineVar eng)
+          writeIORef spriteEngineVar eng
+          Win32.showWindow w Win32.sW_SHOWNORMAL
+          writeIORef windowVar w
+          mbCtx <- openTablet w         -- Try to open a tablet
+          --when (not (isJust mbCtx)) $ putStr "no "
+          --putStrLn "tablet found"
+          -- This setting hack didn't work.  It comes too late.  See the
+          -- note in User.hs
+          when (not (isJust mbCtx)) $ do
+            putStrLn "Tablet found"
+            writeIORef (stylusPresentRef u) True
+          writeIORef mbTabCtxVar mbCtx
+     )
      -- Resize IO.  Recreates the back buffer and clippers.
      (do eng <- readIORef spriteEngineVar
          onResizeSpriteEngine eng)
@@ -273,6 +337,12 @@ showSpriteTree spriteTree updateIO userEventConsumer mbMenu = do
          --updateIO  -- a last one for quit-based events
          eng   <- readIORef spriteEngineVar
          frameCount <- deleteSpriteEngine eng
+         mbCtx <- readIORef mbTabCtxVar
+         -- Close the tablet context if any
+         -- Is there an applicable monad idiom?
+         case mbCtx of
+           Nothing -> return ()
+           Just ctx -> wTClose ctx
          win   <- readIORef windowVar
          Win32.destroyWindow win
          -- Clean up
@@ -346,6 +416,14 @@ withInitialViewSize w h io =
 
 setViewSize :: Win32.HWND -> Vector2 -> IO ()
 setViewSize hwnd (Vector2XY w h) = do
-  Win32.sendMessage hwnd Win32.wM_SIZE sIZE_MAXSHOW
+  Win32.sendMessage hwnd Win32.wM_SIZE Win32.sIZE_MAXSHOW
                     (toPixel32 h * 65536 + toPixel32 w)
   return ()
+
+
+-- Try updates safely.  If true, then an error during updating will not
+-- bomb Hugs.  On the other hand, it reduces debugging information.  For
+-- instance, you'll just be told you have a pattern matching failure, but
+-- not the expression being reduced.
+
+safeUpdate = False

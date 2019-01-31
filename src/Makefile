@@ -25,7 +25,8 @@ FRAN = ..
 include $(FRAN)/env.mk
 
 OBJS	 = $(addsuffix .$(way_)o,  $(basename $(HS)))
-OBJS	+=  ../gc/GHC/HSpriteLib.o ../gc/errors.obj
+OBJS	+=  ../gc/GHC/HSpriteLib.$(way_)o 
+OBJS	+=  ../gc/errors.obj
 
 INCLUDES	+= -iGHC:../gc/GHC
 
@@ -43,7 +44,7 @@ GHC_FLAGS	+= -H16M
 #GHC_FLAGS	+= -cpp $(INCLUDES)
 #GHC_FLAGS	+= -prof -auto
 GHC_FLAGS_ONOT	:= $(GHC_FLAGS)
-GHC_FLAGS	+= -O
+#GHC_FLAGS	+= -O
 
 # The following special case is no longer necessary.  Sigbjorn discovered
 # the problem, which was my own fault, for using unsafePerformIO and not
@@ -65,6 +66,14 @@ LIBS		= -L. -L$(GCDIR)/win32ghc -L../SpriteLib/Debug \
 #UNUSED: GUILIBS =-luser32 -lgdi32 -lwinspool -lcomdlg32 -lcomctl32 -ladvapi32
 
 clean		:
-		rm -f *.exe *.o *.hi *.a GHC/*.o GHC/*.hi
+		rm -f *.exe *.o *.hi *.a GHC/*.o GHC/*.hi \
+		      *.exe *.$(way_)o *.$(way_)hi
+
+#GHC_FLAGS += -v
+
+# Module-specific compilation flags
+
+# auto-profile
+Spritify_GHC_FLAGS = -auto
 
 include _depend
