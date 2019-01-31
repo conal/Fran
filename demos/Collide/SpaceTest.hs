@@ -42,10 +42,8 @@ randomBalls s = zipWith4 mkBall xs ys rs hs
 
 
 randDoubles :: Integer -> [Double]
-randDoubles s = map frac (random (0, biggest) s)
- where
-   frac i = 2 * (fromInteger i / fromInteger biggest - 0.5)
-   biggest = fromInt maxBound
+randDoubles s = randomRs (-1,1) (mkStdGen seed)
+ where seed = fromInteger (abs s `mod` (toInteger (maxBound :: Int))) :: Int
 
 bs1 n = take n $ randomBalls 1000
 

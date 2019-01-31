@@ -25,7 +25,8 @@ import Event
 import Maybe (isJust)
 import IOExts
 import Compatibility
-import Monad (when)
+import Monad
+import ShowFunctions
 
 infixr 8  ^*, ^^*
 infixr 5  ++*
@@ -55,7 +56,7 @@ newCache :: b -> IO (Maybe (CacheVar a))
 newCache = const $
  if doCaching then
      --putStrLn "new cache" >>
-     map Just (newIORef [])
+     fmap Just (newIORef [])
  else return Nothing
 
 -- A behavior contains structure and possibly a sampler cache.  The
@@ -711,7 +712,7 @@ liftL f bs = {-_scc_ "f"-} ( lift1 f (bListToListB bs) )
 -- to monadPlus's.
 
 (++*) :: MonadPlus m => Behavior (m a) -> Behavior (m a) -> Behavior (m a)
-(++*) = {-_scc_ "(++)"-} ( lift2 (++) )
+(++*) = {-_scc_ "mplus"-} ( lift2 mplus )
 
 -- Other
 

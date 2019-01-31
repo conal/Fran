@@ -29,7 +29,7 @@ Event possOccs `snapshot` b =
    -- too soon, which is especially important in self-reactive situations.
    -- See comments about the lazy pattern and "seq" for afterE in Event.hs.
    loop ((te,mb) : possOccs') ~xs@(x:xs') =
-     (te, map (`pair` x) mb) : (xs `seq` loop possOccs' xs')
+     (te, fmap (`pair` x) mb) : (xs `seq` loop possOccs' xs')
 
 
 {-

@@ -21,7 +21,7 @@ types are just the identity. -}
 
 module Force where
 
-class Eval a => Forceable a where
+class Forceable a where
     force :: a -> a
 
 

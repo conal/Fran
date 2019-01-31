@@ -50,6 +50,7 @@ puzzle moveDir = locBs
      moveDir `snapshot` (trackBlank moveFroms)
 
 -- Starting locations
+blankStart            :: (Int,Int)
 blankStart : startLocs = 
   [ (col,row) | row <- [0 .. rows-1]
               , col <- [0 .. cols-1] ]
@@ -155,7 +156,7 @@ puzzleInRand, puzzleInSwitch
 
 -- Random moves
 puzzleInRand u =
-  updateDone u `withElemE_` random (0,3) 5
+  updateDone u `withElemE_` randomRs (0::Integer,3) (mkStdGen 5)
                ==>          toInt
                ==>          toEnum
 
@@ -246,7 +247,7 @@ anim4 = animI (cropIms (
 ----  Misc
 
 importFBitmap name =
-  importBitmap ("c:/Users/Conal/Fran/media/"
+  importBitmap ("/Hugs98/lib/Fran/media/"
                 ++ name)
 
 main = displayU anim3

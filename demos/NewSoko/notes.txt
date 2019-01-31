@@ -1,0 +1,64 @@
+                 Design notes for another try at Sokoban
+
+                              Conal Elliott
+                  Last modified Tue Jul 21 10:28:53 1998
+
+
+Thinking about state in franimations.  Use Sokoban as example.  Some
+possible building blocks.
+
+  -- For starting and save/load.  Level number, pusher location, and box
+  -- locations.  The permanent aspects of the level are determined from
+  -- the level number.
+  data Config = Config Int Loc [Loc]
+
+  type BoardB = ???
+  
+  play :: Config -> Event Dir -> BoardB
+
+  -- Could a pusher move?
+  couldMove :: BoardB -> DirB -> BoolB
+
+  -- Lets through legal moves
+  tryMove :: BoardB -> Event Dir -> Event Dir
+
+Notes:
+
+  - Each box listens to the push event (from loc and dir).
+
+  - The pusher and boxes check the board state when the user requests a
+    move.  How??
+
+  - The pusher and boxes tell the board state they want to move.
+
+  - Try a "post-office" approach, as in the curve editor with undo.  Each
+    piece (pusher or box) has a move request event (Loc, Dir).  Label
+    these events and merge into a single event (PieceId, Loc, Dir), which
+    gets routed through the state-maintaining function, which yields a
+    filtered "moveTo" event (PieceId, Loc).
+
+  - Oh -- don't put the box move request in, since they're implicit with
+    the pusher move request.  Do produce box and pusher moves, however.
+    Or produce just box moves, leaving the pusher move implicit.
+    Simplified signature:
+
+      Config -> Event Dir -> Event (Loc,Loc)
+
+    The resulting event has the from/to locations.  Each box watches this
+    event and moves when its location equals the "from".  The pusher watches
+    and moves to the "from" location.
+
+  - The mutable board state contains a boolean array saying for each
+    location whether a box is there.
+
+  - Legality testing uses the permanent level info together with this
+    boolean array.
+
+  - Make the stateful computation be as simple as possible.  Don't store
+    the pusher's location, since it can be tacked onto the Dir.  What else
+    can be omitted?
+
+  - The level is done when all pieces are in a goal location.  Use a
+    conjunction behavior.
+
+  - Try some examples that import stateful algorithms implemented in C.

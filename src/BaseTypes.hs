@@ -48,4 +48,4 @@ fromInt32 = fromInt . int32ToInt
 
 -- Isn't this somewhere standard??
 assoc :: Eq key => [(key,a)] -> key -> Maybe a
-assoc pairs key = map snd (find ((== key) . fst) pairs)
+assoc pairs key = fmap snd (find ((== key) . fst) pairs)

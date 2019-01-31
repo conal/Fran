@@ -65,7 +65,7 @@ instance  Floating a => VectorSpace a  where
   zeroVector  =  0
   (*^)        =  (*)
   (^+^)       =  (+)
-  a `dot` b   =  fromRealFrac (a * b)
+  a `dot` b   =  realToFrac (a * b)
 -}
 
 instance  VectorSpace Double  where
@@ -78,5 +78,5 @@ instance VectorSpace Float where
   zeroVector  =  0.0
   d  *^ f     =  (double2Float d) * f
   (^+^)       =  (+)
-  a `dot` b   =  fromRealFrac (a * b)
+  a `dot` b   =  realToFrac (a * b)
 

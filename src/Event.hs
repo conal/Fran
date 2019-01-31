@@ -11,6 +11,7 @@ import Concurrent                       -- for EventChannel
 import IOExts (trace)
 
 import Maybe (isJust)
+import Monad
 
 infixr 1 `untilBE`
 
@@ -112,7 +113,7 @@ Event possOccs `handleE` f = Event (loop possOccs)
  where
    loop [] = []
    loop ((te, mb) : possOccs') =
-     (te, map (\x -> f te x (Event possOccs')) mb) : loop possOccs'
+     (te, fmap (\x -> f te x (Event possOccs')) mb) : loop possOccs'
 
 
 -- The event e .|. e' corresponds to the union of occurrences of e and e',
@@ -151,7 +152,7 @@ Event possOccs `withElemE` l = Event (loop possOccs l)
    loop ((te, mb) : possOccs') ~bs@(b:bs') =
      (te, mbPair) : loop possOccs' bsNext
     where
-      mbPair = map (`pair` b) mb
+      mbPair = fmap (`pair` b) mb
       bsNext | isJust mb = bs'
              | otherwise = bs
    loop [] _ = []
@@ -162,18 +163,16 @@ e `withElemE_` l = e `withElemE` l ==> snd
 ----------- Monadic stuff ----------
 
 instance Functor Event where
-  map = flip (==>)
+  fmap = flip (==>)
 
 instance Monad Event where
  -- Using joinEOne is one choice, but we may want to backtrack.
  ev >>= f   =  joinEOne (ev ==> f)
  return v   =  constE minTime v
 
-instance MonadZero Event where
- zero  = neverE
-
 instance MonadPlus Event where
- (++)  = (.|.)
+ mzero = neverE
+ mplus = (.|.)
 
 -- One choice for the monadic join for events.  This one uses only the
 -- first occurrence of the given event.  Alternatively, we could do some

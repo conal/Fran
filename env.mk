@@ -19,14 +19,14 @@ GHC		= ghc
 HP2PS		= hp2ps -c
 RM		= rm -f
 
-GCDIR		= /usr/fptools/green-card
+GCDIR		= /Progra~1/GreenCard/2.00
 GCSRC		= $(GCDIR)/src
 GCLIBGHCDIR     = $(GCDIR)/lib/ghc
 GCLIBHUGSDIR    = $(GCDIR)/lib/hugs
 WIN32GHCDIR     = /usr/fptools/src/win32
 WIN32HUGSDIR    = $(WIN32GHCDIR)/hugs
 
-GC		= $(GCSRC)/green-card.exe
+GC		= $(GCDIR)/green-card.exe
 
 AR     		= ar clqs
 RANLIB 		= ranlib

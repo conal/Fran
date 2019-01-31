@@ -242,7 +242,7 @@ nullWndProc hwnd msg wParam lParam =
 
 makeWindowNormal demoClass mainInstance = do
   --putStrLn "Making window"
-  (sizeX,sizeY) <- map vector2XYCoords (readIORef initialViewSizeVar)
+  (sizeX,sizeY) <- fmap vector2XYCoords (readIORef initialViewSizeVar)
   Win32.createWindow demoClass
                "Fran"
                Win32.wS_OVERLAPPEDWINDOW
@@ -290,7 +290,7 @@ getViewSize hwnd =
 
 -- Misc
 
-updateRefStrict :: Eval a => IORef a -> (a -> a) -> IO ()
+updateRefStrict :: IORef a -> (a -> a) -> IO ()
 
 updateRefStrict var f =
   readIORef var >>= \ val ->

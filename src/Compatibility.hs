@@ -11,7 +11,7 @@ import Trace
 double2Float :: Double -> Float
 double2Float = fromDouble
 
-cacheMatch :: Eval a => a -> a -> Bool
+cacheMatch :: a -> a -> Bool
 x `cacheMatch` x' = x `unsafePtrEq` x'
 
 

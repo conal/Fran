@@ -1,0 +1,48 @@
+# Dependencies go here
+# DO NOT DELETE: Beginning of Haskell dependencies
+Types.o Types.mc_o : Types.hs
+Types.o : ../../src/GHC/Fran.hi
+Types.mc_o : ../../src/GHC/Fran.mc_hi
+Levels.o Levels.mc_o : Levels.hs
+Levels.o : ./Types.hi
+Levels.mc_o : ./Types.mc_hi
+../Machine/Machine.o ../Machine/Machine.mc_o : ../Machine/Machine.hs
+Board.o Board.mc_o : Board.hs
+Board.o : ../../src/GHC/Fran.hi
+Board.mc_o : ../../src/GHC/Fran.mc_hi
+Board.o : ../../src/GHC/StaticTypes.hi
+Board.mc_o : ../../src/GHC/StaticTypes.mc_hi
+Board.o : ../Machine/Machine.hi
+Board.mc_o : ../Machine/Machine.mc_hi
+Board.o : ./Types.hi
+Board.mc_o : ./Types.mc_hi
+Play.o Play.mc_o : Play.hs
+Play.o : ../../src/GHC/Fran.hi
+Play.mc_o : ../../src/GHC/Fran.mc_hi
+Play.o : ./Types.hi
+Play.mc_o : ./Types.mc_hi
+Play.o : ./Levels.hi
+Play.mc_o : ./Levels.mc_hi
+Play.o : ./Board.hi
+Play.mc_o : ./Board.mc_hi
+UI.o UI.mc_o : UI.hs
+UI.o : /usr/fptools/src/win32/Win32Key.hi
+UI.mc_o : /usr/fptools/src/win32/Win32Key.mc_hi
+UI.o : ../../src/GHC/Fran.hi
+UI.mc_o : ../../src/GHC/Fran.mc_hi
+UI.o : ../../src/GHC/StaticTypes.hi
+UI.mc_o : ../../src/GHC/StaticTypes.mc_hi
+UI.o : ./Types.hi
+UI.mc_o : ./Types.mc_hi
+Main.o Main.mc_o : Main.hs
+Main.o : ../../src/GHC/Fran.hi
+Main.mc_o : ../../src/GHC/Fran.mc_hi
+Main.o : ./Types.hi
+Main.mc_o : ./Types.mc_hi
+Main.o : ./UI.hi
+Main.mc_o : ./UI.mc_hi
+Main.o : ./Play.hi
+Main.mc_o : ./Play.mc_hi
+Main.o : ./Levels.hi
+Main.mc_o : ./Levels.mc_hi
+# DO NOT DELETE: End of Haskell dependencies

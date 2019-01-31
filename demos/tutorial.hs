@@ -17,6 +17,11 @@
 --   mentioned below.  For 3D examples, use displayG if there no user
 --   argument, and displayGU if there is one.
 
+-- Due to bit rot, running this tutorial via "main" often dies after a
+-- while with "Program error: IOExts.interleaveIO: thread exited with no
+-- result".  You can, however run the examples individually as explained
+-- in the header comment.
+
 module Tutorial where
 
 import Fran

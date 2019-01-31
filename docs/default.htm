@@ -2,13 +2,13 @@
 
 <head>
 <meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1252">
-<meta NAME="GENERATOR" CONTENT="Microsoft FrontPage 3.0">
+<meta NAME="GENERATOR" CONTENT="Microsoft FrontPage 4.0">
 <title>Functional Reactive Animation (Fran)</title>
 </head>
 
 <body>
 
-<h1 ALIGN="CENTER">Fran version 1.12</h1>
+<h1 ALIGN="CENTER">Fran version 1.13</h1>
 
 <h2 ALIGN="CENTER">(Functional Reactive Animation)</h2>
 
@@ -19,60 +19,68 @@ alt="patOrbitsCharlotte.gif (81661 bytes)"></p>
 <em>
 
 <p ALIGN="CENTER">Updated <!--webbot bot="Timestamp" startspan S-Type="EDITED"
-S-Format="%B %d, %Y" -->June 19, 1998<!--webbot bot="Timestamp" i-checksum="14626" endspan --></p>
+S-Format="%B %d, %Y" -->May 15, 2000<!--webbot bot="Timestamp" i-CheckSum="11125" endspan --></p>
 </em>
 
-<p>Fran is a Haskell library (or &quot;embedded language&quot;) for interactive animations
-with 2D and 3D graphics and sound. It runs under Windows 95 and Windows NT on <a
-HREF="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs version 1.4</a>, which is very easy
-to install.&nbsp; In fact Fran 1.09 is built into the January 1998 InstallShield versions
-of Hugs 1.4, and Fran 1.12 is in the June 1998 release.</p>
-
-<p>Here is a tutorial article on <a
-href="http://www.research.microsoft.com/~conal/fran/tutorial.htm">Composing Reactive
-Animations</a>. (The animated GIFs total 2Mb. Please be patient. You might want to
-download the <a href="http://www.research.microsoft.com/~conal/fran/tutorialArticle.zip">zip
-file</a> and view it locally.)&nbsp; See <a
-href="http://www.research.microsoft.com/~conal/papers">here</a> for a few other related
-publications.</p>
-
-<p>See <a HREF="news.htm">news</a> for details on changes from one version to another, and
-links to zip files for all released versions.</p>
-
+<p>Fran is a Haskell library (or &quot;embedded language&quot;) for interactive
+animations with 2D and 3D graphics and sound. It runs under Windows 95/98 and
+Windows NT under <a href="http://haskell.org/hugs">Hugs 98</a>.&nbsp; (Do not
+use the version distributed with Hugs98.&nbsp; It has a version skew problem.)</p>
+<p>Here is a tutorial article on <a href="http://www.research.microsoft.com/~conal/fran/tutorial.htm">Composing
+Reactive Animations</a>. (The animated GIFs total 2Mb. Please be patient. You
+might want to download the <a href="http://www.research.microsoft.com/~conal/fran/tutorialArticle.zip">zip
+file</a> and view it locally.)&nbsp; See <a href="http://www.research.microsoft.com/~conal/papers">here</a>
+for a few other related publications.</p>
+<p>See <a href="http://research.microsoft.com/~conal/Fran/news.htm">news</a> for
+details on changes from one version to another, and links to zip files for all
+released versions.</p>
+<p>See <a href="http://research.microsoft.com/~conal/Fran/papers.htm">here</a>
+for some publications on Fran.&nbsp; Also, check out Pan, an image synthesis and
+manipulation language.&nbsp; Roughly speaking, it does for 2D space what Fran
+does for time.</p>
 <h3>Notes</h3>
-
 <ul>
-  <li>Fran works with Windows only. You'll need DirectX version 3 or better.&nbsp; I recommend
-    <a href="http://www.microsoft.com/msdownload/directx/dxf/enduser5.0/default.htm">DirectX 5</a>
-    if you have Windows 95 or 98, or NT 5.0. DirectX 3 works with NT 4.0 if you have Service
-    pack 3 installed (available via the <a
-    href="http://www.microsoft.com/msdownload/directx/dxf/enduser5.0/default.htm">DirectX 5</a>
-    page). My plan for Unix, etc., is to wait until DirectX is running there (in the works,
-    but I don't know any of the details). </li>
-  <li>Check out the <a HREF="http://www.research.microsoft.com/~conal/fran/tutorial.htm">tutorial</a>
-    and <a HREF="http:UsersMan.htm">User's Manual</a>. (The tutorial has lots of animated GIFs
-    totalling 2Mb. Please be patient. You might want to download the <a
-    HREF="http://www.research.microsoft.com/~conal/fran/tutorialArticle.zip">zip file</a> and
-    view it locally.) </li>
-  <li>The <b>demos</b> directory has -- guess what? -- demos! See <a HREF="demos.htm">demos.htm</a>.
-  </li>
-  <li>The garbage collector interferes with smooth performance. After Hugs and <a
-    HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</a> are merged, this problem should
-    not be noticeable. </li>
-  <li>As of very recently, Fran works with <a HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</a>.
-    Performance is <em>much</em> better. Installation is somewhat painful, but that situation
-    is improving. If you're interested, see <a HREF="HowToGHC.txt">HowToGHC.txt</a>. Well,
-    there are a few missing pieces, related to GreenCard, so you'd better wait.</li>
-  <li>Try examples of your own. If you send me ones you've built, I'll consider them for
-    inclusion (with credit to you) in future releases.</li>
-  <li>If you're installing Fran from a zip file, rename your Hugs/lib/Fran (if you have one)
-    to &quot;FranWas&quot; (for instance), and unzip into Hugs/lib.&nbsp; Then rename
-    Hugs/SpriteLib.dll to SpriteLibWas.dll, and manually copy the new
-    Hugs/lib/Fran/SpriteLib.dll into Hugs/ (important). &nbsp; Then try it out.&nbsp; If you
-    get an error message like 'ERROR: &quot;.../HSpriteLib.hs&quot;: Error while importing DLL
-    &quot;HSpriteLib.dll&quot; ', you're probably getting an old SpriteLib.dll or none at all.</li>
-  <li>In any case, please <a HREF="mailto:conal@microsoft.com">let me know</a> about your
-    experience.</li>
+  <li>Download Hugs98 and the Win32 libraries from the download page linked to <a href="http://haskell.org/hugs">here</a>.</li>
+  <li>Download and unpack the <a href="Zips/Fran1.13.zip">latest version</a> so
+    that you have a <tt>Fran</tt> subdirectory in <tt>c:\Hugs98\lib</tt>. (Or
+    elsewhere, depending on where you installed Hugs.)&nbsp; Use <tt>:set -P;c:\Hugs98\lib\Fran&quot;</tt>
+    to ensure that the library is included on your search path. You will also
+    need to copy the file <tt>SpriteLib.dll</tt> from <tt>c:\Hugs98\lib\Fran</tt>
+    into <tt>c:\Hugs98</tt> so that it is in the same directory as the Hugs
+    executables.</li>
+  <li>Fran works with Windows only. You'll need DirectX version 3 or better.&nbsp;
+    I recommend that you get the <a href="http://www.microsoft.com/directx">latest
+    version</a> if you have Windows 95, 98 or 2000. DirectX 3 works with NT 4.0
+    if you have Service pack 3 installed.&nbsp; A Un*x version would be great,
+    but I don't have the resources to do it.</li>
+  <li>Check out the <a href="http://www.research.microsoft.com/~conal/fran/tutorial.htm">tutorial</a>
+    and <a href="http://research.microsoft.com/~conal/Fran/UsersMan.htm">User's
+    Manual</a>. (The tutorial has lots of animated GIFs totalling 2Mb. Please be
+    patient. You might want to download the <a href="http://www.research.microsoft.com/~conal/fran/tutorialArticle.zip">zip
+    file</a> and view it locally.)
+  <li>The <b>demos</b> directory has -- guess what? -- demos! See <a href="http://research.microsoft.com/~conal/Fran/demos.htm">demos.htm</a>.
+  <li>The garbage collector interferes with smooth performance. After Hugs and <a href="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</a>
+    are merged, this problem should not be noticeable.
+  <li>As of very recently, Fran works with <a href="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</a>.
+    Performance is <em>much</em> better. Installation is somewhat painful, but
+    that situation is improving. If you're interested, see <a href="http://research.microsoft.com/~conal/Fran/HowToGHC.txt">HowToGHC.txt</a>.
+    Well, there are a few missing pieces, related to GreenCard, so you'd better
+    wait.
+  <li>Try examples of your own. If you send me ones you've built, I'll consider
+    them for inclusion (with credit to you) in future releases.
+  <li>If you're installing Fran from a zip file, rename your Hugs/lib/Fran (if
+    you have one) to &quot;FranWas&quot; (for instance), and unzip into
+    Hugs/lib.&nbsp; Then rename Hugs/SpriteLib.dll to SpriteLibWas.dll, and
+    manually copy the new Hugs/lib/Fran/SpriteLib.dll into Hugs/
+    (important).&nbsp;&nbsp; Then try it out.&nbsp; If you get an error message
+    like 'ERROR: &quot;.../HSpriteLib.hs&quot;: Error while importing DLL &quot;HSpriteLib.dll&quot;
+    ', you're probably getting an old SpriteLib.dll or none at all.
+  <li>Due to bit rot, running the tutorial via &quot;main&quot; in demos/Tutorial.hs
+    often dies with &quot;Program error: IOExts.interleaveIO: thread exited with no result&quot;.&nbsp;
+    You can, however run the examples individually as explained in the header
+    comment.</li>
+  <li>In any case, please <a href="mailto:conal@microsoft.com">let me know</a>
+    about your experience.</li>
 </ul>
 
 <h3>Bugs / To do</h3>
@@ -120,6 +128,8 @@ links to zip files for all released versions.</p>
     and insightful feedback on the semantics of behaviors and events. </li>
   <li><a HREF="http://www.oz.net/~conal/Jake.html">Jake Elliott</a> did the artwork for
     Sokoban. </li>
+  <li><a href="http://www.cse.ogi.edu/~mpj">Mark Jones</a> adapted Fran for
+    Haskell 98 and added it to the Hugs98 distribution.</li>
 </ul>
 
 <h3>Contact</h3>

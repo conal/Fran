@@ -83,8 +83,8 @@ makeUser lButton0 rButton0 mpos0 spos0 press0 size0
              , stylusPressure = track press0  pressureFilt
              , viewSize     = track size0 sizeFilt
              , updatePeriod = track updatePeriod0 updateFilt
-             , actions
-             , stylusPresent
+             , actions      = actions
+             , stylusPresent = stylusPresent
              }
 
     mouseFilt  (MouseMove  p)  = Just p

@@ -8,6 +8,7 @@ import Fran
 import qualified StaticTypes as S
 
 import IOExts (trace)
+import Monad
 
 
 -- Values having bounding boxes
@@ -82,12 +83,12 @@ searchPTree ptree (S.RectLLUR (S.Point2XY minx miny)
    loop EmptyPTree = Nothing
    loop (PTree (S.Point2XY cx cy) staddlers ll lr ul ur) =
      --trace "search " $
-     foldr (++) Nothing (map test staddlers) ++ subs 
+     foldr mplus Nothing (map test staddlers) `mplus` subs 
     where
-      subs = loop ll `whenMZ` (someLeft  && someLower)
-          ++ loop lr `whenMZ` (someRight && someLower)
-          ++ loop ul `whenMZ` (someLeft  && someUpper)
-          ++ loop ur `whenMZ` (someRight && someUpper)
+      subs =         loop ll `whenMZ` (someLeft  && someLower)
+             `mplus` loop lr `whenMZ` (someRight && someLower)
+             `mplus` loop ul `whenMZ` (someLeft  && someUpper)
+             `mplus` loop ur `whenMZ` (someRight && someUpper)
 
       someLeft  = minx <= cx
       someRight = maxx >= cx
@@ -96,8 +97,8 @@ searchPTree ptree (S.RectLLUR (S.Point2XY minx miny)
 
 -- Alternative to Monad.when for MonadZero.  Flipped for natural infix
 -- reading.
-whenMZ :: (MonadZero m) => m a -> Bool -> m a
-s `whenMZ` p = if p then s else zero
+whenMZ :: (MonadPlus m) => m a -> Bool -> m a
+s `whenMZ` p = if p then s else mzero
 
 
 -- Misc utilities

@@ -18,7 +18,7 @@
 
 module Spritify (displayUs, displayUIO, displayEx, eventLoop) where
 
-import Monad (when, zipWithM_)
+import Monad
 import BaseTypes
 import qualified StaticTypes as S
 import Event
@@ -170,7 +170,7 @@ spritifyImageB rectB mbColor xfB (TransformI xfB' imb) mbTT t0 =
 -- withColor is similar
 
 spritifyImageB rectB mbColor xfB (WithColorI colorInner imb) mbTT t0 =
-  spritifyImageB rectB (mbColor ++ Just (mbTTrans colorInner mbTT))
+  spritifyImageB rectB (mbColor `mplus` Just (mbTTrans colorInner mbTT))
                  xfB imb mbTT t0
 
 -- Cropping. Composes through intersection.
@@ -289,7 +289,7 @@ spritifyUntilB spritify ctx bv1 e mbTT t0 =
 -- Similar to spritifyImageB, but on SoundB
 spritifySoundB :: RealB -> RealB -> RealB -> SoundB -> Maybe TimeB -> Spritifier
 
-spritifySoundB _ _ _SilentS _ _ = \ _ requestV replyV above -> do
+spritifySoundB _ _ _ SilentS _ _ = \ _ requestV replyV above -> do
   forkIO $ forwardSyncVars requestV replyV
   return above
 

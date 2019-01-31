@@ -123,7 +123,7 @@ Event possOccs `afterE` bv =
      --trace "afterE\n" $
      -- The seq below is to help avoid the space leak.  Unfortunately, it
      -- then becomes too strict.  See seqD9 in Spritify.hs
-     (te, map (`pair` bvAfter) mb) :
+     (te, fmap (`pair` bvAfter) mb) :
      (bvAfters `seq` loop possOccs' bvAfters')
 
 afterE_ :: GBehavior bv => Event a -> bv -> Event bv

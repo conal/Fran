@@ -350,4 +350,4 @@ importPixelsPerLength = 75 :: RealVal
 -- cancel out in the absence of explicit scaling, which makes for much
 -- faster display on video cards that don't do hardware scaling.
 
-screenPixelsPerLength = 1.2 * importPixelsPerLength :: RealVal
+screenPixelsPerLength = 2 * importPixelsPerLength :: RealVal

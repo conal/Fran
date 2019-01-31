@@ -214,7 +214,7 @@ newBitmapDDSurface gc_arg1 =
   (marshall_string_ gc_arg1) >>= \ (arg1) ->
   prim_newBitmapDDSurface arg1 >>= \ (h,gc_failed,gc_failstring) ->
   if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
+  then unmarshall_string_ gc_failstring >>= ioError . userError
   else (return (h))
 
 -- The size in pixels of a surface
@@ -239,7 +239,7 @@ newWaveDSBuffer gc_arg1 =
   (marshall_string_ gc_arg1) >>= \ (arg1) ->
   prim_newWaveDSBuffer arg1 >>= \ (h,gc_failed,gc_failstring) ->
   if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
+  then unmarshall_string_ gc_failstring >>= ioError . userError
   else (return (h))
 
 -- Make an sound buffer from a .WAV file
@@ -252,7 +252,7 @@ newMeshBuilder gc_arg1 =
   (marshall_string_ gc_arg1) >>= \ (arg1) ->
   prim_newMeshBuilder arg1 >>= \ (h,gc_failed,gc_failstring) ->
   if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
+  then unmarshall_string_ gc_failstring >>= ioError . userError
   else (return (h))
 
 -- Make a mesh builder from a .X mesh file
@@ -398,7 +398,7 @@ newFlipBook arg1 gc_arg1 gc_arg2 gc_arg3 gc_arg4 arg6 arg7 =
   case ( int32ToInt  gc_arg4) of { arg5 ->
   prim_newFlipBook arg1 arg2 arg3 arg4 arg5 arg6 arg7 >>= \ (h,gc_failed,gc_failstring) ->
   if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
+  then unmarshall_string_ gc_failstring >>= ioError . userError
   else (return (h))}}}}
 
 primitive prim_flipBookSizePixels :: Word32 -> IO (Int,Int)
@@ -557,7 +557,7 @@ newSpriteGroup :: SpriteTreeChain -> SpriteTreeChain -> IO HSpriteGroup
 newSpriteGroup arg1 arg2 =
   prim_newSpriteGroup arg1 arg2 >>= \ (h,gc_failed,gc_failstring) ->
   if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
+  then unmarshall_string_ gc_failstring >>= ioError . userError
   else (return (h))
 
 primitive prim_spriteGroupToSpriteTree :: Word32 -> IO (Word32)
@@ -586,7 +586,7 @@ newCondSpriteTree gc_arg1 arg2 arg3 arg4 =
   (marshall_bool_ gc_arg1) >>= \ (arg1) ->
   prim_newCondSpriteTree arg1 arg2 arg3 arg4 >>= \ (h,gc_failed,gc_failstring) ->
   if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
+  then unmarshall_string_ gc_failstring >>= ioError . userError
   else (return (h))
 
 primitive prim_updateCondSpriteTree :: Word32 -> Double -> Int -> IO ()
@@ -796,7 +796,7 @@ getWTPacket gc_arg1 arg2 =
   case ( int32ToInt  gc_arg1) of { arg1 ->
   prim_getWTPacket arg1 arg2 >>= \ (gc_res1,gc_res2,gc_res3,gc_res4,gc_res5,gc_failed,gc_failstring) ->
   if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
+  then unmarshall_string_ gc_failstring >>= ioError . userError
   else (return ((gc_res1,gc_res2,gc_res3,gc_res4,gc_res5)))}
 
 primitive prim_wTConfig :: Addr -> Addr -> IO (Int,Addr)
@@ -804,7 +804,7 @@ wTConfig :: HCTX -> HWND -> IO ()
 wTConfig arg1 arg2 =
   prim_wTConfig arg1 arg2 >>= \ (gc_failed,gc_failstring) ->
   if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
+  then unmarshall_string_ gc_failstring >>= ioError . userError
   else (return (()))
 
 primitive prim_wTClose :: Addr -> IO (Int,Addr)
@@ -812,6 +812,6 @@ wTClose :: HCTX -> IO ()
 wTClose arg1 =
   prim_wTClose arg1 >>= \ (gc_failed,gc_failstring) ->
   if ( gc_failed /= 0)
-  then unmarshall_string_ gc_failstring >>= fail . userError
+  then unmarshall_string_ gc_failstring >>= ioError . userError
   else (return (()))
 needPrims_hugs 2
