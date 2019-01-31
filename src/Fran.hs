@@ -1,6 +1,6 @@
 -- Envelope module for RBMH
 --
--- Last modified Wed Jul 09 12:19:21 1997
+-- Last modified Thu Jul 24 10:49:33 1997
 --
 -- To do: Maybe imitate John P's structuring
 
@@ -21,7 +21,7 @@ module Fran
     module Integral,
     module User,
     module Interaction,
-    module HSpriteLib,
+    --module HSpriteLib,
     module UtilsB,
     disp -- Spritify
  ) where
@@ -40,6 +40,6 @@ import ImageB
 import Integral
 import User
 import Interaction
-import HSpriteLib
+--import HSpriteLib
 import UtilsB
 import Spritify (disp)

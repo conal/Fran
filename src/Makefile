@@ -5,7 +5,8 @@ all		::
 
 # .SUFFIXES	: .ss .ps .c .obj 
 
-HUGSDIR		= e:/conal/hugs970411/src
+# To do: get the latest Hugs with source.
+HUGSDIR		= c:/hugs970411-was/src
 PLUGINS		= $(HUGSDIR)/Foreign
 PLUGIN_INCLUDES	= HUGS.h config.h options.h prelude.h storage.h connect.h
 
@@ -15,7 +16,7 @@ HUGS_INCLUDES	= $(HUGSDIR)/HUGS.h \
 		  $(HUGSDIR)/connect.h \
 		  $(HUGSDIR)/config.h
 
-SPRITEDIR	= ../../SpriteLib
+SPRITEDIR	= ../SpriteLib
 SPRITE_INCLUDES	= $(SPRITEDIR)/DDrawEnv.h \
 		  $(SPRITEDIR)/Behavior.h \
 		  $(SPRITEDIR)/Surface.h \

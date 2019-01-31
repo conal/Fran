@@ -140,14 +140,18 @@ primitive getDDrawHDC "XS_GetDDrawHDC" :: HDDSurface -> IO HDC
 primitive releaseDDrawHDC "XS_ReleaseDDrawHDC" :: HDDSurface -> HDC -> IO ()
 primitive clearDDSurface "XS_clearDDSurface" :: HDDSurface -> COLORREF -> IO ()
 primitive newPlainDDrawSurface "XS_newPlainDDrawSurface" :: Int -> Int -> COLORREF -> IO HDDSurface
-primitive newBitmapDDSurface "XS_newBitmapDDSurface" :: String -> IO HDDSurface
-primitive textDDSurface "XS_textDDSurface" :: String -> COLORREF -> HDDSurface
 primitive getDDSurfaceSize "XS_GetDDSurfaceSize" :: HDDSurface -> SIZE
-bitmapDDSurface bmpName = unsafePerformIO $ newBitmapDDSurface bmpName
+-- Try loading a media file
+tryLoadingDX :: (String -> IO a) -> (String -> a)
+tryLoadingDX loader fileName = unsafePerformIO $
+ loader fileName `catch` \_ ->
+   return (error ("Could not open " ++ fileName))
+primitive newBitmapDDSurface "XS_newBitmapDDSurface" :: String -> IO HDDSurface
+bitmapDDSurface = tryLoadingDX newBitmapDDSurface
 primitive newWaveDSBuffer "XS_newWaveDSBuffer" :: String -> IO HDSBuffer
-waveDSBuffer fileName = unsafePerformIO $ newWaveDSBuffer fileName
+waveDSBuffer = tryLoadingDX newWaveDSBuffer
 primitive newMeshBuilder "XS_newMeshBuilder" :: String -> IO HMeshBuilder
-meshBuilder fileName = unsafePerformIO $ newMeshBuilder fileName
+meshBuilder = tryLoadingDX newMeshBuilder
 type D3DColor = DWORD
 primitive createColorRGB "XS_CreateColorRGB" :: Double -> Double -> Double -> D3DColor
 type LightType = Int

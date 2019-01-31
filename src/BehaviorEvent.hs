@@ -1,7 +1,7 @@
 -- Event combinators that involve events.  Separated out from Event.hs to
 -- avoid a mutual module recursion.
 --
--- Last modified Thu Jul 17 16:51:33 1997
+-- Last modified Mon Jul 21 15:26:08 1997
 --
 -- To do:
 --
@@ -41,7 +41,7 @@ Event possOccs `snapshot` b = Event (loop possOccs b)
 
 
 -- Shortcut when ignoring the given event's data
-snapshot_ :: {- Forceable a => -} Event () -> Behavior a -> Event a
+snapshot_ :: {- Forceable a => -} Event a -> Behavior b -> Event b
 
 e `snapshot_` b = (e `snapshot` b) ==> snd
 

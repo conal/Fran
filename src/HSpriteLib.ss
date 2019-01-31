@@ -138,25 +138,32 @@ import IOExtensions (unsafePerformIO)
 %fun clearDDSurface :: HDDSurface -> COLORREF -> IO ()
 
 %fun newPlainDDrawSurface :: Int -> Int -> COLORREF -> IO HDDSurface
-%errfun NullHDDSurface newBitmapDDSurface :: String -> IO HDDSurface
 # For testing, but phase out
-%fun textDDSurface :: String -> COLORREF -> HDDSurface
+# %fun textDDSurface :: String -> COLORREF -> HDDSurface
 
 %fun GetDDSurfaceSize :: HDDSurface -> SIZE
 
--- To do: do consistent error-reporting
 {{%
-bitmapDDSurface bmpName = unsafePerformIO $ newBitmapDDSurface bmpName
+-- Try loading a media file
+tryLoadingDX :: (String -> IO a) -> (String -> a)
+tryLoadingDX loader fileName = unsafePerformIO $
+ loader fileName `catch` \_ ->
+   return (error ("Could not open " ++ fileName))
+%}}
+
+%errfun NullHDDSurface newBitmapDDSurface :: String -> IO HDDSurface
+{{%
+bitmapDDSurface = tryLoadingDX newBitmapDDSurface
 %}}
 
 %errfun NullHDSBuffer newWaveDSBuffer :: String -> IO HDSBuffer
 {{%
-waveDSBuffer fileName = unsafePerformIO $ newWaveDSBuffer fileName
+waveDSBuffer = tryLoadingDX newWaveDSBuffer
 %}}
 
 %errfun NullHMeshBuilder newMeshBuilder :: String -> IO HMeshBuilder
 {{%
-meshBuilder fileName = unsafePerformIO $ newMeshBuilder fileName
+meshBuilder = tryLoadingDX newMeshBuilder
 %}}
 
 %synonym : D3DColor : DWORD

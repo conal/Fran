@@ -2,7 +2,7 @@
 -- to make it easier to do some simple things. I'd like to make it so that
 -- kids can use this simple vocabulary.
 --
--- Last modified Mon Jul 14 08:29:09 1997
+-- Last modified Thu Jul 24 09:40:56 1997
 
 module UtilsB where
 
@@ -69,21 +69,21 @@ slower x   = faster (1/x)
 
 -- Import a single bitmap from a file.  Simple case of flipbook ImageB
 
-importBitmap :: String -> ImageB
-
-importBitmap fileName = flipImage book 0
+importBitmapWithSize :: String -> (ImageB, RealVal, RealVal)
+importBitmapWithSize fileName =
+  (flipImage book 0, fromInt w / bitmapPixelsPerLength
+                   , fromInt h / bitmapPixelsPerLength)
  where
   book  = --trace "Making flip book" $
           flipBook surf w h 0 0 1 1
   (w,h) = --trace "Getting surface size" $
           getDDSurfaceSize surf
   surf  = --trace "Making bitmap surface" $
-          bitmapDDSurface' fileName
+          bitmapDDSurface fileName
 
--- Amend bitmapDDSurface et al in HSpriteLib.ss
-bitmapDDSurface' bmpName = unsafePerformIO $
- newBitmapDDSurface bmpName `catch` \_ -> do
-   return (error ("Could not open " ++ bmpName))
+importBitmap :: String -> ImageB
+importBitmap fileName = imB
+ where (imB, width, height) = importBitmapWithSize fileName
 
 bezier = error "bezier not currently implemented -- sorry"
 circle = error "circle not currently implemented -- sorry"

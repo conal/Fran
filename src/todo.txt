@@ -1,9 +1,14 @@
                                To Do Items
 
-                  Last modified Fri Jul 18 08:14:27 1997
+                  Last modified Thu Jul 24 11:38:14 1997
 
 
-- Use scanlE, not scanrE.
+- Make events carry a start time, and re-implement startTime
+
+- Adjust operator precedences so we can chain all of the event modifiers:
+  -=>, ==>, `afterE`, `snapshot`, etc.  They need to all be
+  left-associative and of the same precedence.  See, e.g., whenSnap.  The
+  .|. operator should be of lower precedence.
 
 - Something is fishy with the external event queue.  In {Spritify}disp, I
   insert an updateDone event for tNow + updatePeriodGoal, but after that
@@ -13,7 +18,7 @@
   for now, but give future times to the sprite engine.  This choice
   reflects a deliberate introduction of latency.
 
-- Mouse motion tracking wedges.  (Same bug as previous, I think.)
+- 
 
 - Consider user event accumulation: can the afterE's or afterTime's pile
   up unevaluated if they're not examined?  I'm guessing that this is

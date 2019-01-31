@@ -135,11 +135,13 @@ overs :: [ImageB] -> ImageB
 
 overs = foldr over emptyImage
 
+{- Eliminated
 textSurface1 :: StringB -> Maybe ColorB -> RealB -> SurfaceB
 
 textSurface1 strB mbColB stretchB =
   lift2 HSpriteLib.textDDSurface
 	strB (asColorRef (fromMaybe defaultTextColor mbColB))
+-}
 
 -- textB, angleB, colorB, stretchB
 textSurface :: TextB -> RealB -> Maybe ColorB -> RealB -> SurfaceB
@@ -167,6 +169,7 @@ bitmapSizeToVector2 (w,h) =
 
 -}
 
+-- Should really be two constants -- horizontal and vertical.
 bitmapPixelsPerLength = 100 :: RealVal
 
 -- Note that screen pixels per world length and screen pixels per world

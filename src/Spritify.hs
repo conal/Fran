@@ -503,17 +503,21 @@ lotsODonuts u = accumB over emptyImage another
 
 -- From the tutorial
 
+importHead name =
+  importBitmap ("../Media/" ++ name ++ " head black background.bmp")
 
+{-
 importBMP name = flipImage book 0
  where
   book = flipBook surf w h 0 0 1 1
   surf = bitmapDDSurface ("../Media/" ++ name ++ " head black background.bmp")
   (w,h) = getDDSurfaceSize surf
+-}
 
 leftRightCharlotte = moveXY wiggle 0 charlotte
 
-charlotte = importBMP "charlotte"
-pat       = importBMP "pat"
+charlotte = importHead "charlotte"
+pat       = importHead "pat"
 
 upDownPat = moveXY 0 wiggle pat
 
@@ -529,7 +533,7 @@ patMoves u = moveXY (-1 + atRate 1 u) 0 pat
 
 uNext :: (User -> Event ()) -> User -> Event User
 
-uNext f u = f u `afterE` u ==> snd
+uNext f u = f u `afterE_` u
 
 -- Sound tests
 

@@ -65,7 +65,7 @@ addUserNoOp userChan t = putChan userChan (t, Nothing)
 addUserUpdate :: UserChannel -> Time -> Time -> IO ()
 
 addUserUpdate userChan dur t =
-  -- trace ("addUserUpdate " ++ show dur ++ " at " ++ show t ++ "\n") $
+  --trace ("addUserUpdate " ++ show dur ++ " at " ++ show t ++ "\n") $
   --trace ("upd " ++ show t ++ " ") $
   putChan userChan (t, Just (UpdateDone dur))
 

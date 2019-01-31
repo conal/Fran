@@ -159,7 +159,7 @@ makeWindow createIO resizeIO updateIO closeIO
 	Win32.bringWindowToTop w
 	-- Strangely, if I don't print something before invoking
 	-- ddraw functions, Hugs bombs on the AST notebook.  (12/6/96)
-	putStrLn ""
+	--putStrLn ""
 	-- There should be a send Resize here
 	Win32.eventLoop w
 	(Win32.unregisterClass demoClass mainInstance `catch` \_ -> return ())
@@ -240,7 +240,7 @@ showSpriteTree spriteTree updateIO userChan t0 =
     -- Show performance stats
     updateCount <- getRef updateCountVar
     frameCount  <- getRef frameCountRef
-    showStats t0 frameCount updateCount
+    --showStats t0 frameCount updateCount
     return ()
 
 

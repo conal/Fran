@@ -1,0 +1,2181 @@
+# Haskell/C interface for RBMH's underlying sprite engine.
+# Notes:
+# - primc was generating an importDLL for $file.so.  I changed it to $file.dll
+
+# Standard HUGS imports - these come second so's we can overcome
+# duplicate definitions.
+{%
+#include "HUGS.h"
+#include <windows.h>
+%}
+
+{{%
+module HSpriteLib where
+import Win32 (HWND, HDC, DWORD, LONG, Word32, rtsDummy, COLORREF, SIZE)
+import IOExtensions (unsafePerformIO)
+
+{- Hack!: to avoid making basic type syns. visible, we
+   enclose them in comments - ToDo: figure out the best
+   way of conditionally including .ss files, but not let
+   them splat stuff into the .hs and/or .c files.
+%}}
+
+#
+# Win* generic typedefs.
+#
+
+################################################################
+# Standard type conversions for Hugs plugins
+#
+# Copyright (c) Mark P Jones 1991-1996.   All rights reserved.
+# See NOTICE for details and conditions of use etc...
+# Hugs version 1.3, August 1996
+#
+# $RCSfile: StdTypes.ss,v $
+# $Revision: 1.4 $
+# $Date: 1997/03/17 18:40:35 $
+################################################################
+
+%type 	: Int 		: Int 	$0 	: hugsINT($0);	: hugs->eval($0); $1=hugs_whnfInt
+%type 	: Char		: Char 	$0	: hugsCHAR($0);	: hugs->eval($0); $1=hugs->CharOf(hugs_whnfHead)
+%type 	: Float		: Float	$0	: hugsFLOAT($0);: hugs->eval($0); $1=hugs_whnfFloat
+%type 	: Double	: Double $0	: hugsFLOAT($0);: hugs->eval($0); $1=hugs_whnfFloat
+%type 	: Bool 		: Bool 	$0 	: if ($0) {hugsTRUE;} else {hugsFALSE;} : hugs->eval($0); $1=(hugs_whnfHead==hugs->nameTrue)
+
+# Note: We define a new type CHAR rather than using Char
+# because Char is a synonym for Int - making sizeofChar come out wrong.
+
+%type 	: CHAR		: char 	$0	: hugsCHAR($0);	: hugs->eval($0); $1=hugs->CharOf(hugs_whnfHead)
+
+{%
+typedef char  CHAR;
+%}
+{{%
+type CHAR = Char
+%}}
+
+#For just now, we'll continue to allocate strings on the heap - but
+# we'll try to gradually move these allocations onto the stack
+#%sentinel_array : String : CHAR : char : $0 = '\0' : ('\0' == $0)
+%unpack : String : int $0_size; char* $0
+	{  int ppindex; 
+	    hugs->eval($0);
+	    for (ppindex = 0; hugs_whnfHead == hugs->nameCons; ++ppindex) {
+		Cell ppHead = hugs_pop(); 
+		Cell ppTail = hugs_pop(); 
+		hugs_push(ppHead);
+	        hugs->eval(ppTail);
+	    }
+           $1_size = ppindex; $1 = (char *) malloc((ppindex+1) * sizeof(char)); if (!$1) { %fail(); } $1[ppindex] = '\0';
+	    while (--ppindex >= 0) {
+               %unpack(CHAR,hugs_pop(),$1[ppindex]);
+	    }
+	}
+
+{%
+static Void XSpack_String(ppArray)
+CHAR *ppArray;
+{
+    int ppSize;
+    for (ppSize = 0; !(('\0' == ppArray[ppSize])); ppSize++) {}
+    hugsNIL;
+    while (--ppSize >= 0) {
+        %pack(CHAR,ppArray[ppSize]);;
+        hugsCONS;
+        hugsAP;
+        hugsAP;
+    }
+}
+%}
+%pack : String 
+XSpack_String($0);
+
+
+%unpack : PString : int $0_size; char* $0
+	{  int ppindex; 
+	    hugs->eval($0);
+	    for (ppindex = 0; hugs_whnfHead == hugs->nameCons; ++ppindex) {
+		Cell ppHead = hugs_pop(); 
+		Cell ppTail = hugs_pop(); 
+		hugs_push(ppHead);
+	        hugs->eval(ppTail);
+	    }
+           $1_size = ppindex; $1 = (char *) malloc((ppindex+1) * sizeof(char)); if (!$1) { %fail(); } $1[ppindex] = '\0';
+	    while (--ppindex >= 0) {
+               %unpack(CHAR,hugs_pop(),$1[ppindex]);
+	    }
+	}
+
+{%
+static Void XSpack_PString(ppArray)
+CHAR *ppArray;
+{
+    int ppSize;
+    for (ppSize = 0; !(('\0' == ppArray[ppSize])); ppSize++) {}
+    hugsNIL;
+    while (--ppSize >= 0) {
+        %pack(CHAR,ppArray[ppSize]);;
+        hugsCONS;
+        hugsAP;
+        hugsAP;
+    }
+}
+%}
+%pack : PString 
+XSpack_PString($0);
+
+{{%
+type PString = String -- "persistent" string needs to be explicitly freed
+%}}
+
+################################################################
+# Pointer types
+################################################################
+
+# This little wrapper function should be the only place where a
+# dubious int<->pointer conversion occurs.
+#
+# Q (SOF): a candidate for inclusion in rheap.c + dllexport it?
+# A (ADR): yes - once we get the STG stuff in place
+
+{{%
+-- Note: we do not consider NULL to be a valid pointer value.
+-- Anything that requires a NULL pointer of type "T" should be
+-- modified to require a "Maybe T" and an appropriate "Maybe"
+-- declaration defined.
+newtype Ptr = Ptr Int deriving (Eq)
+
+unPtr :: Ptr -> Int
+unPtr (Ptr i) = i
+
+plusPtr  :: Ptr -> Int -> Ptr
+plusPtr  p x = Ptr (unPtr p + x)
+
+minusPtr :: Ptr -> Ptr -> Int
+minusPtr p q = unPtr p - unPtr q
+%}}
+
+{%
+typedef void* Ptr;
+
+static Void local mkPtr Args((Ptr));
+static Void local mkPtr(n)
+Ptr n; {
+    hugs_push(hugs->makeInt((Int) n));
+}
+
+#define hugs_whnfPtr ((void*) hugs_whnfInt)
+%}
+
+%type : Ptr : Ptr $0 : mkPtr((Ptr)$0); : hugs->eval($0); $1=(Ptr)hugs_whnfPtr
+
+################################################################
+# The type synonym hack
+################################################################
+
+{{%
+-- This is used in restricted type synonyms where there are no
+-- Haskell functions which need to "look inside the representation".
+-- It overcomes a (normally reasonable) restriction that the type be
+-- "open" in a non-empty list of variables.
+rtsDummy = error "rtsDummy"
+%}}
+
+
+################################################################
+# Types of particular sizes
+################################################################
+
+# ToDo: pay more attention to signed vs unsigned types
+# and type sizes.
+
+# ToDo: think hard about whether Int8 and friends should
+# be abstract, should be members of Num, etc.
+
+# Note: Haskell standard only requires 29 bits but all compilers
+# provide 32 bits.
+
+%type : Word8 : %declare(Int,$0);% : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+{%
+typedef Int Word8;
+%}
+{{%
+type Word8 = Int
+%}}
+
+%type : Word16 : %declare(Int,$0);% : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+{%
+typedef Int Word16;
+%}
+{{%
+type Word16 = Int
+%}}
+
+# This was causing lots of type warnings - so I macro-expanded and
+# hand-patched the result.
+# %synonym : Word32 : Int
+{{%
+type Word32 = Int
+%}}
+{%
+typedef unsigned long Word32;
+%}
+%type : Word32 : Word32 $0 : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+
+# This was causing lots of type warnings - so I macro-expanded and
+# hand-patched the result.
+# %synonym : Word32 : Int
+{{%
+type Word = Int
+%}}
+{%
+typedef unsigned int Word;
+%}
+%type : Word : Word $0 : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+
+%type : Int8 : %declare(Int,$0);% : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+{%
+typedef Int Int8;
+%}
+{{%
+type Int8 = Int
+%}}
+
+%type : Int16 : %declare(Int,$0);% : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+{%
+typedef Int Int16;
+%}
+{{%
+type Int16 = Int
+%}}
+
+%type : Int32 : %declare(Int,$0);% : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+{%
+typedef Int Int32;
+%}
+{{%
+type Int32 = Int
+%}}
+
+# NB: This hack can't be expected to work for genuinely large Ints.
+%type : Int64 : %declare(Int,$0);% : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+{%
+typedef Int Int64;
+%}
+{{%
+type Int64 = Int
+%}}
+
+# NB: This hack can't be expected to work for genuinely large Ints.
+%type : Word64 : %declare(Int,$0);% : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+{%
+typedef Int Word64;
+%}
+{{%
+type Word64 = Int
+%}}
+
+{%
+static Cell hugsRunIO Args((Cell));
+static Cell hugsRunIO(x)
+Cell x; {
+    StackPtr old_sp   = hugs_sp;
+    Cell     result   = NIL;
+    Cell     temp     = NIL;
+    hugs_push(hugs->nameIORun);
+    hugs_push(x);
+    hugsRAP;
+    temp = hugs->evalWithNoError(hugs_pop());
+    hugs_assert(isNull(temp));
+    if (hugs_whnfHead == hugs->nameRight) {
+	result = hugs_pop();
+    } else { /* Called "exit" */
+	hugs->evalFails(old_sp);
+    }
+    hugs_assert(hugs_sp == old_sp);
+    return result;
+}
+
+static Int hugsEvalInt Args((Cell));
+static Int hugsEvalInt(x)
+Cell x; {
+    StackPtr old_sp = hugs_sp;
+    Cell     temp = hugs->evalWithNoError(x);
+    hugs_assert(isNull(temp));
+#if 0
+    hugs_assert(isInt(whnfHead)); /* Foo - gets confused by CAFs */
+#endif
+    hugs_assert(hugs_sp == old_sp);
+    return hugs_whnfInt;
+}
+
+static Bool hugsEvalBool Args((Cell));
+static Bool hugsEvalBool(x)
+Cell x; {
+    StackPtr old_sp = hugs_sp;
+    Cell     temp = hugs->evalWithNoError(x);
+    hugs_assert(isNull(temp));
+    hugs_assert(hugs_whnfHead == hugs->nameTrue
+                || hugs_whnfHead == hugs->nameFalse
+                );
+    hugs_assert(hugs_sp == old_sp);
+    return hugs_whnfInt;
+}
+%}
+################################################################
+# Machine independent types for Win32
+#
+# Copyright (c) The University of Nottingham and Yale University, 1994-1997.
+# All rights reserved. See NOTICE for details and conditions of use etc...
+# Hugs version 1.4, March 1997
+#
+# $RCSfile: WinPlatform.ss,v $
+# $Revision: 1.5 $
+# $Date: 1997/03/17 18:40:59 $
+################################################################
+
+# ToDo: try to eliminate all use of these types
+
+# The following mappings apply for the 32-bit Borland C compiler.
+# Under the 16-bit compiler, UINT and INT should be Word16 and Int16
+# respectively.
+
+# ToDo: is this definition portable?
+%type : FLOAT : %declare(Float,$0);% : %pack(Float,$0);% : %unpack(Float,$0,$1);%
+{{%
+type FLOAT = Float
+%}}
+
+%type : BYTE : %declare(Word8,$0);% : %pack(Word8,$0);% : %unpack(Word8,$0,$1);%
+{{%
+type BYTE = Word8
+%}}
+%type : USHORT : %declare(Word16,$0);% : %pack(Word16,$0);% : %unpack(Word16,$0,$1);%
+{{%
+type USHORT = Word16
+%}}
+%type : UINT : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+type UINT = Word32
+%}}
+%type : INT : %declare(Int32,$0);% : %pack(Int32,$0);% : %unpack(Int32,$0,$1);%
+{{%
+type INT = Int32
+%}}
+%type : WORD : %declare(Word16,$0);% : %pack(Word16,$0);% : %unpack(Word16,$0,$1);%
+{{%
+type WORD = Word16
+%}}
+%type : DWORD : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+type DWORD = Word32
+%}}
+%type : LONG : %declare(Int32,$0);% : %pack(Int32,$0);% : %unpack(Int32,$0,$1);%
+{{%
+type LONG = Int32
+%}}
+%type : ATOM : %declare(UINT,$0);% : %pack(UINT,$0);% : %unpack(UINT,$0,$1);%
+{{%
+type ATOM = UINT
+%}}
+%type : WPARAM : %declare(UINT,$0);% : %pack(UINT,$0);% : %unpack(UINT,$0,$1);%
+{{%
+type WPARAM = UINT
+%}}
+%type : LPARAM : %declare(LONG,$0);% : %pack(LONG,$0);% : %unpack(LONG,$0,$1);%
+{{%
+type LPARAM = LONG
+%}}
+%type : LRESULT : %declare(LONG,$0);% : %pack(LONG,$0);% : %unpack(LONG,$0,$1);%
+{{%
+type LRESULT = LONG
+%}}
+%type : LPVOID : %declare(Ptr,$0);% : %pack(Ptr,$0);% : %unpack(Ptr,$0,$1);%
+{{%
+type LPVOID = Ptr
+%}}
+%type : LPBYTE : %declare(Ptr,$0);% : %pack(Ptr,$0);% : %unpack(Ptr,$0,$1);%
+{{%
+type LPBYTE = Ptr
+%}}
+
+%unpack : MbString : %declare(String,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(String,hugs_pop(),$1); 
+ } else {
+     $1 = (String) 0;
+ }
+
+%pack : MbString
+  if ($0) { %pack(String,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef String MbString;
+%}
+{{%
+type MbString = Maybe String
+%}}
+%unpack : MbINT : %declare(INT,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(INT,hugs_pop(),$1); 
+ } else {
+     $1 = (INT)    0;
+ }
+
+%pack : MbINT
+  if ($0) { %pack(INT,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef INT MbINT;
+%}
+{{%
+type MbINT = Maybe INT
+%}}
+%unpack : MbFLOAT : %declare(FLOAT,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(FLOAT,hugs_pop(),$1); 
+ } else {
+     $1 = (FLOAT)  0;
+ }
+
+%pack : MbFLOAT
+  if ($0) { %pack(FLOAT,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef FLOAT MbFLOAT;
+%}
+{{%
+type MbFLOAT = Maybe FLOAT
+%}}
+%unpack : MbLPVOID : %declare(LPVOID,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(LPVOID,hugs_pop(),$1); 
+ } else {
+     $1 = (LPVOID) 0;
+ }
+
+%pack : MbLPVOID
+  if ($0) { %pack(LPVOID,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef LPVOID MbLPVOID;
+%}
+{{%
+type MbLPVOID = Maybe LPVOID
+%}}
+%unpack : MbDWORD : %declare(DWORD,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(DWORD,hugs_pop(),$1); 
+ } else {
+     $1 = (DWORD)  0;
+ }
+
+%pack : MbDWORD
+  if ($0) { %pack(DWORD,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef DWORD MbDWORD;
+%}
+{{%
+type MbDWORD = Maybe DWORD
+%}}
+
+%unpack : ListINT : int $0_size; INT* $0
+	{  int ppindex; 
+	    hugs->eval($0);
+	    for (ppindex = 0; hugs_whnfHead == hugs->nameCons; ++ppindex) {
+		Cell ppHead = hugs_pop(); 
+		Cell ppTail = hugs_pop(); 
+		hugs_push(ppHead);
+	        hugs->eval(ppTail);
+	    }
+           $1_size = ppindex; $1 = (INT *) alloca(ppindex * sizeof(INT)); if (!$1) { %fail(); }
+	    while (--ppindex >= 0) {
+               %unpack(INT,hugs_pop(),$1[ppindex]);
+	    }
+	}
+
+{%
+static Void XSpack_ListINT(ppArray, ppSize)
+INT *ppArray;
+Int       ppSize;
+{
+    hugsNIL;
+    while (--ppSize >= 0) {
+        %pack(INT,ppArray[ppSize]);
+        hugsCONS;
+        hugsAP;
+        hugsAP;
+    }
+}
+%}
+%pack : ListINT 
+XSpack_ListINT($0,$0_size);
+
+%unpack : ListFLOAT : int $0_size; FLOAT* $0
+	{  int ppindex; 
+	    hugs->eval($0);
+	    for (ppindex = 0; hugs_whnfHead == hugs->nameCons; ++ppindex) {
+		Cell ppHead = hugs_pop(); 
+		Cell ppTail = hugs_pop(); 
+		hugs_push(ppHead);
+	        hugs->eval(ppTail);
+	    }
+           $1_size = ppindex; $1 = (FLOAT *) alloca(ppindex * sizeof(FLOAT)); if (!$1) { %fail(); }
+	    while (--ppindex >= 0) {
+               %unpack(FLOAT,hugs_pop(),$1[ppindex]);
+	    }
+	}
+
+{%
+static Void XSpack_ListFLOAT(ppArray, ppSize)
+FLOAT *ppArray;
+Int       ppSize;
+{
+    hugsNIL;
+    while (--ppSize >= 0) {
+        %pack(FLOAT,ppArray[ppSize]);
+        hugsCONS;
+        hugsAP;
+        hugsAP;
+    }
+}
+%}
+%pack : ListFLOAT 
+XSpack_ListFLOAT($0,$0_size);
+
+{{%
+type ListINT   = [INT]
+type ListFLOAT = [FLOAT]
+%}}
+
+# We have much less use for the other pointer types - so we don't
+# have as rich a set of operations on them.
+
+%type : NearPtr : NearPtr $0 : %pack(Ptr,$0); : %unpack(Ptr,$0,$1)
+%type : FarPtr  : FarPtr  $0 : %pack(Ptr,$0); : %unpack(Ptr,$0,$1)
+{{%
+newtype NearPtr = NearPtr Ptr deriving (Eq)
+newtype FarPtr  = FarPtr  Ptr deriving (Eq)
+%}}
+{%
+typedef void near* NearPtr;
+typedef void far*  FarPtr;
+%}
+
+
+
+################################################################
+# Win32 Handles
+#
+# Copyright (c) The University of Nottingham and Yale University, 1994-1997.
+# All rights reserved. See NOTICE for details and conditions of use etc...
+# Hugs version 1.4, March 1997
+#
+# $RCSfile: Handles.ss,v $
+# $Revision: 1.5 $
+# $Date: 1997/03/17 18:40:48 $
+################################################################
+
+# ToDo: handles are excellent candidates for weak pointers.
+
+%type : HACCEL : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HACCEL = HACCEL NearPtr deriving (Eq)
+%}}
+%type : HBITMAP : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HBITMAP = HBITMAP NearPtr deriving (Eq)
+%}}
+%type : HBRUSH : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HBRUSH = HBRUSH NearPtr deriving (Eq)
+%}}
+%type : HCURSOR : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HCURSOR = HCURSOR NearPtr deriving (Eq)
+%}}
+%type : HDC : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HDC = HDC NearPtr deriving (Eq)
+%}}
+%type : HDRVR : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HDRVR = HDRVR NearPtr deriving (Eq)
+%}}
+%type : HDWP : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HDWP = HDWP NearPtr deriving (Eq)
+%}}
+%type : HFONT : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HFONT = HFONT NearPtr deriving (Eq)
+%}}
+%type : HGDIOBJ : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HGDIOBJ = HGDIOBJ NearPtr deriving (Eq)
+%}}
+%type : HMENU : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HMENU = HMENU NearPtr deriving (Eq)
+%}}
+%type : HMETAFILE : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HMETAFILE = HMETAFILE NearPtr deriving (Eq)
+%}}
+%type : HPALETTE : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HPALETTE = HPALETTE NearPtr deriving (Eq)
+%}}
+%type : HPEN : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HPEN = HPEN NearPtr deriving (Eq)
+%}}
+%type : HRGN : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HRGN = HRGN NearPtr deriving (Eq)
+%}}
+%type : HRSRC : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HRSRC = HRSRC NearPtr deriving (Eq)
+%}}
+%type : HSTR : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HSTR = HSTR NearPtr deriving (Eq)
+%}}
+%type : HTASK : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HTASK = HTASK NearPtr deriving (Eq)
+%}}
+%type : HWND : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HWND = HWND NearPtr deriving (Eq)
+%}}
+%type : HICON : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HICON = HICON NearPtr deriving (Eq)
+%}}
+%type : HINSTANCE : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HINSTANCE = HINSTANCE NearPtr deriving (Eq)
+%}}
+%type : HANDLE : %declare(NearPtr,$0);% : %pack(NearPtr,$0);% : %unpack(NearPtr,$0,$1);%
+{{%
+newtype HANDLE = HANDLE NearPtr deriving (Eq)
+%}}
+
+%type : HMODULE : %declare(HINSTANCE,$0);% : %pack(HINSTANCE,$0);% : %unpack(HINSTANCE,$0,$1);%
+{{%
+type HMODULE = HINSTANCE
+%}}
+
+%unpack : MbHDC : %declare(HDC,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HDC,hugs_pop(),$1); 
+ } else {
+     $1 = (HDC)       0;
+ }
+
+%pack : MbHDC
+  if ($0) { %pack(HDC,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HDC MbHDC;
+%}
+{{%
+type MbHDC = Maybe HDC
+%}}
+%unpack : MbHWND : %declare(HWND,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HWND,hugs_pop(),$1); 
+ } else {
+     $1 = (HWND)      0;
+ }
+
+%pack : MbHWND
+  if ($0) { %pack(HWND,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HWND MbHWND;
+%}
+{{%
+type MbHWND = Maybe HWND
+%}}
+%unpack : MbHMENU : %declare(HMENU,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HMENU,hugs_pop(),$1); 
+ } else {
+     $1 = (HMENU)     0;
+ }
+
+%pack : MbHMENU
+  if ($0) { %pack(HMENU,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HMENU MbHMENU;
+%}
+{{%
+type MbHMENU = Maybe HMENU
+%}}
+%unpack : MbHINSTANCE : %declare(HINSTANCE,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HINSTANCE,hugs_pop(),$1); 
+ } else {
+     $1 = (HINSTANCE) 0;
+ }
+
+%pack : MbHINSTANCE
+  if ($0) { %pack(HINSTANCE,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HINSTANCE MbHINSTANCE;
+%}
+{{%
+type MbHINSTANCE = Maybe HINSTANCE
+%}}
+%unpack : MbHMODULE : %declare(HMODULE,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HMODULE,hugs_pop(),$1); 
+ } else {
+     $1 = (HMODULE)   0;
+ }
+
+%pack : MbHMODULE
+  if ($0) { %pack(HMODULE,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HMODULE MbHMODULE;
+%}
+{{%
+type MbHMODULE = Maybe HMODULE
+%}}
+%unpack : MbHFONT : %declare(HFONT,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HFONT,hugs_pop(),$1); 
+ } else {
+     $1 = (HFONT)     0;
+ }
+
+%pack : MbHFONT
+  if ($0) { %pack(HFONT,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HFONT MbHFONT;
+%}
+{{%
+type MbHFONT = Maybe HFONT
+%}}
+%unpack : MbHPEN : %declare(HPEN,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HPEN,hugs_pop(),$1); 
+ } else {
+     $1 = (HPEN)      0;
+ }
+
+%pack : MbHPEN
+  if ($0) { %pack(HPEN,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HPEN MbHPEN;
+%}
+{{%
+type MbHPEN = Maybe HPEN
+%}}
+%unpack : MbHPALETTE : %declare(HPALETTE,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HPALETTE,hugs_pop(),$1); 
+ } else {
+     $1 = (HPALETTE)  0;
+ }
+
+%pack : MbHPALETTE
+  if ($0) { %pack(HPALETTE,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HPALETTE MbHPALETTE;
+%}
+{{%
+type MbHPALETTE = Maybe HPALETTE
+%}}
+%unpack : MbHICON : %declare(HICON,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HICON,hugs_pop(),$1); 
+ } else {
+     $1 = (HICON)     0;
+ }
+
+%pack : MbHICON
+  if ($0) { %pack(HICON,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HICON MbHICON;
+%}
+{{%
+type MbHICON = Maybe HICON
+%}}
+%unpack : MbHCURSOR : %declare(HCURSOR,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HCURSOR,hugs_pop(),$1); 
+ } else {
+     $1 = (HCURSOR)   0;
+ }
+
+%pack : MbHCURSOR
+  if ($0) { %pack(HCURSOR,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HCURSOR MbHCURSOR;
+%}
+{{%
+type MbHCURSOR = Maybe HCURSOR
+%}}
+%unpack : MbHBRUSH : %declare(HBRUSH,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HBRUSH,hugs_pop(),$1); 
+ } else {
+     $1 = (HBRUSH)    0;
+ }
+
+%pack : MbHBRUSH
+  if ($0) { %pack(HBRUSH,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HBRUSH MbHBRUSH;
+%}
+{{%
+type MbHBRUSH = Maybe HBRUSH
+%}}
+%unpack : MbHBITMAP : %declare(HBITMAP,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HBITMAP,hugs_pop(),$1); 
+ } else {
+     $1 = (HBITMAP)   0;
+ }
+
+%pack : MbHBITMAP
+  if ($0) { %pack(HBITMAP,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HBITMAP MbHBITMAP;
+%}
+{{%
+type MbHBITMAP = Maybe HBITMAP
+%}}
+%unpack : MbHRGN : %declare(HRGN,$0);%
+ hugs->eval($0); 
+ if (hugs_whnfHead == hugs->nameJust) { 
+     %unpack(HRGN,hugs_pop(),$1); 
+ } else {
+     $1 = (HRGN)      0;
+ }
+
+%pack : MbHRGN
+  if ($0) { %pack(HRGN,$0); hugsJUST; hugsAP; } else { hugsNOTHING; }
+
+{%
+typedef HRGN MbHRGN;
+%}
+{{%
+type MbHRGN = Maybe HRGN
+%}}
+
+
+
+# These defs extracted from Windows, instead of %include'ing it.
+
+%type : COLORREF : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype COLORREF = COLORREF Word32 deriving ()
+%}}
+
+%struct : SIZE : SIZE $0
+    LONG : cx
+    LONG : cy
+
+{{%
+-}
+%}}
+
+
+{%
+#include "SpriteLib.h"
+%}
+
+%asm XS_OpenSpriteLib :: IO ()
+{
+{
+	OpenSpriteLib();
+	%return();
+}}
+
+{{%
+primitive openSpriteLib "XS_OpenSpriteLib" :: IO ()
+%}}
+%asm XS_CloseSpriteLib :: IO ()
+{
+{
+	CloseSpriteLib();
+	%return();
+}}
+
+{{%
+primitive closeSpriteLib "XS_CloseSpriteLib" :: IO ()
+%}}
+
+# For improving the resolution of timeGetTime under NT.  Minimum of 5.
+%asm XS_SetTimerResolutionMS :: Int -> IO ()
+{
+	%declare(Int,pparg0);
+	%getArg(0,pparg0);
+{
+	SetTimerResolutionMS(pparg0);
+	%return();
+}}
+
+{{%
+primitive setTimerResolutionMS "XS_SetTimerResolutionMS" :: Int -> IO ()
+%}}
+
+
+{%
+#include "VBlankHandler.h"
+%}
+
+
+# Goal period for vertical blank activities, in milliseconds.  Of course,
+# it should really be the vertical blank.  If negative, use
+# WaitForVerticalBlank, which is implemented very badly (by spinning!!) in
+# current DirectDraw (as of 4/97).  Goes with SetTimerResolutionMS above.
+# On NT, with a timer resolution of 10 ms, the following number will be
+# rounded up to a multiple of 10, or with a resolution of 5 (minimum),
+# then one more than the number will be rounded up to a multiple of 5.
+{{%
+primitive get_vblankPeriodMS "XSget_vblankPeriodMS" :: IO Int
+primitive set_vblankPeriodMS "XSset_vblankPeriodMS" :: Int -> IO ()
+%}}
+
+%asm XSget_vblankPeriodMS :: IO Int
+{
+    %return(vblankPeriodMS);
+}
+
+%asm XSset_vblankPeriodMS :: Int -> IO ()
+{
+    %getArg(0,vblankPeriodMS);
+    %return();
+}
+
+
+# Priority of the vblank handler thread.
+
+%type : ThreadPriority : %declare(Int,$0);% : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+{%
+typedef Int ThreadPriority;
+%}
+{{%
+type ThreadPriority = Int
+%}}
+
+{{%
+threadPriorityIdle :: ThreadPriority
+threadPriorityIdle = consts_ThreadPriority 0
+%}}
+{{%
+threadPriorityLowest :: ThreadPriority
+threadPriorityLowest = consts_ThreadPriority 1
+%}}
+{{%
+threadPriorityBelowNormal :: ThreadPriority
+threadPriorityBelowNormal = consts_ThreadPriority 2
+%}}
+{{%
+threadPriorityNormal :: ThreadPriority
+threadPriorityNormal = consts_ThreadPriority 3
+%}}
+{{%
+threadPriorityAboveNormal :: ThreadPriority
+threadPriorityAboveNormal = consts_ThreadPriority 4
+%}}
+{{%
+threadPriorityHighest :: ThreadPriority
+threadPriorityHighest = consts_ThreadPriority 5
+%}}
+{{%
+threadPriorityTimeCritical :: ThreadPriority
+threadPriorityTimeCritical = consts_ThreadPriority 6
+%}}
+
+%asm XS_SetVblankThreadPriority :: ThreadPriority -> IO ()
+{
+	%declare(ThreadPriority,pparg0);
+	%getArg(0,pparg0);
+{
+	SetVblankThreadPriority(pparg0);
+	%return();
+}}
+
+{{%
+primitive setVblankThreadPriority "XS_SetVblankThreadPriority" :: ThreadPriority -> IO ()
+%}}
+
+
+{%
+#include "Behavior.h"
+%}
+%type : SpriteTime : %declare(Double,$0);% : %pack(Double,$0);% : %unpack(Double,$0,$1);%
+{{%
+type SpriteTime = Double
+%}}
+
+%asm XS_CurrentSpriteTime :: IO SpriteTime
+{
+{
+	%declare(SpriteTime,ppret0);
+	ppret0 = CurrentSpriteTime();
+	%return(ppret0);
+}}
+
+{{%
+primitive currentSpriteTime "XS_CurrentSpriteTime" :: IO SpriteTime
+%}}
+
+# When a behavior is updated with SetGoal(goalTime,goalVal), should the
+# sprite engine interpolate from the *current* time and value, or the
+# previous goal time and value.  Ideally, they would be the same.  Default
+# False.
+{{%
+primitive get_behaviorMakeContinuous "XSget_behaviorMakeContinuous" :: IO Bool
+primitive set_behaviorMakeContinuous "XSset_behaviorMakeContinuous" :: Bool -> IO ()
+%}}
+
+%asm XSget_behaviorMakeContinuous :: IO Bool
+{
+    %return(behaviorMakeContinuous);
+}
+
+%asm XSset_behaviorMakeContinuous :: Bool -> IO ()
+{
+    %getArg(0,behaviorMakeContinuous);
+    %return();
+}
+
+
+# When a behavior is sampled past its end, should it continue sampling
+# its linear function (true) or stop (false)?  Default False.
+{{%
+primitive get_behaviorSamplePastGoal "XSget_behaviorSamplePastGoal" :: IO Bool
+primitive set_behaviorSamplePastGoal "XSset_behaviorSamplePastGoal" :: Bool -> IO ()
+%}}
+
+%asm XSget_behaviorSamplePastGoal :: IO Bool
+{
+    %return(behaviorSamplePastGoal);
+}
+
+%asm XSset_behaviorSamplePastGoal :: Bool -> IO ()
+{
+    %getArg(0,behaviorSamplePastGoal);
+    %return();
+}
+
+
+
+{%
+#include "d3drm.h"  // for D3DRMLIGHTTYPE, and D3DCOLOR
+#include "ddhelp.h"
+%}
+
+{{%
+primitive get_ddhelpTimeTrace "XSget_ddhelpTimeTrace" :: IO Bool
+primitive set_ddhelpTimeTrace "XSset_ddhelpTimeTrace" :: Bool -> IO ()
+%}}
+
+%asm XSget_ddhelpTimeTrace :: IO Bool
+{
+    %return(ddhelpTimeTrace);
+}
+
+%asm XSset_ddhelpTimeTrace :: Bool -> IO ()
+{
+    %getArg(0,ddhelpTimeTrace);
+    %return();
+}
+
+
+%type : HDDSurface : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HDDSurface = HDDSurface Word32 deriving ()
+%}}
+%constructor NullHDDSurface    :: IOError
+%error : NullHDDSurface : HDDSurface $0 : !($0) : %constructor(NullHDDSurface);
+
+
+%type : HDSBuffer : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HDSBuffer = HDSBuffer Word32 deriving ()
+%}}
+%constructor NullHDSBuffer    :: IOError
+%error : NullHDSBuffer : HDSBuffer $0 : !($0) : %constructor(NullHDSBuffer);
+
+
+%type : HMeshBuilder : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HMeshBuilder = HMeshBuilder Word32 deriving ()
+%}}
+%constructor NullHMeshBuilder    :: IOError
+%error : NullHMeshBuilder : HMeshBuilder $0 : !($0) : %constructor(NullHMeshBuilder);
+
+%type : HLight : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HLight = HLight Word32 deriving ()
+%}}
+# %constructor NullHLight    :: IOError
+# %error : NullHLight : HLight $0 : !($0) : %constructor(NullHLight);
+
+%type : HFrame : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HFrame = HFrame Word32 deriving ()
+%}}
+# %constructor NullHFrame    :: IOError
+# %error : NullHFrame : HFrame $0 : !($0) : %constructor(NullHFrame);
+
+
+{{%
+primitive get_g_pScratchSurf "XSget_g_pScratchSurf" :: IO HDDSurface
+primitive set_g_pScratchSurf "XSset_g_pScratchSurf" :: HDDSurface -> IO ()
+%}}
+
+%asm XSget_g_pScratchSurf :: IO HDDSurface
+{
+    %return(g_pScratchSurf);
+}
+
+%asm XSset_g_pScratchSurf :: HDDSurface -> IO ()
+{
+    %getArg(0,g_pScratchSurf);
+    %return();
+}
+
+
+%asm XS_GetDDrawHDC :: HDDSurface -> IO HDC
+{
+	%declare(HDDSurface,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HDC,ppret0);
+	ppret0 = GetDDrawHDC(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive getDDrawHDC "XS_GetDDrawHDC" :: HDDSurface -> IO HDC
+%}}
+%asm XS_ReleaseDDrawHDC :: HDDSurface -> HDC -> IO ()
+{
+	%declare(HDDSurface,pparg0);
+	%declare(HDC,pparg1);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+{
+	ReleaseDDrawHDC(pparg0,pparg1);
+	%return();
+}}
+
+{{%
+primitive releaseDDrawHDC "XS_ReleaseDDrawHDC" :: HDDSurface -> HDC -> IO ()
+%}}
+
+%asm XS_clearDDSurface :: HDDSurface -> COLORREF -> IO ()
+{
+	%declare(HDDSurface,pparg0);
+	%declare(COLORREF,pparg1);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+{
+	clearDDSurface(pparg0,pparg1);
+	%return();
+}}
+
+{{%
+primitive clearDDSurface "XS_clearDDSurface" :: HDDSurface -> COLORREF -> IO ()
+%}}
+
+%asm XS_newPlainDDrawSurface :: Int -> Int -> COLORREF -> IO HDDSurface
+{
+	%declare(Int,pparg0);
+	%declare(Int,pparg1);
+	%declare(COLORREF,pparg2);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+{
+	%declare(HDDSurface,ppret0);
+	ppret0 = newPlainDDrawSurface(pparg0,pparg1,pparg2);
+	%return(ppret0);
+}}
+
+{{%
+primitive newPlainDDrawSurface "XS_newPlainDDrawSurface" :: Int -> Int -> COLORREF -> IO HDDSurface
+%}}
+# For testing, but phase out
+# %fun textDDSurface :: String -> COLORREF -> HDDSurface
+
+%asm XS_GetDDSurfaceSize :: HDDSurface -> SIZE
+{
+	%declare(HDDSurface,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(SIZE,ppret0);
+	ppret0 = GetDDSurfaceSize(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive getDDSurfaceSize "XS_GetDDSurfaceSize" :: HDDSurface -> SIZE
+%}}
+
+{{%
+-- Try loading a media file
+tryLoadingDX :: (String -> IO a) -> (String -> a)
+tryLoadingDX loader fileName = unsafePerformIO $
+ loader fileName `catch` \_ ->
+   return (error ("Could not open " ++ fileName))
+%}}
+
+%asm XS_newBitmapDDSurface :: String -> IO HDDSurface
+{
+	%declare(String,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HDDSurface,ppret0);
+	ppret0 = newBitmapDDSurface(pparg0);
+	%errreturn(NullHDDSurface,ppret0,ppret0);
+}}
+
+{{%
+primitive newBitmapDDSurface "XS_newBitmapDDSurface" :: String -> IO HDDSurface
+%}}
+{{%
+bitmapDDSurface = tryLoadingDX newBitmapDDSurface
+%}}
+
+%asm XS_newWaveDSBuffer :: String -> IO HDSBuffer
+{
+	%declare(String,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HDSBuffer,ppret0);
+	ppret0 = newWaveDSBuffer(pparg0);
+	%errreturn(NullHDSBuffer,ppret0,ppret0);
+}}
+
+{{%
+primitive newWaveDSBuffer "XS_newWaveDSBuffer" :: String -> IO HDSBuffer
+%}}
+{{%
+waveDSBuffer = tryLoadingDX newWaveDSBuffer
+%}}
+
+%asm XS_newMeshBuilder :: String -> IO HMeshBuilder
+{
+	%declare(String,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HMeshBuilder,ppret0);
+	ppret0 = newMeshBuilder(pparg0);
+	%errreturn(NullHMeshBuilder,ppret0,ppret0);
+}}
+
+{{%
+primitive newMeshBuilder "XS_newMeshBuilder" :: String -> IO HMeshBuilder
+%}}
+{{%
+meshBuilder = tryLoadingDX newMeshBuilder
+%}}
+
+%type : D3DColor : %declare(DWORD,$0);% : %pack(DWORD,$0);% : %unpack(DWORD,$0,$1);%
+{%
+typedef DWORD D3DColor;
+%}
+{{%
+type D3DColor = DWORD
+%}}
+
+%asm XS_CreateColorRGB :: Double -> Double -> Double -> D3DColor
+{
+	%declare(Double,pparg0);
+	%declare(Double,pparg1);
+	%declare(Double,pparg2);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+{
+	%declare(D3DColor,ppret0);
+	ppret0 = CreateColorRGB(pparg0,pparg1,pparg2);
+	%return(ppret0);
+}}
+
+{{%
+primitive createColorRGB "XS_CreateColorRGB" :: Double -> Double -> Double -> D3DColor
+%}}
+
+%type : LightType : %declare(Int,$0);% : %pack(Int,$0);% : %unpack(Int,$0,$1);%
+{%
+typedef Int LightType;
+%}
+{{%
+type LightType = Int
+%}}
+
+{{%
+ambientLight :: LightType
+ambientLight = consts_LightType 0
+%}}
+{{%
+pointLight :: LightType
+pointLight = consts_LightType 1
+%}}
+{{%
+spotLight :: LightType
+spotLight = consts_LightType 2
+%}}
+{{%
+directionalLight :: LightType
+directionalLight = consts_LightType 3
+%}}
+{{%
+parallelPointLight :: LightType
+parallelPointLight = consts_LightType 4
+%}}
+
+%asm XS_newHLight :: HFrame -> LightType -> IO HLight
+{
+	%declare(HFrame,pparg0);
+	%declare(LightType,pparg1);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+{
+	%declare(HLight,ppret0);
+	ppret0 = newHLight(pparg0,pparg1);
+	%return(ppret0);
+}}
+
+{{%
+primitive newHLight "XS_newHLight" :: HFrame -> LightType -> IO HLight
+%}}
+%asm XS_HLightSetColor :: HLight -> D3DColor -> IO ()
+{
+	%declare(HLight,pparg0);
+	%declare(D3DColor,pparg1);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+{
+	HLightSetColor(pparg0,pparg1);
+	%return();
+}}
+
+{{%
+primitive hLightSetColor "XS_HLightSetColor" :: HLight -> D3DColor -> IO ()
+%}}
+
+%asm XS_newHFrame :: HFrame -> IO HFrame
+{
+	%declare(HFrame,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HFrame,ppret0);
+	ppret0 = newHFrame(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive newHFrame "XS_newHFrame" :: HFrame -> IO HFrame
+%}}
+%asm XS_newScene :: IO HFrame
+{
+{
+	%declare(HFrame,ppret0);
+	ppret0 = newScene();
+	%return(ppret0);
+}}
+
+{{%
+primitive newScene "XS_newScene" :: IO HFrame
+%}}
+%asm XS_HFrameAddMeshBuilder :: HFrame -> HMeshBuilder -> IO ()
+{
+	%declare(HFrame,pparg0);
+	%declare(HMeshBuilder,pparg1);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+{
+	HFrameAddMeshBuilder(pparg0,pparg1);
+	%return();
+}}
+
+{{%
+primitive hFrameAddMeshBuilder "XS_HFrameAddMeshBuilder" :: HFrame -> HMeshBuilder -> IO ()
+%}}
+%asm XS_HFrameSetColor :: HFrame -> D3DColor -> IO ()
+{
+	%declare(HFrame,pparg0);
+	%declare(D3DColor,pparg1);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+{
+	HFrameSetColor(pparg0,pparg1);
+	%return();
+}}
+
+{{%
+primitive hFrameSetColor "XS_HFrameSetColor" :: HFrame -> D3DColor -> IO ()
+%}}
+
+%asm XS_HFrameClearTransform :: HFrame -> IO ()
+{
+	%declare(HFrame,pparg0);
+	%getArg(0,pparg0);
+{
+	HFrameClearTransform(pparg0);
+	%return();
+}}
+
+{{%
+primitive hFrameClearTransform "XS_HFrameClearTransform" :: HFrame -> IO ()
+%}}
+%asm XS_HFrameRotate :: HFrame -> Double -> Double -> Double -> Double -> IO ()
+{
+	%declare(HFrame,pparg0);
+	%declare(Double,pparg1);
+	%declare(Double,pparg2);
+	%declare(Double,pparg3);
+	%declare(Double,pparg4);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+	%getArg(4,pparg4);
+{
+	HFrameRotate(pparg0,pparg1,pparg2,pparg3,pparg4);
+	%return();
+}}
+
+{{%
+primitive hFrameRotate "XS_HFrameRotate" :: HFrame -> Double -> Double -> Double -> Double -> IO ()
+%}}
+%asm XS_HFrameScale :: HFrame -> Double -> Double -> Double -> IO ()
+{
+	%declare(HFrame,pparg0);
+	%declare(Double,pparg1);
+	%declare(Double,pparg2);
+	%declare(Double,pparg3);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+{
+	HFrameScale(pparg0,pparg1,pparg2,pparg3);
+	%return();
+}}
+
+{{%
+primitive hFrameScale "XS_HFrameScale" :: HFrame -> Double -> Double -> Double -> IO ()
+%}}
+%asm XS_HFrameTranslate :: HFrame -> Double -> Double -> Double -> IO ()
+{
+	%declare(HFrame,pparg0);
+	%declare(Double,pparg1);
+	%declare(Double,pparg2);
+	%declare(Double,pparg3);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+{
+	HFrameTranslate(pparg0,pparg1,pparg2,pparg3);
+	%return();
+}}
+
+{{%
+primitive hFrameTranslate "XS_HFrameTranslate" :: HFrame -> Double -> Double -> Double -> IO ()
+%}}
+
+%asm XS_renderGeometrySurf :: HFrame -> HFrame -> Double -> IO HDDSurface
+{
+	%declare(HFrame,pparg0);
+	%declare(HFrame,pparg1);
+	%declare(Double,pparg2);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+{
+	%declare(HDDSurface,ppret0);
+	ppret0 = renderGeometrySurf(pparg0,pparg1,pparg2);
+	%return(ppret0);
+}}
+
+{{%
+primitive renderGeometrySurf "XS_renderGeometrySurf" :: HFrame -> HFrame -> Double -> IO HDDSurface
+%}}
+
+
+# A "renderer" of a 3D scene.  Current serious limitation: can't change
+# the scale after creation.  To do: find a way to relax this restriction
+# with tolerable efficiency.
+
+%type : HRMRenderer : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HRMRenderer = HRMRenderer Word32 deriving ()
+%}}
+
+%constructor NullHRMRenderer    :: IOError
+%error : NullHRMRenderer : HRMRenderer $0 : !($0) : %constructor(NullHRMRenderer);
+
+%asm XS_newRMRenderer :: HFrame -> HFrame -> Double -> IO HRMRenderer
+{
+	%declare(HFrame,pparg0);
+	%declare(HFrame,pparg1);
+	%declare(Double,pparg2);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+{
+	%declare(HRMRenderer,ppret0);
+	ppret0 = newRMRenderer(pparg0,pparg1,pparg2);
+	%return(ppret0);
+}}
+
+{{%
+primitive newRMRenderer "XS_newRMRenderer" :: HFrame -> HFrame -> Double -> IO HRMRenderer
+%}}
+
+%asm XS_doRMRenderer :: HRMRenderer -> IO HDDSurface
+{
+	%declare(HRMRenderer,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HDDSurface,ppret0);
+	ppret0 = doRMRenderer(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive doRMRenderer "XS_doRMRenderer" :: HRMRenderer -> IO HDDSurface
+%}}
+
+
+{%
+#include "Sprite.h"
+%}
+%type : HFlipBook : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HFlipBook = HFlipBook Word32 deriving ()
+%}}
+
+%constructor NullHFlipBook    :: IOError
+%error : NullHFlipBook : HFlipBook $0 : !($0) : %constructor(NullHFlipBook);
+
+%type : Pixels : %declare(LONG,$0);% : %pack(LONG,$0);% : %unpack(LONG,$0,$1);%
+{%
+typedef LONG Pixels;
+%}
+{{%
+type Pixels = LONG
+%}}
+
+# Arguments: surface, width and height, X,Y start pos on surface,
+# number of columns, and rows of pages
+%asm XS_newFlipBook :: HDDSurface -> Pixels -> Pixels -> Pixels -> Pixels -> Int -> Int -> IO HFlipBook
+{
+	%declare(HDDSurface,pparg0);
+	%declare(Pixels,pparg1);
+	%declare(Pixels,pparg2);
+	%declare(Pixels,pparg3);
+	%declare(Pixels,pparg4);
+	%declare(Int,pparg5);
+	%declare(Int,pparg6);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+	%getArg(4,pparg4);
+	%getArg(5,pparg5);
+	%getArg(6,pparg6);
+{
+	%declare(HFlipBook,ppret0);
+	ppret0 = newFlipBook(pparg0,pparg1,pparg2,pparg3,pparg4,pparg5,pparg6);
+	%errreturn(NullHFlipBook,ppret0,ppret0);
+}}
+
+{{%
+primitive newFlipBook "XS_newFlipBook" :: HDDSurface -> Pixels -> Pixels -> Pixels -> Pixels -> Int -> Int -> IO HFlipBook
+%}}
+%asm XS_flipBookWidth :: HFlipBook -> Int
+{
+	%declare(HFlipBook,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(Int,ppret0);
+	ppret0 = flipBookWidth(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive flipBookWidth "XS_flipBookWidth" :: HFlipBook -> Int
+%}}
+%asm XS_flipBookHeight :: HFlipBook -> Int
+{
+	%declare(HFlipBook,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(Int,ppret0);
+	ppret0 = flipBookHeight(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive flipBookHeight "XS_flipBookHeight" :: HFlipBook -> Int
+%}}
+%asm XS_flipBookPages :: HFlipBook -> Int
+{
+	%declare(HFlipBook,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(Int,ppret0);
+	ppret0 = flipBookPages(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive flipBookPages "XS_flipBookPages" :: HFlipBook -> Int
+%}}
+%asm XS_deleteFlipBook :: HFlipBook -> IO ()
+{
+	%declare(HFlipBook,pparg0);
+	%getArg(0,pparg0);
+{
+	deleteFlipBook(pparg0);
+	%return();
+}}
+
+{{%
+primitive deleteFlipBook "XS_deleteFlipBook" :: HFlipBook -> IO ()
+%}}
+
+{{%
+
+flipBook surf width height srcXFirst srcYFirst columns rows =
+  unsafePerformIO $
+  newFlipBook surf width height srcXFirst srcYFirst columns rows
+
+%}}
+
+# Sprite trees may not be NULL, but sprite chains may.
+%type : HSpriteTree : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HSpriteTree = HSpriteTree Word32 deriving ()
+%}}
+
+%type : SpriteTreeChain : %declare(HSpriteTree,$0);% : %pack(HSpriteTree,$0);% : %unpack(HSpriteTree,$0,$1);%
+{%
+typedef HSpriteTree SpriteTreeChain;
+%}
+{{%
+type SpriteTreeChain = HSpriteTree
+%}}
+
+%constructor NullHSpriteTree    :: IOError
+%error : NullHSpriteTree : HSpriteTree $0 : !($0) : %constructor(NullHSpriteTree);
+
+
+{{%
+emptySpriteTreeChain :: SpriteTreeChain
+emptySpriteTreeChain = consts_SpriteTreeChain 0
+%}}
+
+#%fun paintAndFlip :: HSpriteTree -> HDDrawEnv -> SpriteTime -> IO ()
+%asm XS_deleteSpriteTree :: HSpriteTree -> IO ()
+{
+	%declare(HSpriteTree,pparg0);
+	%getArg(0,pparg0);
+{
+	deleteSpriteTree(pparg0);
+	%return();
+}}
+
+{{%
+primitive deleteSpriteTree "XS_deleteSpriteTree" :: HSpriteTree -> IO ()
+%}}
+
+%type : HSprite : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HSprite = HSprite Word32 deriving ()
+%}}
+
+# Arguments: sprite, posX, posY, goalTime
+%asm XS_setGoalPosition :: HSprite -> Double -> Double -> SpriteTime -> IO ()
+{
+	%declare(HSprite,pparg0);
+	%declare(Double,pparg1);
+	%declare(Double,pparg2);
+	%declare(SpriteTime,pparg3);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+{
+	setGoalPosition(pparg0,pparg1,pparg2,pparg3);
+	%return();
+}}
+
+{{%
+primitive setGoalPosition "XS_setGoalPosition" :: HSprite -> Double -> Double -> SpriteTime -> IO ()
+%}}
+%asm XS_setGoalScale :: HSprite -> Double -> Double -> SpriteTime -> IO ()
+{
+	%declare(HSprite,pparg0);
+	%declare(Double,pparg1);
+	%declare(Double,pparg2);
+	%declare(SpriteTime,pparg3);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+{
+	setGoalScale(pparg0,pparg1,pparg2,pparg3);
+	%return();
+}}
+
+{{%
+primitive setGoalScale "XS_setGoalScale" :: HSprite -> Double -> Double -> SpriteTime -> IO ()
+%}}
+%asm XS_spriteToSpriteTree :: HSprite -> HSpriteTree
+{
+	%declare(HSprite,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HSpriteTree,ppret0);
+	ppret0 = spriteToSpriteTree(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive spriteToSpriteTree "XS_spriteToSpriteTree" :: HSprite -> HSpriteTree
+%}}
+
+
+%type : HFlipSprite : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HFlipSprite = HFlipSprite Word32 deriving ()
+%}}
+
+%constructor NullHFlipSprite    :: IOError
+%error : NullHFlipSprite : HFlipSprite $0 : !($0) : %constructor(NullHFlipSprite);
+
+# Arguments flip book, posX0, posY0, scaleX0, scaleY0, page0, rest
+%asm XS_newFlipSprite :: HFlipBook -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HFlipSprite
+{
+	%declare(HFlipBook,pparg0);
+	%declare(Double,pparg1);
+	%declare(Double,pparg2);
+	%declare(Double,pparg3);
+	%declare(Double,pparg4);
+	%declare(Double,pparg5);
+	%declare(SpriteTreeChain,pparg6);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+	%getArg(4,pparg4);
+	%getArg(5,pparg5);
+	%getArg(6,pparg6);
+{
+	%declare(HFlipSprite,ppret0);
+	ppret0 = newFlipSprite(pparg0,pparg1,pparg2,pparg3,pparg4,pparg5,pparg6);
+	%errreturn(NullHFlipSprite,ppret0,ppret0);
+}}
+
+{{%
+primitive newFlipSprite "XS_newFlipSprite" :: HFlipBook -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HFlipSprite
+%}}
+%asm XS_flipSpriteToSprite :: HFlipSprite -> HSprite
+{
+	%declare(HFlipSprite,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HSprite,ppret0);
+	ppret0 = flipSpriteToSprite(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive flipSpriteToSprite "XS_flipSpriteToSprite" :: HFlipSprite -> HSprite
+%}}
+# Arguments: flip sprite, goal page, goal time
+%asm XS_setGoalPage :: HFlipSprite -> Double -> SpriteTime -> IO ()
+{
+	%declare(HFlipSprite,pparg0);
+	%declare(Double,pparg1);
+	%declare(SpriteTime,pparg2);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+{
+	setGoalPage(pparg0,pparg1,pparg2);
+	%return();
+}}
+
+{{%
+primitive setGoalPage "XS_setGoalPage" :: HFlipSprite -> Double -> SpriteTime -> IO ()
+%}}
+
+
+%type : HSimpleSprite : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HSimpleSprite = HSimpleSprite Word32 deriving ()
+%}}
+
+%constructor NullHSimpleSprite    :: IOError
+%error : NullHSimpleSprite : HSimpleSprite $0 : !($0) : %constructor(NullHSimpleSprite);
+
+# Arguments surface, posX0, posY0, scaleX0, scaleY0, page0, rest
+%asm XS_newSimpleSprite :: HDDSurface -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HSimpleSprite
+{
+	%declare(HDDSurface,pparg0);
+	%declare(Double,pparg1);
+	%declare(Double,pparg2);
+	%declare(Double,pparg3);
+	%declare(Double,pparg4);
+	%declare(SpriteTreeChain,pparg5);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+	%getArg(4,pparg4);
+	%getArg(5,pparg5);
+{
+	%declare(HSimpleSprite,ppret0);
+	ppret0 = newSimpleSprite(pparg0,pparg1,pparg2,pparg3,pparg4,pparg5);
+	%errreturn(NullHSimpleSprite,ppret0,ppret0);
+}}
+
+{{%
+primitive newSimpleSprite "XS_newSimpleSprite" :: HDDSurface -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HSimpleSprite
+%}}
+%asm XS_simpleSpriteToSprite :: HSimpleSprite -> HSprite
+{
+	%declare(HSimpleSprite,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HSprite,ppret0);
+	ppret0 = simpleSpriteToSprite(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive simpleSpriteToSprite "XS_simpleSpriteToSprite" :: HSimpleSprite -> HSprite
+%}}
+%asm XS_setSurface :: HSimpleSprite -> HDDSurface -> IO ()
+{
+	%declare(HSimpleSprite,pparg0);
+	%declare(HDDSurface,pparg1);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+{
+	setSurface(pparg0,pparg1);
+	%return();
+}}
+
+{{%
+primitive setSurface "XS_setSurface" :: HSimpleSprite -> HDDSurface -> IO ()
+%}}
+
+{{%
+primitive get_MinSpriteSize "XSget_MinSpriteSize" :: IO Int
+primitive set_MinSpriteSize "XSset_MinSpriteSize" :: Int -> IO ()
+%}}
+
+%asm XSget_MinSpriteSize :: IO Int
+{
+    %return(MinSpriteSize);
+}
+
+%asm XSset_MinSpriteSize :: Int -> IO ()
+{
+    %getArg(0,MinSpriteSize);
+    %return();
+}
+
+
+
+%type : HSoundSprite : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HSoundSprite = HSoundSprite Word32 deriving ()
+%}}
+
+%constructor NullHSoundSprite    :: IOError
+%error : NullHSoundSprite : HSoundSprite $0 : !($0) : %constructor(NullHSoundSprite);
+
+# Arguments orig buffer, vol, pan, freq, rest
+%asm XS_newSoundSprite :: HDSBuffer -> Double -> Double -> Double -> SpriteTreeChain -> IO HSoundSprite
+{
+	%declare(HDSBuffer,pparg0);
+	%declare(Double,pparg1);
+	%declare(Double,pparg2);
+	%declare(Double,pparg3);
+	%declare(SpriteTreeChain,pparg4);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+	%getArg(4,pparg4);
+{
+	%declare(HSoundSprite,ppret0);
+	ppret0 = newSoundSprite(pparg0,pparg1,pparg2,pparg3,pparg4);
+	%errreturn(NullHSoundSprite,ppret0,ppret0);
+}}
+
+{{%
+primitive newSoundSprite "XS_newSoundSprite" :: HDSBuffer -> Double -> Double -> Double -> SpriteTreeChain -> IO HSoundSprite
+%}}
+%asm XS_soundSpriteToSpriteTree :: HSoundSprite -> HSpriteTree
+{
+	%declare(HSoundSprite,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HSpriteTree,ppret0);
+	ppret0 = soundSpriteToSpriteTree(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive soundSpriteToSpriteTree "XS_soundSpriteToSpriteTree" :: HSoundSprite -> HSpriteTree
+%}}
+# Update methods go here (volume, frequency)
+%asm XS_updateSoundSprite :: HSoundSprite -> SpriteTime -> Double -> Double -> Double -> IO ()
+{
+	%declare(HSoundSprite,pparg0);
+	%declare(SpriteTime,pparg1);
+	%declare(Double,pparg2);
+	%declare(Double,pparg3);
+	%declare(Double,pparg4);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+	%getArg(3,pparg3);
+	%getArg(4,pparg4);
+{
+	updateSoundSprite(pparg0,pparg1,pparg2,pparg3,pparg4);
+	%return();
+}}
+
+{{%
+primitive updateSoundSprite "XS_updateSoundSprite" :: HSoundSprite -> SpriteTime -> Double -> Double -> Double -> IO ()
+%}}
+
+
+
+%type : HSpriteGroup : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HSpriteGroup = HSpriteGroup Word32 deriving ()
+%}}
+
+%constructor NullHSpriteGroup    :: IOError
+%error : NullHSpriteGroup : HSpriteGroup $0 : !($0) : %constructor(NullHSpriteGroup);
+
+# Arguments: elements, rest
+%asm XS_newSpriteGroup :: SpriteTreeChain -> SpriteTreeChain -> IO HSpriteGroup
+{
+	%declare(SpriteTreeChain,pparg0);
+	%declare(SpriteTreeChain,pparg1);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+{
+	%declare(HSpriteGroup,ppret0);
+	ppret0 = newSpriteGroup(pparg0,pparg1);
+	%errreturn(NullHSpriteGroup,ppret0,ppret0);
+}}
+
+{{%
+primitive newSpriteGroup "XS_newSpriteGroup" :: SpriteTreeChain -> SpriteTreeChain -> IO HSpriteGroup
+%}}
+%asm XS_spriteGroupToSpriteTree :: HSpriteGroup -> HSpriteTree
+{
+	%declare(HSpriteGroup,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(HSpriteTree,ppret0);
+	ppret0 = spriteGroupToSpriteTree(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive spriteGroupToSpriteTree "XS_spriteGroupToSpriteTree" :: HSpriteGroup -> HSpriteTree
+%}}
+# Arguments: sprite group, elements, whether mutable
+%asm XS_ResetSpriteGroup :: HSpriteGroup -> SpriteTreeChain -> Bool -> IO ()
+{
+	%declare(HSpriteGroup,pparg0);
+	%declare(SpriteTreeChain,pparg1);
+	%declare(Bool,pparg2);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+	%getArg(2,pparg2);
+{
+	ResetSpriteGroup(pparg0,pparg1,pparg2);
+	%return();
+}}
+
+{{%
+primitive resetSpriteGroup "XS_ResetSpriteGroup" :: HSpriteGroup -> SpriteTreeChain -> Bool -> IO ()
+%}}
+
+
+{%
+#include "SpriteEngine.h"
+%}
+%type : HSpriteEngine : %declare(Word32,$0);% : %pack(Word32,$0);% : %unpack(Word32,$0,$1);%
+{{%
+newtype HSpriteEngine = HSpriteEngine Word32 deriving ()
+%}}
+
+%constructor NullHSpriteEngine    :: IOError
+%error : NullHSpriteEngine : HSpriteEngine $0 : !($0) : %constructor(NullHSpriteEngine);
+
+%asm XS_newSpriteEngine :: HWND -> HSpriteTree -> IO HSpriteEngine
+{
+	%declare(HWND,pparg0);
+	%declare(HSpriteTree,pparg1);
+	%getArg(0,pparg0);
+	%getArg(1,pparg1);
+{
+	%declare(HSpriteEngine,ppret0);
+	ppret0 = newSpriteEngine(pparg0,pparg1);
+	%errreturn(NullHSpriteEngine,ppret0,ppret0);
+}}
+
+{{%
+primitive newSpriteEngine "XS_newSpriteEngine" :: HWND -> HSpriteTree -> IO HSpriteEngine
+%}}
+%asm XS_onResizeSpriteEngine :: HSpriteEngine -> IO ()
+{
+	%declare(HSpriteEngine,pparg0);
+	%getArg(0,pparg0);
+{
+	onResizeSpriteEngine(pparg0);
+	%return();
+}}
+
+{{%
+primitive onResizeSpriteEngine "XS_onResizeSpriteEngine" :: HSpriteEngine -> IO ()
+%}}
+%asm XS_deleteSpriteEngine :: HSpriteEngine -> IO Int
+{
+	%declare(HSpriteEngine,pparg0);
+	%getArg(0,pparg0);
+{
+	%declare(Int,ppret0);
+	ppret0 = deleteSpriteEngine(pparg0);
+	%return(ppret0);
+}}
+
+{{%
+primitive deleteSpriteEngine "XS_deleteSpriteEngine" :: HSpriteEngine -> IO Int
+%}}
+
+{{%
+-- Supertype coercions
+
+class  AkoSpriteTree a  where
+  toSpriteTree :: a -> HSpriteTree
+
+class  AkoSprite a  where
+  toSprite :: a -> HSprite
+
+
+instance  AkoSprite HFlipSprite  where
+  toSprite = flipSpriteToSprite
+
+instance  AkoSprite HSimpleSprite where
+  toSprite = simpleSpriteToSprite
+
+instance  AkoSpriteTree HSprite  where
+  toSpriteTree = spriteToSpriteTree
+
+instance  AkoSpriteTree HSpriteGroup  where
+  toSpriteTree = spriteGroupToSpriteTree
+
+instance  AkoSpriteTree HFlipSprite  where
+  toSpriteTree = toSpriteTree . toSprite
+
+instance  AkoSpriteTree HSimpleSprite  where
+  toSpriteTree = toSpriteTree . toSprite
+
+instance  AkoSpriteTree HSoundSprite  where
+  toSpriteTree = soundSpriteToSpriteTree
+
+%}}
+
+
+%asm XSconsts_SpriteTreeChain :: Int -> SpriteTreeChain
+    static SpriteTreeChain consts[] = {
+	0
+	};
+    int i;
+    %getArg(0,i);
+    %return(consts[i]);
+
+{{%
+primitive consts_SpriteTreeChain "XSconsts_SpriteTreeChain" :: Int -> SpriteTreeChain
+%}}
+
+%asm XSconsts_LightType :: Int -> LightType
+    static LightType consts[] = {
+	D3DRMLIGHT_AMBIENT,
+	D3DRMLIGHT_POINT,
+	D3DRMLIGHT_SPOT,
+	D3DRMLIGHT_DIRECTIONAL,
+	D3DRMLIGHT_PARALLELPOINT
+	};
+    int i;
+    %getArg(0,i);
+    %return(consts[i]);
+
+{{%
+primitive consts_LightType "XSconsts_LightType" :: Int -> LightType
+%}}
+
+%asm XSconsts_ThreadPriority :: Int -> ThreadPriority
+    static ThreadPriority consts[] = {
+	THREAD_PRIORITY_IDLE,
+	THREAD_PRIORITY_LOWEST,
+	THREAD_PRIORITY_BELOW_NORMAL,
+	THREAD_PRIORITY_NORMAL,
+	THREAD_PRIORITY_ABOVE_NORMAL,
+	THREAD_PRIORITY_HIGHEST,
+	THREAD_PRIORITY_TIME_CRITICAL
+	};
+    int i;
+    %getArg(0,i);
+    %return(consts[i]);
+
+{{%
+primitive consts_ThreadPriority "XSconsts_ThreadPriority" :: Int -> ThreadPriority
+%}}
