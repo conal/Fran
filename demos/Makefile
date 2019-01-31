@@ -21,8 +21,8 @@ fifteen.exe	: Mover.$(way_)o Grid.$(way_)o Fifteen.hs
 
 # For subdirectories.
 all clean depends ::
-	cd CurveEditor; make $@
-	cd Sokoban; make $@
-	cd Roids; make $@
+	cd CurveEditor && make $@
+	cd Sokoban && make $@
+	cd Roids && make $@
 
 include _depend

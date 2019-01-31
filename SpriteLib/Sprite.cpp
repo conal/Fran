@@ -467,10 +467,13 @@ SoundSprite::SoundSprite (
 {
   if (g_pDSound) {
       dscheck (g_pDSound->DuplicateSoundBuffer(pOrigBuffer, &m_pDupBuffer));
-      // Always looping for now
-      m_pDupBuffer->Play(0,0,DSBPLAY_LOOPING);
       pOrigBuffer->GetFrequency(&m_origFreq);
-      // m_pDupBuffer->SetVolume(500);
+      // Initialize with a first "paint".  Since there's really not ddraw
+      // surface involved, use NULL.  Also, since the initial behaviors
+      // are constant ones, the time doesn't matter, so use zero.
+      Paint(NULL,0);
+      // Always looping for now.  ## To do: fix this.
+      m_pDupBuffer->Play(0,0,DSBPLAY_LOOPING);
   }
 };
 

@@ -1,6 +1,6 @@
                       Notes on making a Fran Release
 
-             Last modified Tue Feb 24 12:26:35 1998 by conal
+             Last modified Thu Feb 26 08:52:50 1998 by conal
 
 
 - In ../, do "make staticTest", and make sure there are no errors.  Then
@@ -26,13 +26,17 @@
   "writable", and setting the file dates to "modified", in the advanced
   controls for "get".
 
+- SpriteLib sometimes gets excluded, and I'm stumped as to why.  Check to
+  make sure it's there, and if not, get it (recursively and writable)
+  explicitly to ToZip\Fran\SpriteLib.
+
 - Delete any files from ToZip\Fran that should not go into the release.
   Currently none.
 
 - Copy Fran\SpriteLib\Debug\SpriteLib.dll to ToZip\Fran, and src\HSpriteLib.dll
   and src\HSpriteLib.hs to ToZip\Fran\src.
 
-- Make a new file, like "Fran1.1.zip" in ToZip; open it; and do a
+- Make a new file, like "Fran1.10.zip" in ToZip; open it; and do a
   recursive wildcard add.
 
 - Move the new zip file to my fran/Zips web directory, and delete the

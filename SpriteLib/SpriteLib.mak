@@ -34,12 +34,12 @@ OutDir=.\.\Debug
 !IF "$(RECURSE)" == "0" 
 
 ALL : "$(OUTDIR)\SpriteLib.dll" "$(OUTDIR)\SpriteLib.bsc"\
- "c:\winnt\SpriteLib.dll"
+ "%windir%\SpriteLib.dll"
 
 !ELSE 
 
 ALL : "$(OUTDIR)\SpriteLib.dll" "$(OUTDIR)\SpriteLib.bsc"\
- "c:\winnt\SpriteLib.dll"
+ "%windir%\SpriteLib.dll"
 
 !ENDIF 
 
@@ -76,7 +76,7 @@ CLEAN :
 	-@erase "$(OUTDIR)\SpriteLib.dll"
 	-@erase "$(OUTDIR)\SpriteLib.exp"
 	-@erase "$(OUTDIR)\SpriteLib.lib"
-	-@erase "c:\winnt\SpriteLib.dll"
+	-@erase "%windir%\SpriteLib.dll"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -172,7 +172,7 @@ LINK32_OBJS= \
 InputPath=.\Debug\SpriteLib.dll
 SOURCE=$(InputPath)
 
-"c:\winnt\SpriteLib.dll"	 : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+"%windir%\SpriteLib.dll"	 : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
 	copy Debug\SpriteLib.dll  %windir%%
 
 

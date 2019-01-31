@@ -4,10 +4,10 @@
 # *contents* of Main*.hs, and the main*.exe rules.
 
 EDITORS = Editor0.hs Editor1.hs Editor2.hs Editor3.hs Editor4.hs \
-          Editor5.hs Editor6.hs Editor7.hs Editor8.hs
+          Editor5.hs Editor6.hs Editor7.hs.hs
 
 MAINS = Main0.hs Main1.hs Main2.hs Main3.hs Main4.hs \
-        Main5.hs Main6.hs Main7.hs Main8.hs TestEditor.hs
+        Main5.hs Main6.hs Main7.hs.hs TestEditor.hs
 
 HS = FileUtils.hs NewCurve.hs Stacker.hs \
      $(EDITORS) $(MAINS)
@@ -29,7 +29,6 @@ DEPS4 = Editor4.o $(DEPS3)
 DEPS5 = Editor5.o $(DEPS4) Stacker.o
 DEPS6 = Editor6.o $(DEPS4) Stacker.o
 DEPS7 = Editor7.o $(DEPS4) Stacker.o
-DEPS8 = Editor8.o $(DEPS7)
 
 Main0.exe : Main0.o $(DEPS0)
 Main1.exe : Main1.o $(DEPS1)
@@ -39,9 +38,8 @@ Main4.exe : Main4.o $(DEPS4)
 Main5.exe : Main5.o $(DEPS5)
 Main6.exe : Main6.o $(DEPS6)
 Main7.exe : Main7.o $(DEPS7)
-Main8.exe : Main8.o $(DEPS8)
 
-TestEditor.exe : TestEditor.o $(DEPS8) \
+TestEditor.exe : TestEditor.o $(DEPS7) \
 		 Editor6.o Editor5.o Editor1.o NewCurve.o
 
 include _depend

@@ -389,6 +389,8 @@ class RMRenderer {
 public:
     RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale);
     HDDSurface Render ();
+    void SetScale (double scale) {
+        d3check(m_view->SetField(D3DVAL(0.5/(scale + 1e-10)))); }
     // To do: make this destructor get called somewhere!
     ~RMRenderer() {
         // Release what the constructor created
@@ -441,6 +443,10 @@ RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale)
 
 EXT_API(HRMRenderer) newRMRenderer(HFrame sceneFrame, HFrame cameraFrame, double scale)
 { return new RMRenderer(sceneFrame, cameraFrame, scale); }
+
+EXT_API(void) 
+hRendererSetScale(HRMRenderer renderer, double scale)
+{ renderer->SetScale(scale); }
 
 EXT_API(HDDSurface) 
 doRMRenderer(HRMRenderer renderer)

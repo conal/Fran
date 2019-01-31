@@ -4,11 +4,10 @@
 default	::
 
 clean depends default ::
-#	echo $(SHELL)
-	cd SpriteLib; make $@
-	cd gc; cd GHC; make $@
-	cd src; make $@
-	cd demos; make $@
+	cd SpriteLib && make $@
+	cd gc/GHC && make $@
+	cd src && make $@
+	cd demos && make $@
 
 allGHC :: clean depends default
 

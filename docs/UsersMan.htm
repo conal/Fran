@@ -16,7 +16,7 @@ Gary Shu Ling<br>
 </h2>
 
 <p ALIGN="CENTER"><!--webbot bot="Timestamp" startspan S-Type="EDITED"
-S-Format="%B %d, %Y" -->February 24, 1998<!--webbot bot="Timestamp" i-checksum="43108" endspan --></p>
+S-Format="%B %d, %Y" -->February 25, 1998<!--webbot bot="Timestamp" i-checksum="43112" endspan --></p>
 
 <h2><a NAME="sect1"></a>Introduction</h2>
 
@@ -210,10 +210,11 @@ events. Reactive behaviors are defined using the <tt>untilB</tt> function: </p>
 
 <p>The class <tt>GBehavior</tt> defines reactive data types. Some reactive types, such as <tt>RealB</tt>
 or <tt>ColorB</tt> are formed by applying the <tt>Behavior </tt>type constructor to an
-existing type. Other types, such as <tt>ImageB</tt>, are conceptually behaviors in that
-they exist over time and support <tt>untilB</tt>, but are not literally behaviors. The <tt>untilB</tt>
-function changes the course of a behavior when an event occurs; the first event occurrence
-generates the new behavior to be followed after the occurrence time. </p>
+existing type. Other types, such as <tt>ImageB</tt>, <tt>User</tt>, and all event types
+are conceptually behaviors in that they exist over time and support <tt>untilB</tt>, but
+are not literally behaviors.&nbsp; The <tt>untilB</tt> function changes the course of a
+behavior when an event occurs; the first event occurrence generates the new behavior to be
+followed after the occurrence time. </p>
 
 <p>Before we can use <tt>untilB</tt> in an example, we need to transform an event such as <tt>lbp</tt>
 of type <tt>Event ()</tt> into an event which generates a behavior. These functions
@@ -494,7 +495,7 @@ a transformed time-frame according to behavior <tt>tb</tt>. For example: </p>
 
 <p>These are some miscellaneous utilities: </p>
 
-<pre>-- explicit behavior aging:
+<pre>-- explicit aging of generalized behavior:
 afterE :: GBehavior bv =&gt; Event a -&gt; bv -&gt; Event (a, bv) 
 afterE_ :: GBehavior bv =&gt; Event a -&gt; bv -&gt; Event bv
 

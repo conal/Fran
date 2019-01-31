@@ -297,10 +297,8 @@ regularPolygon vertices = star 1 vertices
 -- is a seven-pointed star connecting every third vertex of what would be
 -- a regular 7-gon.
 star :: IntB -> IntB -> ImageB
-star skip vertices = polygonB pts
+star skip vertices = polygonB (lift2 f vertices skip)
   where
-    pts = lift2 f vertices skip
-
     f :: Int -> Int -> [S.Point2]
     f v s = let theta = 2 * pi * fromInt s / fromInt v
 	    in  [ S.point2Polar 1 (theta * fromInt i) | i <- [0 .. v] ]

@@ -58,6 +58,9 @@ GHC_FLAGS	+= -optc-Wp,-lang-c
 # GCPP_FLAGS	= -DTARGET_HUGS
 # INCLUDES	= -I $(HUGSDIR)/src
 
+GCLIBDIR        = /usr/fptools/green-card/lib/ghc
+GC += -i$(GCLIBDIR)
+
 GC_FLAGS	= --target ghc
 # Oh dear, what's the difference between -i and --include-dir ?
 #GC_FLAGS       += --include-dir $(WIN32DIR)

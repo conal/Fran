@@ -2,7 +2,10 @@
 
                               Conal Elliott
 
-                  Last modified Tue Feb 24 09:21:12 1998
+                  Last modified Thu Feb 26 11:18:22 1998
+
+
+*Note: almost ready for consumption but not yet.*
 
 
 Introduction
@@ -57,10 +60,10 @@ in that directory say "patch < cygwin.patch".
 
 Get the latest Win32 GHC binary release with at least concurrency.  (I
 used ghc-2.10-i386-unknown-cygwin32.tar.gz (12.2 Mb) from
-ftp://www.dcs.gla.ac.uk/pub/haskell/glasgow/2.10/.
+http://www.dcs.gla.ac.uk/fp/software/ghc/download.html#2.10
 
 Unzip and untar the .tar.gz file to get a directory tree structure
-(41.5Mb) called "fptools" under c:/.  (WinZip95 can do both steps.)
+(41.5Mb) called "fptools" under c:/usr.  (WinZip95 can do both steps.)
 
 [Get Perl.  I already had a version to go with a previous GHC.  The
 particular version is important.  See fptools/INSTALL.  N.B. from Sigbjorn
@@ -72,10 +75,12 @@ chars. Putting perl.exe in /bin solves this problem."]
 
 ** Configure GHC
 
-In "c:\fptools", start up bash (sh.exe from cygwin), and type
-"./configure".  You'll get lots of output.  Look for error messages.
+In "c:\usr\fptools", start up bash (sh.exe from cygwin), and type
+"./configure".  You'll get lots of output.  Look for error messages. I got
+a message saying "not updating unwritable cache ./config.cache".
+Apparently, this is a harmless bug in bash/the configure script generator.
 
-Check out the generated Makefile, as indicated in c:/fptools/INSTALL.  I
+Check out the generated Makefile, as indicated in c:/usr/fptools/INSTALL.  I
 had make three changes. First, replace "INSTALL = /HUGS/install -c" by
 
   INSTALL	    = /gnuwin32/b18/H-i386-cygwin32/bin/install -c
@@ -98,17 +103,9 @@ line instead:
 
 In bash, do "make in-place".
 
-It will tell you to add c:\fptools\bin\i386-unknown-cygwin32\ghc-2.10 (or
+It will tell you to add c:\usr\fptools\bin\i386-unknown-cygwin32\ghc-2.10 (or
 something similar) to your %PATH%.  Do it.  Again, before continuing,
 you'll have to start a new shell under NT or reboot under Win95.
-
-[Note: if you have to re-do "make in-place", first delete in
-c:\fptools\bin\i386-unknown-cygwin32\ghc-2.10\ghc, which is a symlink.
-Otherwise, it will turn ghc-2.10 into a symlink to itself.  The error
-message you get will be something like "sh.exe:
-/FPTOOLS/BIN/I386-UNKNOWN-CYGWIN32/GHC-2.10/ghc: (null)".  GHC folks: can
-this problem be fixed?  I had to learn the hard way.  BTW, this problem
-existed with GHC 2.09, but I don't know about 2.10.]
 
 
  ** Try GHC
@@ -119,17 +116,11 @@ line:
     main = putStrLn "Hello, world!"
 
 (In this example and the ones below, remove the indentation in your copy.)
-In bash, do "ghc tst.hs".  You'll get:
+In bash, do "ghc tst.hs".  You can run your program by saying "./main"
+(since the module is implicitly called "Main".)
 
-  Output file not specified, defaulting to "main.exe"
-  Panic: no such executable: main.exe
-
-but don't worry, because the result went into a.exe.  You can run your
-program by saying "./a"
-
-
-Better, do "ghc tst.hs -o tst.exe", to get tst.exe, which runs fine as
-"./tst".
+Alternatively, do "ghc tst.hs -o tst.exe", to get tst.exe, which runs fine
+as "./tst".
 
 Now let's make a GHC-style makefile.  First, to make it interesting,
 change tst.hs to
@@ -181,8 +172,6 @@ Then make a file called "makefile", with the following lines:
                     $(RM) $@
                     $(GHC) $(GHC_FLAGS) -c $<
 
-Be sure to have at least one newline at the end of the makefile.
-
 For more info on makefiles, see the GHC user guide's section "Separate
 Compilation".
 
@@ -219,21 +208,22 @@ And, run it:
 
 ** Build Win32 interfaces
 
+[This section under revision.]
+
 This section describes building the Win32 interface from its GreenCard
 specification.  I'm assuming it to be installed in
-c:/fptools/lib/i386-unknown-cygwin32/ghc-2.10/win32/.
+c:/usr/fptools/hslibs/win32.
 
 [Where should it really get installed?]
 
 If the Win32 interfaces are already built for you, you can skip this
 section. 
 
-In the Makefile, find the "Configuration" section, and replace it with the
-following lines, assuming you have the compiled green-card in /GreenCard:
+In the Makefile, find the "Configuration" section, and replace the
+definitions of GHCDIR, GCDIR, and HERE.  
 
-    GHCDIR		= /fptools/bin/i386-unknown-cygwin32/ghc-2.10
-    GCDIR		= /green-card
-    HERE		= /fptools/lib/i386-unknown-cygwin32/ghc-2.10/win32
+[Say what to put there]
+
 
 Also change the definition of GC to the following, assuming the GreenCard
 executable is /GreenCard/green-card.exe:
@@ -244,7 +234,7 @@ Then do "make".  It should go okay.
 
 [Well, it doesn't work for me.  Many modules go okay, but then:
 
-    /fptools/bin/i386-unknown-cygwin32/ghc-2.10/ghc  -H10M -cpp -fglasgow-exts -concurrent -fno-prune-tydecls -optc-D__GHC__ Win32Pen.hs -c -o Win32Pen.o -ohi Win32Pen.hi
+    /usr/fptools/bin/i386-unknown-cygwin32/ghc-2.10/ghc  -H10M -cpp -fglasgow-exts -concurrent -fno-prune-tydecls -optc-D__GHC__ Win32Pen.hs -c -o Win32Pen.o -ohi Win32Pen.hi
     ghc: module version changed to 1; reason: no old .hi file
     ghc1609.hc:1324: `PS_JOIN_MASK' undeclared (first use this function)
     ghc1609.hc:1324: (Each undeclared identifier is reported only once
@@ -252,16 +242,25 @@ Then do "make".  It should go okay.
     gcc: Internal compiler error: program cc1 got fatal signal 33
     make: *** [Win32Pen.o] Error 1
     bash$ 
+
+If I delete the following line, compilation goes okay.
+
+    % , PS_JOIN_MASK        -- all the above
+
 ]
 
 
 ** Building Fran
 
-If Fran is are already built for you, you can skip this section.
-Otherwise, just cd to "Fran/" and type "make depends default".  There are
-several sub-directories with makefiles in them, and the top-level makefile
-just delegates to each of the others in proper order.  Here's what
-happens in the making of "default", in case you care:
+If Fran is already built for you, you can skip this section.  Otherwise,
+edit Fran/env.mk and change the definitions to suit your environment
+(especially HUGSDIR, GHCDIR, GHCLIB, GCDIR, GCLIBDIR, WIN32DIR).  Then cd
+to "Fran/" and type "make depends default".  There are several
+sub-directories with makefiles in them, and the top-level makefile just
+delegates to each of the others in proper order.  If something goes wrong,
+and you need to change your env.mk definitions, remake "depends" as well
+as "default".  Here's what happens in the making of "default", in case you
+care:
 
 1. Sprite library (in SpriteLib).  I assume you have Microsoft Visual C
    installed.  First the sprite library is compiled and SpriteLib.dll is
@@ -305,7 +304,11 @@ happens in the making of "default", in case you care:
      the escape key if you get lost.
 
    + Sokoban/sokoban.exe.  A wonderful old puzzle game.  Try to get the
-     gold balls into the black holders.  Currently crashes.
+     gold balls into the black holders.  Currently crashes.  When it does
+     run, it's too slow to be fun.
+
+   + CurveEditor/Main*.exe.  Versions of a curve editor.  Currently, this
+     one dies right away when compiled.
 
 
 Known problems:

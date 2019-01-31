@@ -5,7 +5,7 @@ module Test where
 import Fran
 import qualified Win32
 import qualified StaticTypes as S
-import Trace
+import IOExts ( trace )
 
 
 -- The test cases

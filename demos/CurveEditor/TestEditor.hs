@@ -17,7 +17,6 @@ import qualified Editor4
 import qualified Editor5
 import qualified Editor6
 import qualified Editor7
-import qualified Editor8
 import qualified TryInsert
 
 main = do
@@ -37,7 +36,6 @@ main = do
    Editor6.main
    saveSingle
    Editor7.main
-   Editor8.main
 
 withSmall = withInitialViewSize 1.5 1.5
 withBig   = withInitialViewSize 3.0 1.5

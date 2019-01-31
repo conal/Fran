@@ -34,7 +34,7 @@ timeSinceE e = e `snapshot_` time ==> since
    since t0 = time - constantB t0
 
 -- Try it out: press any key to save
-spinMessageTest u = spinMessage "goodbye" (keyPressAny u)
+spinMessageTest u = spinMessage "goodbye" (keyPressAny u) `over` whiteIm
 
 
 

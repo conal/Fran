@@ -12,7 +12,7 @@ GHC_FLAGS_EXTRA	+= -optl-u -optl_NoRunnableThreadsHook
 ifneq "$(way)" ""
 LIBS		+= $(FRAN)/src/libFran$(_way).a $(WIN32DIR)/libWin32$(_way).a
 else
-LIBS		+= -L$(FRAN)/src -L$(WIN32DIR) -lFran -lWin32  
+LIBS		+= -L$(FRAN)/src -L$(WIN32DIR) -L$(GCLIBDIR) -lFran -lWin32 -lgreencard
 endif
 LIBS		+= -L$(FRAN)/SpriteLib -lSpriteLib
 GUILIBS		+= -luser32 -lgdi32

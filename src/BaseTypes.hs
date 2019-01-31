@@ -1,6 +1,6 @@
 -- Some basic types
 --
--- Last modified Tue Nov 04 09:13:19 1997
+-- Last modified Wed Feb 25 11:04:51 1998
 
 module BaseTypes
        ( RealVal
@@ -13,9 +13,11 @@ module BaseTypes
        , minTime
        , pair
        , fromInt32
+       , assoc
        ) where
 
-import Int(int32ToInt, Int32)
+import Int  (int32ToInt, Int32)
+import List (find)
 
 type RealVal  = Double
 type Length   = RealVal
@@ -41,3 +43,7 @@ pair x y = (x,y)
 
 fromInt32 :: Num a => Int32 -> a
 fromInt32 = fromInt . int32ToInt
+
+-- Isn't this somewhere standard??
+assoc :: Eq key => [(key,a)] -> key -> Maybe a
+assoc pairs key = map snd (find ((== key) . fst) pairs)

@@ -22,8 +22,8 @@ CFG=SpriteLib - Win32 Debug
 !MESSAGE 
 
 # Begin Project
-# PROP Scc_ProjName ""
-# PROP Scc_LocalPath ""
+# PROP Scc_ProjName ""$/RBMH/Fran/SpriteLib", LECAAAAA"
+# PROP Scc_LocalPath "."
 CPP=cl.exe
 MTL=midl.exe
 RSC=rc.exe
@@ -50,11 +50,14 @@ BSC32=bscmake.exe
 LINK32=link.exe
 # ADD BASE LINK32 /nologo /subsystem:windows /dll /debug /machine:I386
 # ADD LINK32 ddraw.lib dsound.lib d3drm.lib winmm.lib /nologo /base:"0x8000000" /subsystem:windows /dll /profile /debug /machine:I386
-# Begin Special Build Tool
+# Begin Custom Build - copy SpriteLib.dll to %windir%
+InputPath=.\Debug\SpriteLib.dll
 SOURCE=$(InputPath)
-PostBuild_Desc=Copying SpriteLib.dll %windir%
-PostBuild_Cmds=copy Debug\SpriteLib.dll  %windir% 
-# End Special Build Tool
+
+"%windir%\SpriteLib.dll" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	copy Debug\SpriteLib.dll  %windir%%
+
+# End Custom Build
 # Begin Target
 
 # Name "SpriteLib - Win32 Debug"

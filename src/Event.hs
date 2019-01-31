@@ -9,7 +9,6 @@ import BaseTypes
 
 import Concurrent                       -- for EventChannel
 import IOExts (trace)
-import List   (find)
 
 import Maybe (isJust)
 
@@ -237,7 +236,7 @@ scanlE f x0 (Event possOccs) = Event (loop x0 possOccs)
 
 -- accumE should probably be the primitive, since it's simpler.
 accumE :: a -> Event (a -> a) -> Event a
-accumE x0 change = scanlE (flip ($)) x0 change
+accumE = scanlE (flip ($))
 
 
 -- Warning: untested. ##
@@ -350,10 +349,6 @@ ev `suchThat_` pred = ev `suchThat` pred -=> ()
 
 assocE :: Eq key => Event key -> [(key,a)] -> Event a
 assocE e pairs = e `filterE` assoc pairs
- where
-   -- Isn't this somewhere standard??
-   --assoc :: Eq key => [(key,a)] -> key -> Maybe a
-   assoc pairs key = map snd (find ((== key) . fst) pairs)
 
 
 -------------- Debugging support -------------

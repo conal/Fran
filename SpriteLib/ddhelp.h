@@ -103,6 +103,9 @@ EXT_CLASS(RMRenderer);
 EXT_API(HRMRenderer)
 newRMRenderer(HFrame sceneFrame, HFrame cameraFrame, double scale);
 
+EXT_API(void) 
+hRendererSetScale(HRMRenderer renderer, double scale);
+
 EXT_API(HDDSurface) doRMRenderer(HRMRenderer renderer);
 
 // To do: deleters for lots of these types.

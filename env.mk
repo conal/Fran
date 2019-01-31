@@ -5,15 +5,19 @@
 # NT and Win95 seem to have different preferences.  Needs experimentation.
 
 HUGSDIR 	= /hugs
-GHCDIR		= /fptools/bin/i386-unknown-cygwin32/ghc-2.10
-GHCLIB		= /fptools/lib/i386-unknown-cygwin32/ghc-2.10
+GHCDIR		= /usr/fptools/bin/i386-unknown-cygwin32/ghc-2.10
+GHCLIB		= /usr/fptools/lib/i386-unknown-cygwin32/ghc-2.10
 
-GHC		= $(GHCDIR)/ghc 
-HP2PS		= $(GHCDIR)/hp2ps
+# If $(GHCDIR) isn't on your %PATH%, put it on, or use the following commented defs.
+#GHC		= $(GHCDIR)/ghc 
+#HP2PS		= $(GHCDIR)/hp2ps
+GHC		= ghc 
+HP2PS		= hp2ps
 RM		= rm -f
 
-GCDIR		= /GreenCard
-WIN32DIR	= $(GHCLIB)/win32
+GCDIR		= /usr/fptools/green-card/src
+WIN32DIR        = /usr/fptools/hslibs/win32/src
+
 GC		= $(GCDIR)/green-card.exe -i$(WIN32DIR)
 
 AR     		= ar clqs
@@ -24,7 +28,7 @@ PS_VIEWER	= /gstools/gsview/gsview32
 # Include directories
 #  Hmm... without the src directory, lots of .hi files are not found.
 #  This situation seems wrong.
-INCLUDES	= -i$(FRAN)/src:$(FRAN)/src/GHC:$(FRAN)/gc/GHC:$(WIN32DIR)
+INCLUDES	= -i$(FRAN)/src:$(FRAN)/src/GHC:$(FRAN)/gc/GHC:$(WIN32DIR):$(GCLIBDIR)
 
 # GHC flags
 GHC_FLAGS	+= -fglasgow-exts -concurrent -recomp
