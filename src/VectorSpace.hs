@@ -1,6 +1,6 @@
 -- Vector spaces
 -- 
--- Last modified Sat Sep 07 23:23:10 1996
+-- Last modified Thu Oct 03 13:38:23 1996
 -- 
 -- Doesn't work as well as we'd like.  Lacking type relations, we have to
 -- hardwire the scalar type, which means we can't use behaviors, so we
@@ -25,6 +25,8 @@ class VectorSpace v where
   addVector          :: v -> v -> v
   dot                :: v -> v -> Scalar
 
+-- negateVector :: VectorSpace v =>  v -> v
+-- negateVector v = -1 `scaleVector` v
 
 magnitudeSquared :: VectorSpace v =>  v -> Scalar
 magnitudeSquared v = v `dot` v
@@ -66,3 +68,14 @@ instance VectorSpace Float where
   a `dot` b           =  fromRealFrac (a * b)
 
 
+{- We'd like to use +, -, and negate on vector spaces.  As above, we
+   can't.  Note: there would seem to be a circularity with the floating
+   instance above.
+   Workaround: define the Vector2 instance specifically (in Vector2.hs).
+
+instance  VectorSpace a => Num a  where
+  (+)      = addVector
+  negate v = -1 `scaleVector` v
+  -- (-) follows from negate and +
+
+-}

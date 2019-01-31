@@ -1,6 +1,6 @@
 -- Higher-level interaction
 --
--- Last modified Tue Sep 17 15:09:17 1996
+-- Last modified Tue Oct 08 13:48:06 1996
 
 module Interaction where
 
@@ -66,10 +66,13 @@ mouse t0 = mouse' origin2 t0 origin2 (t0-1)
 -}
 
 viewSize :: Time -> Vector2B
-viewSize t0 = viewSz' t0 zeroVector
+viewSize t0 = viewSz' t0 initialSize
  where
   viewSz' t0 v =
     lift0 v `untilB` primViewSz t0 +=> viewSz'
+  -- Hack: we don't really know the initial size here.  This won't work
+  -- for ActiveX controls
+  initialSize = vector2XY 2 2
 
 fps :: Time -> Behavior Double
 fps t0 = fps' t0 0

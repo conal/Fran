@@ -1,6 +1,6 @@
 -- Simple test harness for static Image values and their display
 -- 
--- Last modified Thu Sep 19 11:48:02 1996
+-- Last modified Fri Oct 04 11:55:42 1996
 -- To try these out, run disp i{j} where j `elem` [1..] 
 
 module ImageTest where
@@ -64,8 +64,8 @@ i18 =
   i18' where
        i18' = unitBBoxed2 $
               uscale2 0.5 *% i18' `over`
-              withColor yellow  square      `over`
-              withColor blue circle
+              withColor blue  square      `over`
+              withColor green circle
 
 
 

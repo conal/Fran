@@ -1,6 +1,6 @@
 -- Behavior-level vector spaces
 -- 
--- Last modified Sat Sep 07 23:23:09 1996
+-- Last modified Thu Oct 03 10:27:28 1996
 
 module VectorSpaceB where
 
@@ -13,7 +13,7 @@ import qualified VectorSpace as VS
 -- importation is done qualified.  Is this a Hugs bug??  If so, be sure to
 -- restore the infix declarations below when the bug is fixed.
 
--- infix8 7 `scaleVector`, `dot`
+-- infixr 7 `scaleVector`, `dot`
 -- infixl 6 `addVector`
 
 zeroVector :: VS.VectorSpace v => Behavior v

@@ -1,6 +1,6 @@
 -- External events.
 --
--- Last modified Thu Sep 12 14:07:03 1996
+-- Last modified Tue Oct 08 09:59:06 1996
 
 module External where
 
@@ -85,9 +85,9 @@ newExternalEGen t0 =
 
 -- Cause an internalized event to fire.
 
-fireExternalEGen :: Time -> a -> EGVar a -> IO ()
+fireExternalEGen :: EGVar a -> Time -> a -> IO ()
 
-fireExternalEGen occTime occValue egVar =
+fireExternalEGen egVar occTime occValue =
   -- Set the current EventVar to have occurred.
   readVar egVar    >>=  \ (eventVar, _) ->
   writeVar eventVar (Just (occTime, occValue)) >>

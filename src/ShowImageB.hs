@@ -1,7 +1,7 @@
 -- Experimental support for displaying image behaviors in an existing
 -- window.  Intended for use with the ActiveX Hugs control
 -- 
--- Last modified Thu Sep 19 11:47:13 1996
+-- Last modified Tue Oct 08 13:49:24 1996
 -- 
 -- Recycled bits from ShowImageB.hs.
 
@@ -11,6 +11,8 @@ module ShowImageB
         disp   -- :: ImageB.Image -> IO ()
         ) where
 
+import Prelude hiding (MutVar,newVar,readVar,writeVar)
+import MutVar
 import Win32 hiding (writeFile, readFile,rgb,
                      polyline,polygon,arc,ellipse,rectangle)
 
@@ -40,6 +42,7 @@ times :: MilliSeconds -> IO [Time]
 times startMS =
   unsafeInterleaveIO (
     timeSinceMS startMS                >>= \ t ->
+    -- putStrLn ("t = " ++ show t) >>
     unsafeInterleaveIO (times startMS) >>= \ ts ->
     return (t:ts))
 
@@ -53,17 +56,6 @@ timeSinceMS startMS =
       return (  (fromInt wholePart :: Time)
               + (fromInt fracPart  :: Time) / 1000.0 )
 
-
-
-worldToScreen, screenToWorld :: Transform2
-
-worldToScreen =
-  (scale2 (vector2XY pixelsPerLengthHorizontal
-                     pixelsPerLengthVertical) `compose2`
-  translate2 (vector2XY 1 1))                `compose2`
-  scale2     (vector2XY 1 (-1))                   -- flip Y
-
-screenToWorld = inverse2 worldToScreen
 
 -- For testing
 
@@ -83,14 +75,9 @@ draw startMS imb hwnd =
      postpone (
        (invalidateRect (Just hwnd) Nothing eraseBackground >>
         paintWith hwnd (\hdc lpps ->
-          windowSize hwnd >>= \ (l',t',r',b') ->
+          windowSize hwnd >>= \ (w',h') ->
           let 
-            w' = r' - l'
-            h' = b' - t'
-            -- [l,t,r,b,w,h] = map fromInt [l',t',r',b',w',h']
-            -- Map to screen space.  Can we do this with
-            -- setWorldTransform?
-            im' = worldToScreen *% im
+            im' = worldToScreen w' h' *% im
           in
           if doubleBuffered then
             -- (sof) By trial and error, I discovered that you
@@ -100,7 +87,7 @@ draw startMS imb hwnd =
             -- with the window), you get a monochrome bitmap.
             withDC (Just hwnd) (\ windc ->
               withCompatibleDC (Just windc) (\ buffer ->
-                withCompatibleBitmap hdc (r'-l') (b'-t') (\ bitmap ->
+                withCompatibleBitmap hdc w' h' (\ bitmap ->
                   selectBitmapIn buffer bitmap (
                     --putStrLn (show im)    >>
                     Win32.bitBlt buffer 0 0 w' h' buffer 0 0 bLACKNESS >>
@@ -117,6 +104,14 @@ draw startMS imb hwnd =
   in
       loop (imb `ats` ts)
 
+worldToScreen, screenToWorld :: Int -> Int -> Transform2
+
+worldToScreen w' h' =
+  translate2 (vector2XY (fromInt w' / 2) (fromInt h' / 2)) `compose2`
+  scale2 (vector2XY pixelsPerLengthHorizontal (- pixelsPerLengthVertical))
+
+screenToWorld w' h' = inverse2 (worldToScreen w' h')
+
 
 -- Testing
 
@@ -125,7 +120,6 @@ makeTestWindow :: MilliSeconds -> (HWND -> IO ()) -> IO ()
 -- The hwndConsumer is presumed to postpone most of its work.
 
 makeTestWindow startMS hwndConsumer =
-  initUser >>
   let demoClass = mkClassName "RBMH Test Window" in
   loadIcon   Nothing iDI_APPLICATION >>= \ icon ->
   loadCursor Nothing iDC_ARROW       >>= \ cursor ->
@@ -140,22 +134,30 @@ makeTestWindow startMS hwndConsumer =
         Nothing,
         demoClass)                >>
 
+  --newVar (0,0)		  >>= \ szVar ->
+  newVar 0			  >>= \ drawTimeVar ->
   let
-
     -- Map lParam mouse point to a Point2
-    posn lParam = 
+    posn hwnd lParam =
+      windowSize hwnd            >>= \(w',h') ->
+      return $
       let (y,x) = lParam `divMod` 65536 in
-        screenToWorld *% (point2XY (fromInt x) (fromInt y))
+        screenToWorld w' h' *% (point2XY (fromInt x) (fromInt y))
 
-    fireButtonEvent lParam isLeft isDown =
+    fireButtonEvent hwnd lParam isLeft isDown =
         timeSinceMS startMS         >>= \ t ->
-        firePrimBPEv t (posn lParam) isLeft isDown >>
+	posn hwnd lParam	    >>= \ p ->
+        firePrimBPEv t p isLeft isDown >>
         return 0
 
-    -- get position from mouse messages
     wndProc2 hwnd msg wParam lParam
       | msg == wM_TIMER
-      = activateOne               >>
+      = activateOne		    >>	-- draw a frame
+        -- Recalculate frame rate.
+        timeSinceMS startMS         >>= \ t ->
+	readVar drawTimeVar	    >>= \ prevT ->
+	writeVar drawTimeVar t	    >>
+	firePrimFPS t (if t==prevT then 0 else (1 / (t - prevT))) >>
         return 0
 
       | msg == wM_DESTROY
@@ -169,20 +171,21 @@ makeTestWindow startMS hwndConsumer =
         return 0)
 
       | msg == wM_LBUTTONDOWN || msg == wM_LBUTTONDBLCLK
-      = fireButtonEvent lParam True True
+      = fireButtonEvent hwnd lParam True True
 
       | msg == wM_LBUTTONUP =
-        fireButtonEvent lParam True False
+        fireButtonEvent hwnd lParam True False
 
       | msg == wM_RBUTTONDOWN || msg == wM_RBUTTONDBLCLK =
-        fireButtonEvent lParam False True
+        fireButtonEvent hwnd lParam False True
 
       | msg == wM_RBUTTONUP =
-        fireButtonEvent lParam False False
+        fireButtonEvent hwnd lParam False False
 
       | msg == wM_MOUSEMOVE =
         timeSinceMS startMS                 >>= \ t ->
-        firePrimMouseEv t (posn lParam) >>
+	posn hwnd lParam		    >>= \ p ->
+        firePrimMouseEv t p		    >>
 	return 0
 
       | msg == wM_KEYDOWN =
@@ -194,16 +197,22 @@ makeTestWindow startMS hwndConsumer =
         timeSinceMS startMS                 >>= \ t ->
         firePrimKeyEv t (toEnum wParam) False >>
         return 0
-{-
+
       | msg == wM_SIZE =
-        let
-         w = loWord lParam
-         h = hiWord lParam
+        timeSinceMS startMS		    >>= \ t ->
+{-
+	windowSize hwnd			    >>= \ (px, py) ->
+	let 
+	    (x,y) = point2XYCoords (
+		     screenToWorld px py
+		       *% (point2XY (fromInt px) (fromInt py)))
         in
-        writeVar sz_var (w,h)        >>
-        send (Resize w h)            >>
-        return 0
 -}
+	(posn hwnd lParam >>= return . point2XYCoords) >>= \ (x,y) ->
+	-- (x,y) is the lower-right corner, so we must flip y and double
+	-- both coordinates to get the width and height
+	firePrimViewSize t (vector2XY (2*x) (-2*y)) >>
+        return 0
 
       | otherwise
       = defWindowProc (Just hwnd) msg wParam lParam
@@ -220,10 +229,12 @@ makeTestWindow startMS hwndConsumer =
         wndProc2
                                      >>= \ w ->
 
+  initUser >>
   -- Set the millisecond timer
   setWinTimer w 1 (round (1000/targetFPS)) >>= \ timer ->
   showWindow w sW_SHOWNORMAL         >>
   hwndConsumer w                     >>
+  -- sendMessage w wM_SIZE width height >>
   eventLoop w                        >>
   unregisterClass demoClass mainInstance `catch` \_ -> return () >>
   return ()

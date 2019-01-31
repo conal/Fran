@@ -24,7 +24,7 @@ interpolateColor :: Color -> Color -> RealVal -> Color
 interpolateColor (RGB r1 g1 b1) (RGB r2 g2 b2) t =
  RGB (f r1 r2) (f g1 g2) (f b1 b2)
  where
-  f x y = t'*x + t'*y
+  f x y = t*x + t'*y
   t' = 1 - t
 
 gray :: Fraction -> Color

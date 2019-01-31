@@ -1,6 +1,9 @@
-{- Primitive (single) user interaction - attempt #1 -}
+-- (single) user interaction primitives.
+--
+-- These functions should not be used directly.  See Interaction.hs.
+--
+-- Last modified Tue Oct 08 13:25:59 1996
 
--- Last modified Tue Sep 17 14:48:44 1996
 module PrimInteract 
         (
          initUser,        -- :: IO ()
@@ -70,7 +73,7 @@ primBPEGVar =
 firePrimBPEv :: Time -> Point2 -> Bool -> Bool -> IO ()
 firePrimBPEv t pt left down = 
 -- putStrLn ("firing: "++show t) >>
- fireExternalEGen t (pt,left,down) primBPEGVar
+ fireExternalEGen primBPEGVar t (pt,left,down)
 
 primBPTEv :: MutVar (Time -> Event (Point2,Bool,Bool))
 primBPTEv = unsafePerformIO (newVar (error "primBPTEv"))
@@ -129,13 +132,13 @@ primKeyTEv = unsafePerformIO (newVar (error "primKeyTEv"))
 
 firePrimKeyEv :: Time -> Char -> Bool -> IO ()
 firePrimKeyEv t ch press = 
- fireExternalEGen t (ch,press) primKeyEGVar
+ fireExternalEGen primKeyEGVar t (ch,press)
 
 primKey :: Time -> Event (Char,Bool)
 primKey = unsafePerformIO (readVar primKeyTEv)
 
 primKP :: Time -> Event Char
-primKP = filterEv (primKey) f
+primKP = filterEv primKey f
  where
   f (ch,press) =
     if press then
@@ -144,7 +147,7 @@ primKP = filterEv (primKey) f
        Nothing
 
 primKR :: Time -> Event Char
-primKR = filterEv (primKey) f
+primKR = filterEv primKey f
  where
   f (ch,press) =
     if not press then
@@ -165,8 +168,7 @@ primMouseTEv :: MutVar (Time -> Event Point2)
 primMouseTEv = unsafePerformIO (newVar (error "primMouseTEv"))
 
 firePrimMouseEv :: Time -> Point2 -> IO ()
-firePrimMouseEv t pt =
- fireExternalEGen t pt primMouseEGVar
+firePrimMouseEv = fireExternalEGen primMouseEGVar
 
 primMousePos :: Time -> Event Point2
 primMousePos = unsafePerformIO (readVar primMouseTEv)
@@ -179,9 +181,10 @@ primViewSzEGVar =
    return egv)
 
 {- Shortcut used by toplevel ev.loop -}
-firePrimViewSize :: Time -> Int -> Int -> IO ()
-firePrimViewSize t w h =
- fireExternalEGen t (vector2XY (fromInt w) (fromInt h)) primViewSzEGVar
+firePrimViewSize :: Time -> Vector2 -> IO ()
+firePrimViewSize t v  =
+  -- trace ("view size " ++ show v ++ " at time " ++ show t ++ "\n") $
+  fireExternalEGen primViewSzEGVar t v
 
 primViewSzTEv :: MutVar (Time -> Event Vector2)
 primViewSzTEv = unsafePerformIO (newVar (error "primViewSzTEv"))
@@ -197,8 +200,7 @@ primFPSEGVar =
 
 {- Shortcut used by toplevel ev.loop -}
 firePrimFPS :: Time -> Double -> IO ()
-firePrimFPS t fps =
- fireExternalEGen t fps primFPSEGVar
+firePrimFPS = fireExternalEGen primFPSEGVar
 
 primFPSTEv :: MutVar (Time -> Event Double)
 primFPSTEv = unsafePerformIO (newVar (error "primFPSTEv"))

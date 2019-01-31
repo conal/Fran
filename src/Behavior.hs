@@ -1,6 +1,6 @@
 -- Non-reactive behaviors
 -- 
--- Last modified Thu Sep 19 11:50:53 1996
+-- Last modified Tue Oct 08 11:00:47 1996
 
 module Behavior where
 
@@ -83,11 +83,11 @@ liftLs ls =
 -- and so on
 
 
--- Needed because Num derives from Eq and Text
-instance (Eq a) => Eq (Behavior a)
-instance Text (Behavior a)
-
 -- Define number-valued behaviors as numbers
+
+-- Hack: needed because Num derives from Eq and Text.  Similarly below.
+instance (Eq   a) => Eq   (Behavior a)
+instance (Text a) => Text (Behavior a)
 
 instance  Num a => Num (Behavior a) where
   (+)          =  lift2 (+)
@@ -97,11 +97,53 @@ instance  Num a => Num (Behavior a) where
   fromInteger  =  lift0 . fromInteger
   fromInt      =  lift0 . fromInt
 
-instance (Fractional a, Ord a) => Fractional (Behavior a) where
-  fromDouble  =  lift0 . fromDouble
-  (/)         =  lift2 (/)
+fromIntegerB :: Num a => Behavior Integer -> Behavior a
+fromIntegerB = lift1 fromInteger
 
-instance (Floating a, Ord a) => Floating (Behavior a) where
+
+instance Real a => Ord (Behavior a)
+instance  Real a => Real (Behavior a)
+
+
+toRationalB ::  Real a => Behavior a -> Behavior Rational
+toRationalB = lift1 toRational
+
+instance Integral a => Enum (Behavior a)
+instance Integral a => Integral (Behavior a)  where
+    quot      = lift2 quot
+    rem	      =	lift2 rem
+    div	      =	lift2 div
+    mod	      =	lift2 mod
+    quotRem x y  = pairBSplit (lift2 quotRem x y)
+    divMod  x y  = pairBSplit (lift2 divMod  x y)
+    toInteger = noOverload "toInteger"
+    even      = noOverload "even"
+    odd	      =	noOverload "odd"
+    toInt     =	noOverload "toInt"
+
+noOverload name =
+ error ("Couldn't overload \"" ++ name ++ "\" for behaviors.  Use \"" ++
+        name ++ "B\" instead.")
+
+pairBSplit :: Behavior (a,b) -> (Behavior a, Behavior b)
+
+pairBSplit b = (fstB b, sndB b)
+
+toIntegerB :: Integral a => Behavior a -> Behavior Integer
+evenB, oddB :: Integral a => Behavior a -> Behavior Bool
+toIntB      :: Integral a => Behavior a -> Behavior Int
+
+toIntegerB = lift1 toInteger
+evenB	   = lift1 even
+oddB	   = lift1 odd
+toIntB	   = lift1 toInt
+
+instance (Fractional a) => Fractional (Behavior a) where
+  fromDouble   =  lift0 . fromDouble
+  fromRational =  lift0 . fromRational
+  (/)          =  lift2 (/)
+
+instance (Floating a) => Floating (Behavior a) where
   sin  =  lift1 sin
   cos  =  lift1 cos
   tan  =  lift1 tan
@@ -121,7 +163,63 @@ instance (Floating a, Ord a) => Floating (Behavior a) where
   sqrt =  lift1 sqrt
   (**) =  lift2 (**)
   logBase = lift2 logBase
+
+
+-- The types are too general here.  For all (Integral b), we need to
+-- handle b, but can only handle Behavior b.  (See prelude.hs.)
+
+instance  RealFrac a => RealFrac (Behavior a)  where
+    properFraction = noOverload "properFraction"
+    truncate	   = noOverload "truncate"
+    round	   = noOverload "round"
+    ceiling	   = noOverload "ceiling"
+    floor	   = noOverload "floor"
+
+
+properFractionB	  :: (RealFrac a, Integral b) => Behavior a -> Behavior (b,a)
+truncateB, roundB :: (RealFrac a, Integral b) => Behavior a -> Behavior b
+ceilingB, floorB  :: (RealFrac a, Integral b) => Behavior a -> Behavior b
+
+properFractionB = lift1 properFraction
+truncateB = lift1 truncate
+roundB    = lift1 round
+ceilingB  = lift1 ceiling
+floorB    = lift1 floor
+
+{-
+instance  RealFloat a => RealFloat (Behavior a)  where
+  ... types too restrictive to be liftable ...
+-}
+
+{- We could also add these.  Need type declarations.
+
+floatRadixB      = lift1 floatRadix
+floatDigitsB	 = lift1 floatDigits
+floatRangeB	 = pairBSplit . lift1 floatRange
+decodeFloatB	 = pairBSplit . lift1 decodeFloat
+encodeFloatB	 = lift2 encodeFloat
+exponentB	 = lift1 exponent
+significandB	 = lift1 significand
+scaleFloatB	 = lift2 scaleFloat
+isNaNB		 = lift1 isNaN
+isInfiniteB	 = lift1 isInfinite
+isDenormalizedB  = lift1 isDenormalized
+isNegativeZeroB  = lift1 isNegativeZero
+isIEEEB		 = lift1 isIEEE
+
+-}
   
+-- Non-overloadable numeric functions
+
+-- Various flavors of exponentiation
+infixr 8  ^*, ^^*
+
+(^*)	:: (Num a, Integral b) => Behavior a -> Behavior b -> Behavior a
+(^^*)	:: (Fractional a, Integral b) => Behavior a -> Behavior b -> Behavior a
+
+(^*)  = lift2 (^)
+(^^*) = lift2 (^^)
+
 
 -- ... fill in Num subclasses ...
 
@@ -173,6 +271,12 @@ nilB  = lift0 []
 consB = lift2 (:)
 headB = lift1 head
 tailB = lift1 tail
+
+-- Other
+
+showB :: (Text a) => Behavior a -> Behavior String
+
+showB = lift1 show
 
 -- Testing
 

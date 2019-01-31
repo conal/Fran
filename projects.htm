@@ -1,0 +1,92 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1">
+<meta name="GENERATOR" content="Microsoft FrontPage 2.0">
+<title>RBMH-Related Projects</title>
+</head>
+
+<body>
+
+<h1 align="center"><a href="http:./">RBMH</a>-Related Projects</h1>
+
+<h3 align="center"><a
+href="http://www.research.microsoft.com/research/graphics/elliott/">Conal
+Elliott</a></h3>
+
+<h3 align="center"><em>Last modified <!--webbot bot="TimeStamp"
+startspan s-type="EDITED" s-format="%B %d, %Y" -->October 01, 1996<!--webbot
+bot="TimeStamp" i-checksum="31567" endspan --></em></h3>
+
+<ul>
+    <li>A get-acquainted exercise: play with the prototype
+        Haskell-based animation system RBMH, developing smallto medium-scale
+        examples. Provide feedback on its features. </li>
+    <li>Help investigate and prototype alternate implementation
+        approaches for improved efficiency. In particular, how can
+        we represent behaviors so that they have the flexibility of functions
+        of continuous time, but the caching-efficiency of (lazy) data structures?
+        The representation must work correctly and efficiently even
+        when a behavior is used more than once in another
+        behavior (without differing time transforms). As an
+        especially tricky but important case, consider systems of mutually
+        recursive integrals (ordinary differential equations),
+        which work in the current prototype, but extremely inefficiently. </li>
+    <li>Try to get great performance of RBMH apps without any
+        RBMH-specific support in the compiler. Make a detailed study
+        of RBMH programs compiled under GHC, ranging from small
+        to large. What are some of the significant perfomance
+        issues and applicable optimization techniques? What
+        applicable techniques are already in GHC implementations or
+        could be easily added? What new optimization techniques
+        arise out of this study? How to express and exploit domain-specific knowledge,
+        such as abstract data type axioms (identities, commutativity, associativity, distributivity,
+        etc). Does the approach scale with respect to both performance
+        and programmability? </li>
+    <li>Haskell-based software components, integrating
+        symmetrically with components implemented in other languages.
+        (By &quot;symmetrically&quot;, I mean no language technology insists on
+        being &quot;on top&quot;, at best deigning to call out
+        via a foreign function interface.) For example, package
+        up parameterized models as lightweight software components
+        that can be very easily integrated into a COM setting,
+        e.g., as ActiveX controls. Make it easy for users of Visual
+        Basic, VBScript, Java, JavaScript, etc, to combine these
+        components with each other and with more conventionally
+        specified software components. Develop a user-assisted
+        tool to generate COM/OLE/ActiveX interfaces to
+        functionality implemented in Haskell. How to reconcile
+        language disparaties, such as (a) Haskell's very
+        expressive type system vs COM's weak one; (b) Haskell
+        types with bottom vs C-ish types without; Haskell's
+        tupled and curried function arguments and tupled return values vs
+        the C style. Do safe and efficient storage management,
+        say via automatically reference counting COM objects that
+        wrap GHC stable pointers. </li>
+    <li>An important subset of previous item is making a few,
+        well-chosen modifications to GHC to enable the rest of the components
+        work. For instance, the RTS as a DLL, Haskell libraries
+        like RBMH as DLLS (maybe no extra work), a C-callable Haskell
+        &quot;apply&quot;, maybe some dynamic typing support. See
+        Sigbjorn's note &quot;GHC &amp; components&quot;. </li>
+    <li>Add 3D to RBMH. I can't think of a direct research
+        benefit for this one, but it adds a lot of visual appeal. There's
+        a Microsoft Press book coming out any day now on 3D programming
+        for Win95 that could serve as a good starting point. It also
+        ties into the next item. </li>
+    <li>Explore Talisman-oriented implementation techniques.
+        Formalize the theory of what's going on at various levels of hardware
+        and software, in terms of our algebras for media and reactive
+        behaviors. Talisman is rich with options for mapping our
+        operations to hardware or software, and is an unusually
+        nice fit for the continuous spaceand time- approach of AxA/RBMH. </li>
+    <li>Explore semantics for interactive models, starting with
+        user/model interaction, and then more generally, model/model
+        interactions (e.g., collisions and pursuit/avoidance).
+        Can models be both interactive and spatio-temporally modular (transformable)?
+        Simplify and generalize the current model.</li>
+</ul>
+</body>
+</html>

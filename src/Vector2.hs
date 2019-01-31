@@ -1,6 +1,6 @@
 {- RBMH 2D (static) Vectors
 
- Last modified Fri Sep 13 11:29:46 1996
+ Last modified Thu Oct 03 13:36:49 1996
 -}
 module Vector2 
         (
@@ -35,6 +35,7 @@ vector2Polar rho theta = Vector2XY (rho * cos theta) (rho * sin theta)
 
 vector2PolarCoords :: Vector2 -> (Length,Radians)
 vector2PolarCoords v@(Vector2XY x y) =
+ -- Watch out for zero.  Hmm... Should probably be in behavior atan2
  (magnitude v,
   if (x==0 && y==0) then 0 else atan2 y x)
 
@@ -47,3 +48,9 @@ instance  VectorSpace Vector2  where
     Vector2XY (dx1+dx2) (dy1+dy2)
 
   (Vector2XY dx1 dy1) `dot` (Vector2XY dx2 dy2)  =  dx1*dx2 + dy1*dy2
+
+
+instance  Num Vector2  where
+  (+)      = addVector
+  negate v = -1 `scaleVector` v
+  -- (-) follows from negate and +

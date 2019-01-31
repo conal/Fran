@@ -1,6 +1,6 @@
 -- Toplevel fellow for displaying static Images in a window
 --
--- Last modified Thu Sep 19 11:46:52 1996
+-- Last modified Fri Oct 04 09:41:56 1996
 
 module ShowImage
         (
@@ -128,11 +128,8 @@ draw hwnd im =
   paintWith hwnd (\hdc lpps ->
     -- I'd like to center the text.  Why doesn't the following work?
     setTextAlign hdc tA_CENTER  >>
-    windowSize hwnd 		>>= \ (l',t',r',b') ->
+    windowSize hwnd 		>>= \ (w',h') ->
     let 
-      w' = r' - l'
-      h' = b' - t'
-      -- Map to screen space.  Can we do this with setWorldTransform?
       stretch = Vector2XY pixelsPerLengthHorizontal pixelsPerLengthVertical
       im' = scale2     stretch            *%
             translate2 (vector2XY 1 1)    *%
@@ -161,13 +158,14 @@ draw hwnd im =
 
 
 {- ToDo: do this `natively' -}
-windowSize :: HWND -> IO RECT
+windowSize :: HWND -> IO (LONG,LONG)
 windowSize hwnd =
  alloc 			   >>= \ lprect ->
  getClientRect hwnd lprect >> 
- getLPRECT lprect          >>= \ r ->
+ getLPRECT lprect          >>= \ (l',t',r',b') ->
  free lprect               >>
- return r
+ return (r' - l', b' - t')
+
 
 ----------------------------------------------------------------
 -- Common imperative programming idioms

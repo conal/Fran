@@ -1,6 +1,6 @@
 -- Simple test harness for Image behaviors
 -- 
--- Last modified Fri Sep 20 15:00:51 1996
+-- Last modified Tue Oct 08 14:19:32 1996
 -- 
 -- To have a go, run "disp i{j}" where j `elem` [1..].
 -- Or run "disp allDemos" to see them all, and press <space> to go on to the
@@ -17,7 +17,6 @@ module ImageBTest where
 import RBMH
 import qualified StaticTypes as S
 import qualified ImageTest
-import PrimInteract
 
 import Random
 import Win32 (timeGetTime)
@@ -28,18 +27,25 @@ infixr 1 `seqImF`
 
 disp imF = ShowImageB.disp (imF 0)
 
+dispFps imF = disp (\t0 -> fpsImage t0 `over` imF t0)
+
+-- Put these next two defs elsewhere:
+
+-- An image of the fps behavior
+fpsImage = withColor yellow . renderedText . simpleText . showB . fps
 
 demos =   [ i0,  i1,  i2,  i3,  i4,  i5,  i6,  i7,  i8,  i9,
 	   i10, i11, i12, i13, i14, i15, i16, i17, i18, i19,
 	   i20, i21, i22, i23, i24, i25, i26, i27, i28, i29,
-	   i30, i31, i32, i33, i34, i35, i36 ]
+	   i30, i31, i32, i33, i34, i35, i36, i37 ]
 -- Doesn't work.  Why??  (Try just "disp i1 >> disp i2".)
 dispAll' = sequence (map disp demos)
 
 seqImF :: (Time -> ImageB) -> (Time -> ImageB) -> (Time -> ImageB)
 
 (imF `seqImF` imF') t0 =
-  imF t0 `untilB` (primKP `suchThat` (== ' ')) t0 +=> \ t1 _ -> imF' t1
+  imF t0 `untilB` (keyPress `suchThat` (\(ch,_) -> ch == ' ')) t0
+		    +=> \ t1 _ -> imF' t1
 
 allDemos =
   foldr seqImF
@@ -360,17 +366,24 @@ bounce2 (S.Point2XY  xMin yMin) (S.Point2XY  xMax yMax)
 
 -- Single bouncy ball
 
+bounceFrame =
+ polyline (map (\ i -> point2Polar sqrt2 (pi/4 + lift0 i * pi/2)) [0 .. 4])
+ where
+  sqrt2 = sqrt 2
+
 bouncyBall t0 =
-  translate2 (bounce2 (S.point2XY (-1) (-1)) (S.point2XY 1 1)
-                          S.origin2 (S.vector2XY 4.0 2.0)
-                          (S.vector2XY 0 (-1.8)) t0) *%
-  uscale2 0.1 *% withColor green circle
+  translate2 (bounce2 (S.point2XY (-1+radius) (-1+radius))
+		      (S.point2XY ( 1-radius) ( 1-radius))
+		      S.origin2 (S.vector2XY 4.0 2.0)
+		      (S.vector2XY 0 (-1.8)) t0) *%
+  uscale2 (lift0 radius) *% withColor green circle
+  where radius = 0.1
 
 
-i23 t0 = bouncyBall t0
+i23 t0 = bouncyBall t0 `over` bounceFrame
 
-lotsOfBounces =
-  balls
+lotsOfBounces t0 =
+  balls t0 `over` bounceFrame
   where
     balls t0 =
       emptyImage `untilB` lbp t0 +=> \ tBP _ ->
@@ -537,3 +550,33 @@ i36 t0 =
 	 (translateT (-pi/2) pt2)
 	 pt1
 	 (translateT (3*pi/2) pt2)
+
+-- Based on a similar function by Gary Shu Ling
+
+viewStretch :: String -> Time -> ImageB
+
+viewStretch bitmapFilename t0 =
+  case S.importBitmap bitmapFilename of
+      S.EmptyImage -> emptyImage
+      im@(S.Bitmap size _) ->
+        scale2 (vector2XY (wWidth / lift0 iWidth)
+			  (wHeight / lift0 iHeight))
+	 *% lift0 im
+	where
+	  (wWidth, wHeight) = pairBSplit (vector2XYCoords (viewSize t0))
+	  (iWidth, iHeight) = S.vector2XYCoords size
+
+
+i37 = viewStretch "..\\Media\\frog.bmp"
+
+
+iViewSize =
+  (translate2 (vector2XY (-0.9) 0) *%) . withColor yellow .
+  renderedText . simpleText . showB . viewSize
+
+
+iBlowStack2 t0 =
+  translate2 (vector2XY (integral 0 t0) 0) *% circle 
+  `timeTransform` (time*440)
+
+
