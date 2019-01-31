@@ -3,12 +3,12 @@
 --
 --   Separate model from visualization !
 --
--- Last modified Wed Jul 16 09:22:27 1997 by conal
+-- Last modified Fri Jul 25 14:32:38 1997 by conal
 --------------------------------------------------------------------------
 
 -- Rename to Fifteen2.hs
 
-module ESFifteen where
+module Fifteen2 where
 
 import Fran
 import qualified StaticTypes as S

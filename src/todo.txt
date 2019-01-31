@@ -1,9 +1,12 @@
                                To Do Items
 
-                  Last modified Thu Jul 24 11:38:14 1997
+                  Last modified Thu Aug 07 12:50:54 1997
 
 
 - Make events carry a start time, and re-implement startTime
+
+- Add rectangular trimming to ImageB and use for making a photo background
+  in ..\demos\Mover.hs.
 
 - Adjust operator precedences so we can chain all of the event modifiers:
   -=>, ==>, `afterE`, `snapshot`, etc.  They need to all be
@@ -17,6 +20,17 @@
   wave the mouse around in it.  I think the right solution is to sample
   for now, but give future times to the sprite engine.  This choice
   reflects a deliberate introduction of latency.
+
+- Handle sound sharing gracefully.  Sometimes another application, say
+  NetShow, will have grabbed the sound card before Fran could get it it,
+  and Fran doesn't react gracefully.  You'll often see the reverse
+  problem: after you've done your first graphics, so that OpenSpriteLib
+  has gotten called, you won't hear anything .wav from your sound card
+  from other applications until you quit Hugs.  This is a serious problem,
+  but I think it mostly goes away with DirectX 5, assuming the competing
+  program is using DirectX 5 as well.  For robustness sake, I should at
+  least make OpenSpriteLib return some kind of error value to be treated
+  as an IO Error.
 
 - 
 

@@ -1,0 +1,7 @@
+; SpriteLib.def : Declares the module parameters for the DLL.
+
+LIBRARY      "SPRITELIB"
+DESCRIPTION  'SPRITELIB Windows Dynamic Link Library'
+
+EXPORTS
+    ; Explicit exports can go here

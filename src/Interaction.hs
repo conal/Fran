@@ -1,6 +1,6 @@
 -- Higher-level interaction
 --
--- Last modified Mon Jul 14 17:56:39 1997
+-- Last modified Wed Aug 06 15:48:47 1997
 
 module Interaction where
 
@@ -84,38 +84,20 @@ userTimeIs :: Time -> User -> Event ()
 
 userTimeIs dt u = timeIs (startTime u + dt)
 
-{-
-userTimeIs te u = withTimeE u `filterE` f
- where
-  f (_, t1)  |  t1 > uStart+te = Just ()
-             |  otherwise      = Nothing
-  uStart = startTime u
--}
 
+-- Piecewise-constant input behaviors.
 
--- Piecewise-constant input behaviors.  Problem: the initial values are
--- bogus.
-
-mouse :: User -> Point2B
-mouse u = loop (S.origin2, u)
- where
-  loop :: (S.Point2, User) -> Point2B
-  loop (p, u) =
-   --trace ("mouse to " ++ show p ++ "\n") $
-   constantB p `untilB` (mouseMove u `afterE` u) ==> loop
-
-viewSize :: User -> Vector2B
-viewSize u = loop (S.vector2XY 2 2, u)
- where
-  loop (size, u) =
-    -- Should be able to use `untilB` here, but I get
-    -- Behavior Vector2 is not an instance of class "GBehavior".  Why?
-    -- VSB.constantB size `VSB.UntilB` (resize u ==> loop)
-    constantB size `untilB` (resize u `afterE` u) ==> loop
-
+mouse        :: User -> Point2B
+viewSize     :: User -> Vector2B
 updatePeriod :: User -> Behavior Double
-updatePeriod u = loop (0.1, u)
- where
-  loop (dur, u) =
-    --trace ("updatePeriod: " ++ show dur ++ " at " ++ show (startTime u) ++ "\n") $
-    constantB dur `untilB` (updateDone u `afterE` u) ==> loop
+
+-- Define as piecewise constant.  The initial values are bogus.
+
+mouse        = stepper S.origin2         . mouseMove
+viewSize     = stepper (S.vector2XY 2 2) . resize
+updatePeriod = stepper 0.1               . updateDone
+
+-- utility
+uStepper :: a -> (User -> Event a) -> (User -> Behavior a)
+uStepper a0 uEvent u = stepper a0 (uEvent u)
+

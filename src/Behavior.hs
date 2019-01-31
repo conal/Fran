@@ -1,7 +1,7 @@
 -- Non-reactive behaviors, represented as infinite "behavior trees" of
 -- sample values.  This version doesn't do interval analysis.
 -- 
--- Last modified Tue Jul 15 12:28:38 1997
+-- Last modified Thu Aug 07 09:22:33 1997
 --
 -- To do:
 --
@@ -10,13 +10,15 @@
 --  + untilB: Try to shift work from sampling to construction.
 --  + This representation space leaks in Hugs, and I don't know why.  See
 --    notes in the test section.
---  + Integration
 --  + Finish timeTransform.  See notes.
 --  + Make sampling do no cons'ing.  See note in "at" definition.
+--  + Many of the liftings are unnecessary, because of the default methods
+--    in Prelude.hs.
 
 
 module Behavior where
 
+import qualified BStack as BP   -- defines BPrim
 import BaseTypes
 import Event
 import Trace
@@ -26,40 +28,28 @@ infix  4  ==*, <*, <=* , >=*, >*
 infixr 3  &&*
 infixr 2  ||*
 
-infixr 0  $*
 
-
-
--- A btree (pronounced "bee tree", for "behavior tree") represents a
--- behavior over an interval.  It has a midpoint value and two sub-btrees,
--- with the interval and its start and end values being known from
--- context.
-
-data BTree a = BTree a (BTree a) (BTree a)
-
-
--- A behavior is represented by a single constant, or by a stack of
--- btrees, each with a start time.
+-- A behavior is represented by a single constant, an untilB, or a
+-- "primitive behavior".
 
 data Behavior a
   = ConstantB a
-  | BStack [(Time, BTree a)]
   | UntilB (Behavior a) (Event (Behavior a))
-
+  | BPrim (BP.BPrim a)
 
 instance (Show a) => Show (Behavior a) where
+  -- Are these two right?  I doubt it.  Needs parens sometimes, right?
   showsPrec p (ConstantB x) = showString "ConstantB " . showsPrec 10 x
-  showsPrec p (BStack _)    = showString "<<BStack>>"
+  showsPrec p (BPrim bprim) = showString "BPrim " . showsPrec 10 BPrim
   showsPrec p (UntilB b e)  = showParen (p > 1) $
                               shows b . showString " `UntilB` " . shows e
-
 
 instance GBehavior (Behavior a) where
   untilB          = UntilB              -- For now
   b `afterTime` t = snd (b `at` t)
 
   startTime (ConstantB _)       = minTime
-  startTime (BStack ((t0,_):_)) = t0
+  startTime (BPrim bprim)       = startTime bprim
   -- When does an UntilB start?
   startTime (b `UntilB` e)      = startTime b -- `max` startTime e
 
@@ -71,44 +61,10 @@ at :: Behavior a -> Time -> (a, Behavior a)
 
 b@(ConstantB x) `at` _ = (x, b)
 
-BStack stack `at` t = --trace ("Sampling BStack at " ++ show t ++ "\n") $
-                      sampleStack stack
+BPrim bprim `at` t = --trace ("Sampling BStack at " ++ show t ++ "\n") $
+                     (x, BPrim bprim')
  where
-  sampleStack stack @((t0, BTree aMid left right) :
-              stack'@((t1, _) : _))
-{-
-    -- Time before info: should never happen.  Maybe change to "t <= t0", but
-    -- we occasionally need to sample at start time, as in integration and
-    -- spritification.
-    | t < t0     =  error $ "{Behavior} at: time too small. " ++
-                    show t ++ " < " ++ show t0
--}
-    -- First btree irrelevant: skip over
-    | t > t1     =  --trace "s" $
-                    sampleStack stack'
-    -- First interval too long: sub-divide.  Idea: stash this remainder
-    -- list in the BTree to avoid re-creating it.  Ideally, sampling should
-    -- not cons.  (Might be okay as is.)  Take special care for machine
-    -- epsilon, especially with Hugs, whose "doubles" are really single
-    -- precision.  Only subdivide if real progress is made for both halves.
-
-    | dt > minStep && tMid - t0 < dt && t1 - tMid < dt =
-        (if (t < t0) then trace "{Behavior} at: time too small." else id)$
-        --trace ("d" {- ++ show (t0,t1,dt,tMid-t0) -}) $
-        --tMid `seq` 
-        sampleStack ((t0, left) : (tMid, right) : stack')
-    -- Close enough: return value and remainder.  Idea: stash this pair in
-    -- the BTree to avoid re-creating it.
-
-    | otherwise =  --trace ". " $
-                   (aMid, BStack stack)
-   where
-     dt   = t1 - t0
-     tMid = t0 + dt / 2
-
-  -- Min step size for sampling.  Experiment with this one.
-  minStep = 1.0e-4
-
+  (x, bprim') = bprim `BP.at` t
 
 -- Simple implementation of UntilB.  Try to shift work from sampling to
 -- construction.
@@ -129,19 +85,8 @@ BStack stack `at` t = --trace ("Sampling BStack at " ++ show t ++ "\n") $
 -- blocks.
 
 -- Our bstacks need start times, so no plain old "time"
-
 timeSince :: Time -> Behavior Time
-
-timeSince t0 = BStack (trees t0 1)
- where
-   trees t1 dt = -- t1 `seq` dt `seq`
-                 (t1, tree t1 dt) : trees (t1+dt) (2 * dt)
-
-   tree t1 dt = -- t1 `seq` dt `seq`
-                BTree (tMid-t0) (tree t1 halfDt) (tree tMid halfDt)
-    where
-      halfDt = dt / 2
-      tMid   = t1 + halfDt
+timeSince t0 = BPrim (BP.timeSince t0)
 
 
 -- Time transformation is semantically equivalent to function composition.
@@ -165,27 +110,10 @@ timeTransform b tt =
   error "{Behavior} timeTransform: not implemented, sorry"
 
 
--- The basics for non-reactivity.  These guys are S and K !!
+-- The basics for non-reactivity.  These guys are K and S !!
 
 constantB :: a -> Behavior a
 ($*) :: Behavior (a -> b) -> Behavior a -> Behavior b
-
-
--- Lifting.  All derived from constantB and ($*) !!
-
-
-lift0 :: a -> Behavior a
-lift1 :: (a -> b) ->
-         Behavior a -> Behavior b
-lift2 :: (a -> b -> c) ->
-         Behavior a -> Behavior b -> Behavior c
-lift3 :: (a -> b -> c -> d) ->
-         Behavior a -> Behavior b -> Behavior c -> Behavior d
-lift4 :: (a -> b -> c -> d -> e) -> 
-         Behavior a -> Behavior b -> Behavior c -> Behavior d -> Behavior e
-
--- etc
-
 
 -- lift0, i.e., K
 
@@ -201,7 +129,7 @@ constantB = ConstantB
 
 ConstantB f $* b = lift1 f b
 
--- fb $* ConstantB x =  ???
+BPrim bprim $* ConstantB x =  BPrim (bprim `BP.applyToConstant` x)
 
 -- Move UntilB inside of $*
 
@@ -214,31 +142,20 @@ fb $* (xb `UntilB` e) =
 
 -- Other cases
 
-fb $* xb = BStack (stacks tStart fb xb 1)
- where
-   tStart = startTime fb `max` startTime xb
+BPrim bpf $* BPrim bp = BPrim (bpf `BP.apply` bp)
 
-   stacks tStart fb xb dt =
-     -- I think we have to force these so they cannot build up into huge
-     -- postponed computations.  Experiment with and without the `seq`s.
-     -- Try with all, none, just tNext, and just fb&xb.
-     --tNext `seq` fb `seq` xb `seq`
-     (tStart, tree tStart fb xb dt) :
-     stacks tNext (fb `afterTime` tNext) (xb `afterTime` tNext) (2 * dt)
-    where
-      tNext = tStart + dt
+-- Alternate definition of lift1.  See comments above.  Test sometime to
+-- see if it helps.
 
-   tree tStart fb xb dt =
-     --tMid `seq` fb `seq` xb `seq`       -- see previous comment
-     BTree (fMid xMid)
-           (tree tStart fb  xb  halfDt)
-           (tree tMid   fb' xb' halfDt)
-    where
-      halfDt      = dt / 2
-      tMid        = tStart + halfDt
-      (fMid, fb') = fb `at` tMid
-      (xMid, xb') = xb `at` tMid
+lift1 f (ConstantB x1) = ConstantB (f x1)
 
+-- Move UntilB inside of lift1
+lift1 f (b `UntilB` e) = lift1 f b `untilB` e ==> lift1 f
+
+lift1 f (BPrim bp) = BPrim (f `BP.applyConstant` bp)
+
+
+-- Lifting.  All derived from constantB and ($*) !!
 
 lift0                        = constantB      {-
 lift1 f b1                   = lift0 f $* b1   -}
@@ -250,83 +167,29 @@ lift6 f b1 b2 b3 b4 b5 b6    = lift5 f b1 b2 b3 b4 b5 $* b6
 lift7 f b1 b2 b3 b4 b5 b6 b7 = lift6 f b1 b2 b3 b4 b5 b6 $* b7
 
 
--- Alternate definition of lift1.  See comments above.  Test sometime to
--- see if it helps.
-
-lift1 f (ConstantB x1) = ConstantB (f x1)
-
--- Mimic the structure of stack1
-
-lift1 f (BStack stack1) = BStack (map appStack stack1)
- where
-   appStack (tStart, tree) = (tStart, liftBTree tree)
-
-   liftBTree (BTree aMid left right) =
-      BTree (f aMid) (liftBTree left) (liftBTree right)
-
--- Move UntilB inside of lift1
-
-lift1 f (b `UntilB` e) = lift1 f b `untilB` e ==> lift1 f
-
-
-{- 
-
--- This version makes a bstack, and so does the work at construction time,
--- rather than sampling.  Not good, however, for behaviors that are
--- sometimes constant, since it forces construction of hugs bstacks with
--- lots of the same values.
-
-untilBB :: Behavior a -> Event (Behavior a) -> Behavior a
-
--- WORKING HERE
-
-b `untilBB` e  = BStack (stacks tStart b e 1)
- where
-   tStart = startTime b `max` startTime e
-
-   stacks tStart b e dt =
-      -- Maybe force computation of tStart, b, e here
-      (tStart, tree tStart b e dt) :
-      stacks tNext (b `afterTimeB` tNext) (e `afterTimeE` tNext) (2 * dt)
-    where
-      tNext = tStart + dt
-
-   tree tStart b e dt =
-     case mbOcc of
-       Nothing    -> bStackify tStart b dt
-       otherwise  -> ???
-    where
-      mbOcc      = fst (e `occ` (tStart+dt))
-      (x, bNext) = b `at`  t
-
--}
-
-
-accumB :: GBehavior bv => (bv -> b -> bv) -> bv -> Event b -> bv
-
-accumB f soFar e =
-  soFar `untilB` (withNextE e `afterE` soFar) ==> \ ((x,e'),soFar') ->
-  accumB f (f soFar' x) e'
+-- Utilities
 
 stepper :: a -> Event a -> Behavior a
-
--- stepper x0 e = constantB x0 `untilB` repeatE (e ==> constantB)
-
 stepper x0 e = switcher (constantB x0) (e ==> constantB)
 
 switcher :: GBehavior bv => bv -> Event bv -> bv
-
-switcher b0 e  =  b0 `untilB` repeatE e
-
-
--- repeatE :: Event (Behavior a) -> Event (Behavior a)
+switcher b0 e = b0 `untilB` repeatE e
 
 repeatE :: GBehavior bv => Event bv -> Event bv
+repeatE e = withRestE e ==> uncurry switcher
 
-repeatE e = withNextE e ==> \ (b', e') -> b' `untilB` repeatE e'
+accumB :: GBehavior bv => (bv -> b -> bv) -> bv -> Event b -> bv
+accumB f soFar e =
+  soFar `untilB` (withRestE e `afterE` soFar) ==> \ ((x,e'),soFar') ->
+  accumB f (f soFar' x) e'
 
+-- Here's a much simpler accumB definition, but it has a problem.  See the
+-- comment in scanlE.
+-- 
+-- accumB f soFar e = switcher soFar (scanlE f soFar e)
+--
+-- Look for a better way to define accumB.
 
--- End of primitives
 
 -- A few convenient type abbreviations:
 
@@ -548,6 +411,9 @@ nilB  = constantB []
 consB = lift2 (:)
 headB = lift1 head
 tailB = lift1 tail
+
+liftL :: ([a] -> b) -> ([Behavior a] -> Behavior b)
+liftL f bs = lift1 f (foldr consB nilB bs)
 
 -- Other
 

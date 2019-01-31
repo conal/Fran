@@ -1,0 +1,78 @@
+                     Design notes for sprite library
+
+                  Last modified Thu Dec 05 13:56:57 1996
+
+- A SpriteTree knows how to BLiT itself onto a DDraw surface (the back
+  buffer).  [The Paint method.]
+
+- Sprite is a subclass of SpriteTree.  Has a 2D size in pixels (not
+  fixed).  Also a method that takes a time (what units?) and returns a
+  DDraw source surface pointer and XY offset.  Also, position and scale
+  approximation functions, represented in some form that is easy to sample
+  incrementally.  [Not fixed size.  Approximations are linear.]
+
+- FlipSprite is a subclass of Sprite.  Contains a "flip book", from which
+  it chooses a rectangular region of a DDraw surface.
+
+- Other subclasses of Sprite have a single DDraw surface onto which they
+  render an image when necessary.  Examples: 2D geometry, text, 3D
+  geometry.  This surface gets resized when necessary.  (To do: how to
+  determine when to re-render.)
+
+- SpriteGroup is a subclass of SpriteTree.  It contains a sprite tree
+  sequence represented for quick back-to-front traversal.  Corresponds to
+  an untilB ImageB.  Can be cleared and re-filled.  Has a flag saying
+  whether the current contents are mutable.  (Sprite groups are initially
+  mutable.  Immutable groups may contain mutable groups).  Sprite groups
+  are change-once, i.e., they become immutable.  At some point, members of
+  an immutable sprite groups get merged into the parent list, to free up
+  levels of groups that are no longer needed.  I think this trick
+  efficiently handles common patterns of sprites that come and go
+  frequently.
+
+- From Haskell, sprites and sprite groups are identified by "handles".
+  These handles could be small integers, and are probably used as table
+  indices, though, for starters, they will be opaque pointers.  This
+  choice helps give the feel that the sprite data structures are in
+  another address space, perhaps on the Talisman DSP.  We may want to put
+  sprite management into another thread, if not another process.
+
+
+
+Notes on an ImageB spritification algorithm:
+
+- Flatten into back-to-front SpriteList.  Return an IO behavior for
+  updating the sprites.  But how to handle untilB, which requires
+  replacing the contents of a sprite group?  These actions don't seem to
+  fit into an IO behavior.
+
+- Idea: replace SpriteGroup with UntilSpriteTree, containing a sprite
+  list, and something like a sprite list event.  Represent the latter as a
+  time, a flag saying whether the time is a lower bound or exact event
+  time, and a SpriteTree list.  Clean-up eliminates these guys.  But does
+  this idea help any?
+
+- Instead, have flattening return an IO.  Put IO's in parallel for Over,
+  and put them in sequence with an IO version of untilB.  But how to get
+  the parallel IO's to terminate?
+
+- Instead, build a Haskell-side version of the sprite tree hierarchy, and
+  traverse it iteratively, doing sprite updates, creating and deleting
+  sprite tree lists, and rendering synthetic sprites (geometry and text).
+
+
+To do:
+
+- New name for "sprite tree".  Fix names like "SpriteList" and
+  "SpriteGroup".  How about "Animation", "AnimList" and "AnimGroup".
+
+- Go back to the Haskell interface.
+
+- Add embedded SoundB to ImageB.
+
+- Grab msvcrtd.dll
+
+
+Notes on Haskell interface:
+
+- Can I get the PaintAndFlip loop to be in C++?

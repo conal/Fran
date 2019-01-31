@@ -1,0 +1,130 @@
+                          SpriteLib To Do Items
+
+                  Last modified Fri Apr 11 13:02:09 1997
+
+- Should I really be double-buffering?  If I run at video rate, I should
+  be able to BLT the sprites right onto the primary surface.
+
+- Robustness in general: handle surface loss.
+
+- Add 3D.
+
+- Some kind of sensible regulation!
+
+- I think sprite trees should be much more like my ImageB type, namely
+  with subclasses corresponding to over, emptyImage, and untilB.  The
+  untilB would have a sprite tree, time, and new sprite tree.  The time
+  starts out as huge and gets set in reaction to an RBMH event.  The
+  sprite tree traverser optimizes away fired untilB and empty image
+  nodes.  An Over tree would ask its children whether either is empty,
+  and then optimize itself away.  On the other hand, it seems more
+  fitting to put the optimization work into the emptyImage nodes,
+  somehow, to reduce overhead.
+
+- Consider switching over to Mikey's D3D-based sprite engine with full
+  affines.
+
+- What to do about bitmap rotation?  Consider using Jerry's affine blit
+  code.
+
+- Maybe optimize renderText for the case of zero rotation.  Drop trig and
+  the clearDDSurface.
+
+- Replace "DDSurface" with "Surface" everywhere.
+
+- Rename newFlipBook, etc to drop the "new", *where* the operation is
+  side-effect-free and the result is immutable.  (Not
+  newPlainDDrawSurface.)
+
+- Perhaps eliminate the Lock/Unlock for SimpleSprite.  Instead, paint
+  could do a addref/release.  Think through carefully.
+
+- Phase out use of ddutil.cpp, converting to the ddcheck style.
+
+- Put g_pDDraw, etc into a new module, ddhelp.cpp, or combine with ddutil.cpp.
+
+- Make SimpleSprite try to reuse surfaces.
+
+- More text functionality: scale, rotate, fonts.
+
+- Watch out for char pointers as members, as in BitmapSurface and TextSurface.
+
+- Thread-safe SpriteGroup editing.
+
+- Figure out how to either (a) tolerate wrong timing predictions, or (b)
+  get dependable timing.
+
+- Move away from use of subtyping.  For instance, separate sprites from
+  sprite trees, so that a SingleSprite sprite tree contains a sprite,
+  rather than being one.  Should eliminate redundancy and fit the Haskell
+  types better.  Maybe go back to sprite trees vs sprite tree lists.
+
+- Consider replacing flip sprites with a cropping operation.  Should
+  cropping do a translation as well, or just make everything outside of
+  the crop region be transparent?  Probably the latter.  A gotcha: the
+  rectangle computation is not a linear mapping from index to rectangles,
+  because of wrap-around at the right end (including the last one back to
+  the beginning).
+
+- Phase out use of AFX_EXT_CLASS.
+
+- Move concrete classes to the .cpp files.  Put C interfaces last (after
+  the class decls).
+
+- Rework prediction.  Notice GC spikes and predict them based on number of
+  updates.
+
+- Consider removing MFC usage from the sprite library.
+
+- Straighten out SpriteTree vs SpriteTreeChain.  The creation functions
+  construct the latter.  Maybe call the whole think "SpriteChain".
+
+- Add some error message and exception support.  See AfxMessageBox and
+  ThrowUserException.
+
+- Try CFileException for bitmap loading.
+
+- Maybe eliminate the convenience methods SetGoalPosition and
+  SetGoalFrame, and give direct access to linear behaviors instead.  Would
+  probably make the Haskell side more uniform.
+
+- Re-think sprite group optimization.  When an UntilI's event occurs, we
+  can build the new SpriteTreeChain directly onto the chain that followed
+  the SpriteGroup.  Blast this extended chain right into the m_rest field,
+  clear the group's member chain, and mark as immutable.  Have an
+  IsSuperfluous method which returns true for immutable empty groups, so
+  they can be culled.  Or a Tidy method, which returns a sprite chain to
+  replace the one that led to it.  I prefer Tidy, since it's more abstract
+  and flexible.  For instance, on an event, we could instead null out the
+  m_rest field and put the extended chain in the members field.  Tidy
+  would then return the members after nulling out the pointer and deleting
+  the record.  In any case, note that culling may needing to be done
+  repeatedly.  [Or, have sprite chain traversal pass in the sprite chain
+  *by reference* for back-patching as needed.  If a sprite tree is asked
+  to display itself but decides it's superfluous, it back-patches.  This
+  latter idea seems a bit awkward, since the patching would be done by the
+  Paint method, which, being a method, cannot get its main argument
+  ("this") by reference.]
+
+  Note that we can cleanly terminate a whole animation by building an
+  UntilI that switches to the empty image.  After the event is detected,
+  there is just an empty immutable sprite group, which then get's removed.
+
+  [Red herring (see oops): Even better, have sprite chain traversal pass in
+  the sprite chain *by reference* for back-patching as needed.  When the
+  event happens, build the new chain onto the group's m_rest, NULL out
+  m_rest, back-patch, and delete the sprite group.  Oops -- update vs
+  display.  RBMH is doing the state update, but SpriteLib is doing the
+  sprite tree traversals.  Reset the members to be the *extended chain*,
+  NULL out m_rest, and mark the group as immutable.  Have the next display
+  traversal eliminate the group node.]
+
+- Consider malloc pointers instead of explicit freeing.  Wait for
+  Alastair's new ref counts.  Maybe better to do the refcounting at the
+  C++ level myself.
+
+- Map between continuous coords and window coords
+
+- Can I do without a background, and run in a transparent window
+  instead?  How to get the background repaired?  Ask MS Agent folks.
+

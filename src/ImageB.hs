@@ -2,12 +2,7 @@
 
 module ImageB where
 
--- To do: figure out how not to need a copy of HSpriteLib in this
--- directory.  I thought the following would work.
-
--- import qualified "../SpriteLib/HSpriteLib"
 import qualified HSpriteLib
-
 import BaseTypes
 import qualified StaticTypes as S
 import Behavior
@@ -26,8 +21,6 @@ infixl 6 `over`
 
 defaultTextColor = red
 
-
--- The bare minimum for now
 
 data ImageB
  = EmptyImage
@@ -172,9 +165,10 @@ bitmapSizeToVector2 (w,h) =
 -- Should really be two constants -- horizontal and vertical.
 bitmapPixelsPerLength = 100 :: RealVal
 
--- Note that screen pixels per world length and screen pixels per world
+-- Note that screen pixels per world length and bitmap pixels per world
 -- length do not have to agree.  If they do, however, the scalings will
--- cancel out, which makes for much faster display on most cards.
+-- cancel out in the absence of explicit scaling, which makes for much
+-- faster display on video cards that don't do hardware scaling.
 
 screenPixelsPerLength = bitmapPixelsPerLength :: RealVal
    

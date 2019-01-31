@@ -1,6 +1,6 @@
 
 unzip -o ../Fran1.$1.zip 
-cp -rp * .
+cp -rp Fran1/* .
 chmod -R u+w .
 rm -rf Fran1/
 git add .

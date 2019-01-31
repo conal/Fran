@@ -1,6 +1,6 @@
 -- Some basic types
 --
--- Last modified Wed Jul 09 14:44:12 1997
+-- Last modified Tue Aug 05 11:33:20 1997
 
 module BaseTypes where
 
@@ -9,7 +9,8 @@ type Length   = RealVal
 type Radians  = RealVal
 type Fraction = RealVal  -- 0 to 1 (inclusive)
 
-type Time  = Double
+type Time = Double
+type DTime = Time                       -- Time deltas, i.e., durations
 
 -- Time that stands for -infinity.  Use for {Behavior}startTime  ###
 minTime :: Time

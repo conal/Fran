@@ -1,9 +1,11 @@
 -- The "event algebra".
 -- 
--- Last modified Tue Jul 22 14:30:07 1997
+-- Last modified Thu Aug 07 10:41:05 1997
 --
 -- To do:
 --
+--  + Re-examine the notion of start times for events.  The current
+--    implementation is bogus!
 --  + Users and interaction (easy)
 --  + Some safe and simple caching (lazy evaluation for occurrences)
 
@@ -12,18 +14,23 @@ module Event where
 
 import BaseTypes
 
+import Channel                           -- for EventChannel
+import IOExtensions (unsafeInterleaveIO) -- for getChanContents
+
 import Maybe (isJust)
 import Trace
 
-infixr 1 `untilB`
+infixr 1 `untilB`, `untilF`
 
 infixl 3 ==>
 infixl 3 -=>
 infixl 2 .|.
 
-infixl 9 `filterE`, `suchThat`
-
---infixl 1 +>>=   -- generalization of >>=
+infixl 9 `handleE`, `filterE`
+       , `withElemE`, `withElemE_`
+       , `afterE`, `afterE_`
+       , `withPrevE`, `withPrevE_`
+       , `suchThat`
 
 
 -- Represent an event as a sequence of possible occurrences.  The
@@ -31,8 +38,7 @@ infixl 9 `filterE`, `suchThat`
 -- occurrence time.
 
 newtype Event a = Event [PossOcc a]
-
-type PossOcc a = (Time, Maybe a)
+type  PossOcc a = (Time, Maybe a)
 
 
 instance Show (Event a) where showsPrec _ _ = showString "<<event>>"
@@ -40,7 +46,6 @@ instance Show (Event a) where showsPrec _ _ = showString "<<event>>"
 -- The abstract interface.  Well, 
 
 occ :: Event a -> Time -> (Maybe (Time, a), Event a)
-
 Event possOccs `occ` t = loop possOccs
  where
    -- Out of occurrences
@@ -72,11 +77,9 @@ Event possOccs `occ` t = loop possOccs
 -- An event from a list of possible occurrences
 
 possOccsE :: [PossOcc a] -> Event a
-
 possOccsE = Event
 
 occsE :: [(Time,a)] -> Event a
-
 occsE pairs = possOccsE (map (\ (t,x) -> (t, Just x)) pairs)
 
 
@@ -88,10 +91,9 @@ possOccsOf (Event possOccs) = possOccs
 -- The event "ev `handleE` f" occurs exactly when ev occurs.  Its value is
 -- (f te x nextEv), where te and x are the time and value of ev's
 -- occurrence, and nextEv is a remainder event.  This combinator is only
--- meant for helping to define ==>, -=>, withNextE, and withTimeE
+-- meant for helping to define ==>, -=>, withRestE, and withTimeE
 
 handleE :: Event a -> (Time -> a -> Event a -> b) -> Event b
-
 Event possOccs `handleE` f = Event (loop possOccs)
  where
    loop [] = []
@@ -103,7 +105,6 @@ Event possOccs `handleE` f = Event (loop possOccs)
 -- e if they occur simultaneously.
 
 (.|.) :: Event a -> Event a -> Event a
-
 Event possOccs .|. Event possOccs' = Event (merge possOccs possOccs')
  where
    merge os@(p@(te, mb) : osRest) os'@(p'@(te', mb') : osRest')
@@ -114,87 +115,33 @@ Event possOccs .|. Event possOccs' = Event (merge possOccs possOccs')
      -- the left event.
      | otherwise  =  (te, mb ++ mb') : merge osRest osRest'
 
-
 -- Generalization of suchThat, replacing a condition by a maybe value.
 
 filterE :: Event a -> (a -> Maybe b) -> Event b
-{-
--- Too strict!  Forces the maybe in order to get the te
-Event possOccs `filterE` f = Event (map filt possOccs)
- where
-   filt (te, Nothing) = (te, Nothing)
-   filt (te, Just x)  = (te, case f x of
-                               Nothing  -> Nothing
-                               Just y   -> Just y)
--}
-
-{-
--- Works, but could exploit the Monad-ness of Maybe
-Event possOccs `filterE` f = Event (map filt possOccs)
- where
-   filt (te, mb) = (te, (case mb of
-                          Nothing -> Nothing
-                          Just x  -> f x))
--}
-
 Event possOccs `filterE` f = Event (map filt possOccs)
  where
    filt (te, mb) = (te, mb >>= f)
 
+-- Question: are monadic definitions like that of filt above too obscure?
+-- It says that Nothing goes to Nothing, and Just x goes to (f x), which
+-- might be a Nothing or a Just.  Similarly, .|. uses ++ on Maybe.
 
 
-------- Non-primitives
+-- Pair up members of a list with occurrences of an event
+withElemE :: Event a -> [b] -> Event (a,b)
+Event possOccs `withElemE` l = Event (loop possOccs l)
+ where
+   loop ((te, mb) : possOccs') ~bs@(b:bs') =
+     (te, mbPair) : loop possOccs' bsNext
+    where
+      mbPair = map (`pair` b) mb
+      bsNext | isJust mb = bs'
+             | otherwise = bs
 
--- List version of .|.
+withElemE_ :: Event a -> [b] -> Event b
+e `withElemE_` l = (e `withElemE` l) ==> snd
 
-anyE :: [Event a] -> Event a
-
-anyE = foldr (.|.) neverE
-
-
-timeIs :: Time -> Event ()
-
-timeIs te  =  possOccsE [(te, Just ())]
-
-constE :: Time -> a -> Event a
-
-constE te x = timeIs te -=> x
-
--- An alarm clock going off at a regular interval.
-alarmE :: Time -> Time -> Event ()
-
-alarmE t0 dt = occsE (map (`pair` ()) [t0, t0+dt ..])
-
--- An event that never happens
-
-neverE :: Event a
-
-neverE = possOccsE []
-
--- Move time and next event to data.
-
-withNextE :: Event a -> Event (a, Event a)
-withNextE e = e `handleE` \ te x e' -> (x,e')
-
-withTimeE :: Event a -> Event (a, Time)
-withTimeE e = e `handleE` \ te x e' -> (x,te)
-
-
--- Event handler simplifications.  To do: be systemmatic with names and
--- functionality.
-
-ev ==> f  =  ev `handleE` \ te x e' -> f x
-ev -=> x  =  ev ==> const x
-
-
--- Filter out event occurrences whose data doesn't satisfy a condition.
-
-suchThat :: Event a -> (a -> Bool) -> Event a
-suchThat ev pred =
-  filterE ev (\a -> if pred a then Just a else Nothing) 
-
-
--- Type class instances.  Monadic stuff.
+----------- Monadic stuff ----------
 
 instance Functor Event where
   map = flip (==>)
@@ -210,13 +157,47 @@ instance MonadZero Event where
 instance MonadPlus Event where
  (++)  = (.|.)
 
+-- One choice for the monadic join for events.  This one uses only the
+-- first occurrence of the given event.  Alternatively, we could do some
+-- kind of backtracking, enumerating all occurrences of ev, which are
+-- events themselves, and then all occurrences of them, and presenting the
+-- whole batch of them in time-sorted order.
 
--- "Generalized behaviors".
+joinEOne :: Event (Event a) -> Event a
+joinEOne (Event possOccs) = Event (loop possOccs)
+ where
+   loop [] = []
+
+   loop po@((te, mb) : possOccs') =
+     (te,Nothing) : 
+     case mb of
+       Nothing                    ->  loop possOccs'
+       Just (Event morePossOccs)  ->  morePossOccs
+
+------------- Event as generalized behavior -------------
 
 class GBehavior bv where
   untilB    :: bv -> Event bv -> bv
-  startTime :: bv -> Time
-  afterTime :: bv -> Time -> bv
+  afterTime :: bv -> Time     -> bv
+  startTime :: bv             -> Time
+
+-- I thought this would be useful.  However, the event should really be a
+-- function of bv, which breaks the mold.
+instance (GBehavior bv, GBehavior bv') => GBehavior (bv -> bv') where
+ (f `untilB` e) bv = f bv `untilB` e `afterE` bv ==> uncurry ($)
+ -- ...
+
+-- Instead, use this guy.  Should there be one version for GBehavior a
+-- that does the afterE and one for non-GBehavior a that doesn't??
+untilF :: (GBehavior bv, GBehavior a)
+       => (a -> bv) -> (a -> Event (a -> bv)) -> (a -> bv)
+(f `untilF` e) a = f a `untilB` e a `afterE` a ==> uncurry ($)
+
+instance (GBehavior bv, GBehavior bv') => GBehavior (bv,bv') where
+ (bv, bv') `untilB` e    = (bv `untilB` e ==> fst, bv' `untilB` e ==> snd)
+ (bv, bv') `afterTime` t = (bv `afterTime` t, bv' `afterTime` t)
+ startTime (bv, bv')     = startTime bv `max` startTime bv'
+
 
 instance GBehavior (Event a) where
   Event possOccs1 `untilB` Event possOccs2 = Event (loop possOccs1 possOccs2)
@@ -249,27 +230,7 @@ instance GBehavior (Event a) where
   startTime (Event [])         = minTime
   startTime (Event ((te,_):_)) = te
 
-
--- One choice for the monadic join for events.  This one uses only the
--- first occurrence of the given event.  Alternatively, we could do some
--- kind of backtracking, enumerating all occurrences of ev, which are
--- events themselves, and then all occurrences of them, and presenting the
--- whole batch of them in time-sorted order.
-
-joinEOne :: Event (Event a) -> Event a
-
-joinEOne (Event possOccs) = Event (loop possOccs)
- where
-   loop [] = []
-
-   loop po@((te, mb) : possOccs') =
-     (te,Nothing) : 
-     case mb of
-       Nothing  ->  loop possOccs'
-       Just (Event morePossOccs)  ->  morePossOccs
-
 afterE :: GBehavior bv => Event a -> bv -> Event (a, bv)
-
 Event possOccs `afterE` b = Event (loop possOccs b)
  where
    loop [] _ = []
@@ -283,28 +244,14 @@ Event possOccs `afterE` b = Event (loop possOccs b)
       b' = b `afterTime` te
 
 afterE_ :: GBehavior bv => Event a -> bv -> Event bv
-
 e `afterE_` b  = (e `afterE` b) ==> snd
 
--- Like scanl for lists.
+-- Like scanl for lists.  Warning! Do not use for GBehavior a, since it
+-- will not get "aged".  See accumB.  Note: maybe the accumulator should
+-- be forced at each point.  As a lucky side-effect, the (Forceable a)
+-- context will lock out GBehaviors.
 
 scanlE :: (a -> b -> a) -> a -> Event b -> Event a
-
-{-
--- This def forces the maybe value too soon.
-scanlE f x0 (Event possOccs) = Event (loop x0 possOccs)
- where
-  loop _ [] = []
-
-  loop x0 ((te, Nothing) : possOccs') =
-    (te, Nothing) : loop x0 possOccs'
-
-  loop x0 ((te, Just x) : possOccs') =
-    (te, Just x1) : loop x1 possOccs'
-   where
-     x1 = f x0 x
--}
-
 scanlE f x0 (Event possOccs) = Event (loop x0 possOccs)
  where
   loop _ [] = []
@@ -317,24 +264,89 @@ scanlE f x0 (Event possOccs) = Event (loop x0 possOccs)
                     Just x  -> (Just x1, x1) where x1 = f x0 x
 
 
-withPrevE :: a -> Event a -> Event (a,a)
-{-
--- Oops: forces the maybe too soon
-withPrevE a0 (Event possOccs) = Event (loop a0 possOccs)
- where
-   loop aPrev ((te, Nothing) : possOccs') =
-     (te, Nothing) : loop aPrev possOccs'
-   loop aPrev ((te, Just aNew ) : possOccs') =
-     (te, Just (aPrev, aNew)) : loop aNew possOccs'
--}
-
-withPrevE a0 (Event possOccs) = Event (loop a0 possOccs)
+withPrevE :: Event a -> a -> Event (a,a)
+(Event possOccs) `withPrevE` a0 = Event (loop a0 possOccs)
  where
    loop aPrev ((te, mb) : possOccs') = (te, mb') : loop aPrev' possOccs'
     where
       (mb', aPrev') = case mb of
                         Nothing   -> (Nothing, aPrev)
                         Just aNew -> (Just (aPrev, aNew), aNew)
+
+withPrevE_ :: Event a -> a -> Event a
+e `withPrevE_` a0 = (e `withPrevE` a0) ==> snd
+
+-------------- Channel-based (external) events ---------------
+
+-- External event occurrences come in on a channel, together with
+-- non-occurrence buffering.
+type EventChannel a = Channel (PossOcc a)
+
+-- Make a new user, with an initial no-op.  This lets the user be queried
+-- for time t0 even when there isn't yet a thread doing more putChan's.
+
+newChannelEvent :: Time -> IO (Event a, EventChannel a)
+newChannelEvent t0 =
+  do ch <- newChan
+     -- The following entry is in case the event gets queried at time t0.
+     putChan ch (t0, Nothing)
+     contents <- getChanContents ch
+     return (possOccsE contents, ch)
+ where
+   -- From the Concurrent Haskell Channel, courtesy of Sigbjorn
+   -- Should really move into Hugs/lib/hugs/Channel.hs
+   -- getChanContents :: Show a => Channel a -> IO [a]
+   getChanContents ch =
+     unsafeInterleaveIO (
+     do -- putStrLn "Doing getChan"
+        x  <- getChan ch
+        --print x
+        xs <- unsafeInterleaveIO (getChanContents ch)
+        return  (x:xs) )
+
+
+-------------- non-primitives --------------
+
+-- List version of .|.
+
+anyE :: [Event a] -> Event a
+anyE = foldr (.|.) neverE
+
+timeIs :: Time -> Event ()
+timeIs te  =  possOccsE [(te, Just ())]
+
+constE :: Time -> a -> Event a
+constE te x = timeIs te -=> x
+
+-- An alarm clock going off at a regular interval.
+alarmE :: Time -> Time -> Event ()
+alarmE t0 dt = occsE (map (`pair` ()) [t0, t0+dt ..])
+
+-- The event that never happens.  Identity for .|.
+neverE :: Event a
+neverE = possOccsE []
+
+-- Move time and remainder event to data.
+
+withRestE :: Event a -> Event (a, Event a)
+withRestE e = e `handleE` \ te x e' -> (x,e')
+
+withTimeE :: Event a -> Event (a, Time)
+withTimeE e = e `handleE` \ te x e' -> (x,te)
+
+
+-- Event handler simplifications.  To do: be systemmatic with names and
+-- functionality.
+
+ev ==> f  =  ev `handleE` \ te x e' -> f x
+ev -=> x  =  ev ==> const x
+
+
+-- Filter out event occurrences whose data doesn't satisfy a condition.
+
+suchThat :: Event a -> (a -> Bool) -> Event a
+suchThat ev pred =
+  filterE ev (\a -> if pred a then Just a else Nothing) 
 
 
 -------------- Debugging support -------------
@@ -355,20 +367,6 @@ validateE (Event possOccs) = Event (loop possOccs minTime)
 data TraceEFlag = TraceOccsE | TraceAllE   deriving (Show, Eq)
 
 traceE :: Show a => String -> TraceEFlag -> Event a -> Event a
-
-{-
--- This version is too strict.  We need to know the time before printing
--- the occurrence value.
-traceE prefix flag (Event possOccs) = Event (loop possOccs)
- where
-   loop [] = []
-   loop (o@(_,mb) : possOccs') = maybeTrace o : loop possOccs'
-    where 
-     maybeTrace | not (isJust mb) && flag == TraceOccsE = id
-                | otherwise                             =
-       trace ("traceE " ++ prefix ++ ": " ++ show o ++ "\n")
--}
-
 traceE prefix flag (Event possOccs) = Event (loop possOccs)
  where
    loop [] = []

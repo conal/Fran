@@ -15,10 +15,12 @@ import qualified Win32
 import IORef
 import Monad (when)
 import Channel (Channel, putChan)
+import Event (EventChannel, newChannelEvent)
 import User
 import ImageB (bitmapPixelsPerLength, screenPixelsPerLength)
 import IOExtensions( garbageCollect )
 
+type UserChannel = EventChannel UserAction
 
 -- Window stuff
 
@@ -38,9 +40,7 @@ makeWindow createIO resizeIO updateIO closeIO
   let 
       send userEvent = do
         -- Get time now.  Bogus, since the event really happened before
-	-- now.  On the other hand, saying now works well with the
-	-- updateDone events generated in Spritify, which are said to be
-	-- later but inserted earlier.
+	-- now.
         t <- currentSpriteTime
         --putStrLn ("User event " ++ show (t, userEvent))
         --putStr ("ue " ++ show t ++ " ")
@@ -207,9 +207,9 @@ updatePeriodGoal = 0.1
 showSpriteTree :: HSpriteTree -> IO () -> UserChannel -> SpriteTime -> IO ()
 
 showSpriteTree spriteTree updateIO userChan t0 =
- do spriteEngineVar <- newRef (error "dDrawEnvVar not set")
+ do spriteEngineVar <- newRef (error "spriteEngineVar not set")
     updateCountVar  <- newRef (0::Int)
-    frameCountRef   <- newRef 0
+    frameCountRef   <- newRef (error "frameCountRef not set")
     windowVar	    <- newRef (error "windowVar not set")
     
     makeWindow
@@ -226,10 +226,10 @@ showSpriteTree spriteTree updateIO userChan t0 =
            updateIO
 	   updateRefStrict updateCountVar (+1))
        -- Close IO
-       (do eng <- getRef spriteEngineVar
+       (do eng   <- getRef spriteEngineVar
 	   count <- deleteSpriteEngine eng
 	   setRef frameCountRef count
-	   win <- getRef windowVar
+	   win   <- getRef windowVar
 	   Win32.destroyWindow win)
        -- update interval in seconds
        updatePeriodGoal
@@ -240,7 +240,7 @@ showSpriteTree spriteTree updateIO userChan t0 =
     -- Show performance stats
     updateCount <- getRef updateCountVar
     frameCount  <- getRef frameCountRef
-    --showStats t0 frameCount updateCount
+    showStats t0 frameCount updateCount
     return ()
 
 
@@ -250,21 +250,21 @@ showStats :: SpriteTime -> Int -> Int -> IO ()
 
 showStats t0 frameCount updateCount =
  do t1 <- currentSpriteTime
-    let dt = t1 - t0 in
-      do -- putStrLn (show dt ++ " seconds")
-	 putStrLn ""
-         putStrLn (show dt ++ " seconds elapsed")
-	 putStrLn (show frameCount ++ " frames == " ++
-		   show (fromInt frameCount / dt) ++ " fps, " ++
-                   show (round (1000 * dt / fromInt frameCount)) ++
-                   " MS average")
-	 putStrLn (show updateCount ++ " updates == " ++
-		   show (fromInt updateCount / dt) ++ " ups, " ++
-                   show (round (1000 * dt / fromInt updateCount)) ++
-                   " MS average")
+    let dt = t1 - t0
+    -- putStrLn (show dt ++ " seconds")
+    putStrLn ""
+    putStrLn (show dt ++ " seconds elapsed")
+    putStrLn (show frameCount ++ " frames == " ++
+              show (fromInt frameCount / dt) ++ " fps, " ++
+              show (round (1000 * dt / fromInt frameCount)) ++
+              " MS average")
+    putStrLn (show updateCount ++ " updates == " ++
+              show (fromInt updateCount / dt) ++ " ups, " ++
+              show (round (1000 * dt / fromInt updateCount)) ++
+              " MS average")
 
 
-
+{-
 -- Testing.  Superceded by Spritify.hs
 
 type STGen = Time -> SpriteTreeChain -> IO SpriteTreeChain
@@ -275,7 +275,7 @@ disp :: STGen -> IO ()
 
 disp stGen =
   do t0 <- currentSpriteTime
-     (ignoredUser, userChan) <- newUser t0
+     (ignoredUser, userChan) <- newChannelEvent t0
      spriteTree <- stGen t0 emptySpriteTreeChain
      showSpriteTree spriteTree (return ()) userChan t0
 
@@ -325,7 +325,7 @@ threeDonuts t0 rest =
 
 noDonuts t0 rest = return rest
 
-
+-}
 
 
 ----------------------------------------------------------------

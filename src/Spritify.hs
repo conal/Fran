@@ -1,9 +1,20 @@
 -- Mapping ImageB to sprite trees
+--
+-- Here's the idea: instead of repeatedly sampling an image behavior into
+-- static images and displaying each such image, break up the image
+-- behavior into sprites, and repeatedly sample and "display" sprite
+-- parameters behaviors.
+--
+-- To do:
+--
+-- + Simplify!  Try to remove the ref stuff, by making UpdateIO take an IO
+--   behavior, instead of a Time->IO().  Why didn't I before?  In the
+--   process, figure out how to get the latency stuff right.
+--   
+-- + Switch to behavior interface [Time]->[a]
 
-module Spritify (
-  disp,
-  donutFlipBook
-    ) where
+
+module Spritify (disp) where
 
 import BaseTypes
 import qualified StaticTypes as S
@@ -17,6 +28,7 @@ import ImageB
 import SoundB
 import User
 import Interaction
+import Channel (putChan)
 import IORef(Ref,newRef,getRef,setRef)
 import Update
 import Trace
@@ -79,35 +91,6 @@ spritifyRec mbColor motion scale (FlipImage flipBook page) t0 =
         do update t0 t0
            return (UpdateIO update : pAbove , toSpriteTree hFlipSprite)
 
-{-
-spritifyRec mbColorB motionB scaleB (SyntheticImage surfGen) t0 =
- \ (pAbove, sAbove) ->
- do hSimpleSprite <- newSimpleSprite surf0 0 0 1 1 sAbove
-    --putStrLn "Made new SimpleSprite"
-    motionRef <- newRef motionB
-    surfRef   <- newRef surfB
-    let
-        update :: Time -> IO ()
-
-        update t t' =
-          updateBvrRefIO motionRef t $ \ motion  ->
-          updateBvrRefIO surfRef   t $ \ surf ->
-          --putStrLn "Updating SimpleSprite" >>
-          updateSimpleSprite hSimpleSprite t' motion surf
-     in
-        -- A mystery: if I put in the "update t0" below, then the Paint
-        -- method bombs, saying DDERR_SURFACEBUSY, meaning "Access to the
-        -- surface is refused because the surface is locked by another
-        -- thread."
-        do -- update t0
-           return (UpdateIO update : pAbove , toSpriteTree hSimpleSprite)
- where
-   surfB = surfGen mbColorB scaleB
-   -- To do: phase out the need for surf0
-   (surf0, _) = surfB `at` t0
--}
-
--- Will replace SyntheticImage
 spritifyRec mbColorB motionB scaleB (SyntheticImageIO surfGenIO) t0 =
  \ (pAbove, sAbove) ->
  do motionRef <- newRef motionB
@@ -119,16 +102,16 @@ spritifyRec mbColorB motionB scaleB (SyntheticImageIO surfGenIO) t0 =
         update :: Time -> Time -> IO ()
 
         update t t' =
-          updateBvrRefIO motionRef t $ \ motion  ->
-          surfGen t t'                >>= \ surf ->
+          updateBvrRefIO motionRef t $ \ motion  -> do
+          surf <- surfGen t t'
           --putStrLn "Updating SimpleSprite" >>
           updateSimpleSprite hSimpleSprite t' motion surf
      in
-        -- A mystery: if I put in the "update t0" below, then the Paint
+        -- A mystery: if I put in the "update t0 t0" below, then the Paint
         -- method bombs, saying DDERR_SURFACEBUSY, meaning "Access to the
         -- surface is refused because the surface is locked by another
-        -- thread."
-        do -- update t0
+        -- thread."  Well -- this problem doesn't seem to be happening now.
+        do update t0 t0
            return (UpdateIO update : pAbove , toSpriteTree hSimpleSprite)
 
 
@@ -165,11 +148,12 @@ spritifyRec mbColor motion scale (WithColor colorInner imb) t0 =
   spritifyRec (mbColor ++ Just colorInner) motion scale imb t0
 
 
-spritifyRec mbColor motion scale (imb `UntilI` e)   t0 = \ (pAbove, sAbove) ->
+spritifyRec mbColor motion scale (imb `UntilI` e) t0 =
+  \ (pAbove, sAbove) -> do
   -- Make a new sprite group with the results of spritifying imb.
   --putStrLn "Making sprite group" >>
-  makeGroupMembers t0 imb            >>= \ (updateTrees, spriteChain) ->
-  newSpriteGroup spriteChain sAbove  >>= \ group ->
+  (updateTrees, spriteChain) <- makeGroupMembers t0 imb
+  group <- newSpriteGroup spriteChain sAbove
   -- Make a PSpriteGroup whose event makes the new group members
   return ( UpdateGroup updateTrees (withTimeE e ==> updateGroup group) :
              pAbove ,
@@ -177,9 +161,9 @@ spritifyRec mbColor motion scale (imb `UntilI` e)   t0 = \ (pAbove, sAbove) ->
   where
    makeGroupMembers t0 anim =
      spritifyRec mbColor motion scale anim t0 emptyIETrees
-   updateGroup group (imb', t1) =
-     makeGroupMembers t1 imb'  >>= \ (updateTrees', spriteChain') ->
-     resetSpriteGroup group spriteChain' False >>
+   updateGroup group (imb', t1) = do
+     (updateTrees', spriteChain') <- makeGroupMembers t1 imb'
+     resetSpriteGroup group spriteChain' False
      return updateTrees'
 
 -- Similar to spritify, but on SoundB.  Used from spritifyRec.
@@ -235,11 +219,12 @@ spritifySoundRec vol pan pitch (PitchS p sound') t0 =
   spritifySoundRec vol pan (pitch * p) sound' t0
 
 -- Badly redundant with spritifyRec
-spritifySoundRec vol pan pitch (snd `UntilS` e)   t0 = \ (pAbove, sAbove) ->
+spritifySoundRec vol pan pitch (snd `UntilS` e) t0 =
+  \ (pAbove, sAbove) -> do
   -- Make a new sprite group with the results of spritifying snd.
-  --putStrLn "Making sprite group" >>
-  makeGroupMembers t0 snd            >>= \ (updateTrees, spriteChain) ->
-  newSpriteGroup spriteChain sAbove  >>= \ group ->
+  --putStrLn "Making sprite group"
+  (updateTrees, spriteChain) <- makeGroupMembers t0 snd
+  group <- newSpriteGroup spriteChain sAbove
   -- Make a UpdateGroup whose event makes the new group members
   return ( UpdateGroup updateTrees (withTimeE e ==> updateGroup group)
              : pAbove ,
@@ -247,9 +232,9 @@ spritifySoundRec vol pan pitch (snd `UntilS` e)   t0 = \ (pAbove, sAbove) ->
   where
    makeGroupMembers t0 anim =
      spritifySoundRec vol pan pitch anim t0 emptyIETrees
-   updateGroup group (snd', t1) =
-     makeGroupMembers t1 snd'  >>= \ (updateTrees', spriteChain') ->
-     resetSpriteGroup group spriteChain' False >>
+   updateGroup group (snd', t1) = do
+     (updateTrees', spriteChain') <- makeGroupMembers t1 snd'
+     resetSpriteGroup group spriteChain' False
      return updateTrees'
 
 
@@ -270,42 +255,10 @@ updateSimpleSprite hSimpleSprite t (S.Vector2XY dx dy) surf =
  do setGoalPosition  (toSprite hSimpleSprite) dx dy t
     setSurface	     hSimpleSprite surf
 
-{- This one is a SpriteLib primitive.  The others should be as well
 
-updateSoundSprite hSoundSprite t vol pan pitch =
-  return ()
- do setGoalScale    (toSprite hSoundSprite) sc sc t
-    --putStrLn ("offset " ++ show (S.Vector2XY dx dy))
-    setGoalPosition (toSprite hSoundSprite) dx dy t
--}
-
-{- 
-
-updateFlipSpriteB :: HFlipSprite -> Vector2B -> RealB -> RealB -> IOB ()
-
-updateFlipSpriteB hFlipSprite motion scale page =
-  --trace ("updateFlipSpriteB: motion at 10 is " ++ show (fst (motion `at` 10)) ++ "\n" )$
-  lift4 (updateFlipSprite hFlipSprite)
-	motion scale page
-
-updateSimpleSpriteB :: HSimpleSprite -> Vector2B
-		    -> SurfaceB -> IOB ()
-
-updateSimpleSpriteB hSimpleSprite =
-  lift3 (updateSimpleSprite hSimpleSprite)
-
-updateSoundSpriteB :: HSoundSprite -> RealB -> RealB -> RealB -> IOB ()
-
-updateSoundSpriteB hSoundSprite vol pan pitch =
-  --trace ("updateSoundSpriteB: motion at 10 is " ++ show (fst (motion `at` 10)) ++ "\n" )$
-  lift4 (updateSoundSprite hSoundSprite)
-	 vol pan pitch
-
-
--}
 -- Display
 
-primitive garbageCollect "primGC" :: IO ()
+-- primitive garbageCollect "primGC" :: IO ()
 
 disp :: (User -> ImageB) -> IO ()
 
@@ -315,39 +268,24 @@ disp imF =
  do -- garbageCollect
     t0 <- currentSpriteTime
     --putStrLn ("doing spritify for time " ++ show t0)
-    (user', userChan) <- newUser t0
-    -- Do validity checking.  (For debugging.)
-    let user = validateE user'
-    tBeforeGCVar <- newRef t0
+    (user, userChan) <- newChannelEvent t0
     -- Initialize SpriteLib.  I wish this could be done in SpriteLib's
     -- DllMain, but DSound initialization bombs there.  Doing it here is
     -- shaky, as it relies on the DDSurface and DSBuffer evaluations being
     -- postponed due to laziness.
     openSpriteLib
     (pChain0, chain) <- spritify (imF user) t0
-    --putStrLn "did spritify"
     tPrevVar <- newRef t0
     chainVar <- newRef pChain0
     showSpriteTree
       chain
       (do tNow <- currentSpriteTime
-	  tBeforeGC <- getRef tBeforeGCVar
-          --putStrLn ("update: time " ++ show tNow)
           tPrev <- getRef tPrevVar
-          addUserUpdate userChan (tNow - tPrev) tNow
+          -- Add the update event for tSample.  This will stop the event
+          -- search done by doUpdateTrees below, which is only interested
+          -- in events *before* tNow.
+          putChan userChan (tNow, Just (UpdateDone (tNow - tPrev)))
           updateRefIO chainVar (doUpdateTrees tNow (tNow + updatePeriodGoal))
-          -- Add the update event for tSample.  This will stop the
-          -- event search, which is only interested in events
-          -- *before* tNow.
-          afterUpdate <- currentSpriteTime
-          --putStr (show (tNow - tPrev) ++ ", ")
-{-
-          putStrLn ("tNow == " ++ show tNow ++
-                    ".  tNow - tPrev == " ++ show (tNow - tPrev) ++
-                    ".  tNow - tNowExpected == " ++
-                    show (tNow - (tPrev + updatePeriodGoal)) ++
-                    ".  Update took " ++ show (afterUpdate - tNow) )
--}
           setRef tPrevVar tNow
       )
       userChan

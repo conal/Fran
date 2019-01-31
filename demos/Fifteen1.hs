@@ -3,10 +3,10 @@
 --
 -- Shows mutually reactive behaviors
 -- 
--- Last modified Tue Jul 15 21:32:45 1997
+-- Last modified Fri Jul 25 14:32:23 1997
 --------------------------------------------------------------------------
 
-module Fifteen where
+module Fifteen1 where
 
 import Fran
 import Random
