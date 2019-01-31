@@ -1,11 +1,12 @@
 -- Simple test harness for Image behaviors
 -- 
--- Last modified Sun Sep 08 16:57:13 1996
+-- Last modified Mon Sep 09 11:56:56 1996
 -- 
 -- To have a go, run disp i{j} where j `elem` [1..]
 
 module ImageBTest where
 
+import BaseTypes
 import Behavior
 import Event
 import Vector2B
@@ -19,6 +20,8 @@ import Integral
 import Until
 import PrimInteract
 import Interaction
+import Random
+import Win32 (timeGetTime)
 
 import qualified ShowImageB
 
@@ -72,33 +75,14 @@ i5 =
    c1 `untilB` lbp t0 +=> \ t1 _ -> i5' c2 c1 t1
 
 
+-- spinning ellipse
+i6 = withColor green $ rotate2 (3*time) *% ellipse (vector2XY 1 0.5)
+
 -- Follow the mouse
 
 i7 = translate2 (mouse 0 `pointMinusPoint2` origin2) *%
      uscale2 0.2 *%
      withColor yellow circle
-
-{-
-
-i6 =
- i6' 1 0
- where
-  i6' f t = 
-   uscale2 f *% i1  `untilB`  ((primLBP t +=> \ t p -> 
-   (translate2 (lift0 (Point2.point2Vec p)) *%
-   uscale2 f *% i1) `untilB` primLBR t +=> \ t _ -> 
-    i6' (f+0.2) t)
-        .|. 
-   (primRBP t +=> \ t _ -> i6' (f-0.2) t))
-
-i7 = 
- i7' (vector2 10 10) 0
- where
-  i7' v t0 = 
-    translate (lift0 v) i1 `untilB` primMousePos t0 +=> \ t1 p -> 
-    i7' (Point2.point2Vec p) t1
-
--}
 
 -- Variable growth rate.  Left button decreases and right increases.
 
@@ -106,7 +90,7 @@ i8 = smoothGrowShrink (withColor red circle) 0
      where
         smoothGrowShrink :: ImageB -> Time -> ImageB
         smoothGrowShrink anim t0 =
-          uscale2 (1 + integral (changingRate 0 t0) t0) *% anim
+          uscale2 (exp (integral (changingRate 0 t0) t0)) *% anim
           where
             changingRate r0 t0 =
               lift0 r0 `untilB` minusOneOrOne t0 +=> \ t1 increase ->
@@ -117,10 +101,8 @@ i8 = smoothGrowShrink (withColor red circle) 0
 
 -- For the next three, shrink/grow while left/right button down
 
-i9 = smoothGrowShrink (withColor red $ uscale2 0.5 *% circle) 0
-
 smoothGrowShrink anim t0 =
-  uscale2 (1 + integral (changingRate t0) t0) *% anim
+  uscale2 (exp (integral (changingRate t0) t0)) *% anim
   where
     changingRate t0 =
       0 `untilB` setRate t0 ==> \ (rate, stop) ->
@@ -131,7 +113,7 @@ smoothGrowShrink anim t0 =
       (lbp t0 ==> \ lRelease -> (-1, lRelease)) .|.
       (rbp t0 ==> \ rRelease -> ( 1, rRelease))
 
-
+i9 = smoothGrowShrink (withColor red $ uscale2 0.5 *% circle) 0
 
 import qualified ImageTest
 
@@ -140,7 +122,7 @@ i10 = smoothGrowShrink (lift0 ImageTest.i17) 0
 i11 = smoothGrowShrink (lift0 ImageTest.i18) 0
 
 -- This one gives a control stack overflow.  Why??
-i12BlowStack =
+iBlowStack =
   smoothGrowShrink i12' 0
   where
     i12'    = unitBBoxed2 $
@@ -148,3 +130,72 @@ i12BlowStack =
     turning = rotate2 time *% uscale2 m *% i12'
     m = 1 / sqrt 2
 
+
+-- An eye watching the mouse cursor.  Given the transform that maps the
+-- eye to world (mouse) coordinates.  This sort of thing will be better
+-- handled by "IImages" in a future version.
+
+mouseWatcher :: Transform2B -> ImageB
+
+mouseWatcher xf =
+  let
+      localMousePos = inverse2 xf *% (mouse 0)
+      lookAngle	    = sndB (point2PolarCoords localMousePos)
+      iris	    = translate2 (vector2Polar 0.35 lookAngle) *%
+		      uscale2 0.1			       *%
+		      withColor blue circle
+      eye	    = iris `over` (withColor white (uscale2 0.5 *% circle))
+  in
+      xf *% eye
+
+
+i12 = mouseWatcher (translate2 (vector2XY 0.4 0.2))
+
+i13 = mouseWatcher (translate2 (vector2Polar 0.3 time) `compose2`
+		    scale2 (1 + 0.2 * sin time))
+
+-- Group watch
+
+i14 = foldl1 over (map watcher [0::Radians, 2*pi/5 .. 2*pi-0.01])
+      where
+        watcher angle =
+	  mouseWatcher (translate2 (vector2Polar 0.7 (lift0 angle))
+			`compose2` uscale2 0.5)
+	      
+
+-- Wiggly group watch
+
+wigglyWatchers n =
+  foldl1 over (map watcher [0::Radians, 2*pi/n .. 2*pi-0.01])
+  where
+    watcher angle =
+      mouseWatcher (translate2 (vector2Polar 0.7 angle')
+		    `compose2` uscale2 0.5)
+      where
+	angle' = lift0 angle + cos (lift0 angle + 5*time) / (lift0 n)
+
+i15 = wigglyWatchers 5
+
+
+-- Being followed
+
+chasingWatchers n =
+  foldl1 over (zipWith follower (take n (randomDoubles seed1 seed2))
+				(take n (randomDoubles seed2 seed1)))
+  where
+  seed1 = unsafePerformIO timeGetTime
+  seed2 = seed1 + 2543
+  follower x y =
+      mouseWatcher (translate2 eyePos `compose2` uscale2 0.3)
+      where
+       eyePos = startPos `pointPlusVector2`
+	        integral ((mouse 0) `pointMinusPoint2` eyePos) 0
+       -- x,y are in [0,1]
+       startPos =  uscale2 1.5 *%
+		   translate2 (vector2XY (-0.5) (-0.5)) *%
+		   point2XY (lift0 x) (lift0 y)
+
+-- Oops: all the watchers converge, so n>1 is not very interesting. :-(  I
+-- guess they'd have to also avoid each other somehow.
+
+i16 = chasingWatchers 1

@@ -1,6 +1,6 @@
 -- Converting Picture values into graphical output (Win32 GDI).
 --
--- Last modified Sun Sep 08 16:51:45 1996
+-- Last modified Mon Sep 09 10:21:22 1996
 
 module RenderImage (draw) where
 
@@ -30,7 +30,7 @@ draw :: Win32.HDC -> Image -> IO ()
 draw hdc im =
  -- we want transparent Text backgrounds
  Win32.setBkMode hdc Win32.tRANSPARENT >>
- draw' identity2 False im
+ draw' identity2 False im `catch` (\ e -> putStrLn "Win32 drawing error")
                   
  where
   f :: Transform2 -> Point2 -> Win32.POINT
@@ -167,7 +167,7 @@ drawCircle hdc xf =
     rw = x1 - x0
     rh = y1 - y0
   in
-  if True ||
+  if -- True ||
      (rw == rh                  -- circle
       || (x2 == x0 && y2 == y1) -- unrotated ellipse
       || (x2 == x1 && y2 == y0) -- ellipse rotated 90 degrees
@@ -181,5 +181,14 @@ drawCircle hdc xf =
     f :: Point2 -> Win32.POINT
     f pt = case xf *% pt of Point2 x y -> (round x, round y)
 
-slowEllipse hdc _ = error "slowEllipse"
---slowEllipse hdc (X a b c d e f) = Win32.transformedEllipse hdc a b c d e f
+-- slowEllipse hdc _ = error "slowEllipse"
+slowEllipse hdc (X a b c d e f) =
+  Win32.transformedEllipse hdc a' b' c' d' e' f'
+  where a' = fromDouble a
+	b' = fromDouble b
+	c' = fromDouble c
+	d' = fromDouble d
+	e' = fromDouble e
+	f' = fromDouble f
+
+

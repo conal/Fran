@@ -1,6 +1,6 @@
 -- Non-reactive behaviors
 -- 
--- Last modified Sat Sep 07 23:23:09 1996 t-sfinne
+-- Last modified Mon Sep 09 10:54:40 1996
 
 module Behavior where
 
@@ -129,6 +129,13 @@ notB = lift1 (not)
 (&&*) = lift2 (&&) 
 (||*) :: Behavior Bool -> Behavior Bool -> Behavior Bool
 (||*) = lift2 (||) 
+
+
+-- Pair formation and extraction
+
+pairB = lift2 (\ x y -> (x,y))
+fstB  = lift1 fst
+sndB  = lift1 snd
 
 
 -- Testing

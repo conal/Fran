@@ -1,6 +1,6 @@
 -- 2D transforms.
 -- 
--- Last modified Sun Sep 08 16:30:13 1996
+-- Last modified Mon Sep 09 10:01:11 1996
 module Transform2 
         (
          Transform2(..),
@@ -107,9 +107,9 @@ uscale2 = scale2
 
 inverse2 :: Transform2 -> Transform2
 
-inverse2 (X a b c d e f) =
- (X (d/(-(b*c) + a*d)) (-(b/(-(b*c) + a*d))) ((-(d*e) + b*f)/(-(b*c) + a*d)) 
-    (-(c/(-(b*c) + a*d))) (a/(-(b*c) + a*d)) ((c*e - a*f)/(-(b*c) + a*d)))
+inverse2 xf@(X a b c d e f) =
+ X (e/(-(b*d) + a*e)) (-(b/(-(b*d) + a*e))) ((-(c*e) + b*f)/(-(b*d) + a*e))
+   (-(d/(-(b*d) + a*e))) (a/(-(b*d) + a*e)) ((c*d - a*f)/(-(b*d) + a*e))
 
 -- We could educate Compose2 about transformation identities, such as
 -- "Compose2 (Rotate2 theta) (Rotate2 rho) == Rotate2D (theta+rho)".

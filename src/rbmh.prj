@@ -1,4 +1,4 @@
--- Last modified Sun Sep 08 16:32:10 1996 by t-sfinne
+-- Last modified Mon Sep 09 11:52:01 1996 by conal
 
 -- To do: weed out some of these as possible
 
@@ -8,6 +8,7 @@ Lib/Channel.hs
 Lib/Utils.hs
 StdLib/Monad.hs
 PicLib/Bitmap.hs
+Lib/Random.hs
 ../Lib/MutVar.hs
 
 BaseTypes.hs

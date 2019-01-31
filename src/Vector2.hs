@@ -1,6 +1,6 @@
 {- RBMH 2D (static) Vectors
 
- Last modified Sat Sep 07 23:23:10 1996
+ Last modified Mon Sep 09 11:08:50 1996
 -}
 module Vector2 
         (
@@ -34,7 +34,9 @@ vector2Polar :: Length -> Radians -> Vector2
 vector2Polar rho theta = Vector2 (rho * cos theta) (rho * sin theta)
 
 vector2PolarCoords :: Vector2 -> (Length,Radians)
-vector2PolarCoords v@(Vector2 x y) = (atan2 y x, magnitude v)
+vector2PolarCoords v@(Vector2 x y) =
+ (magnitude v,
+  if (x==0 && y==0) then 0 else atan2 y x)
 
 instance  VectorSpace Vector2  where
   zeroVector = Vector2 0 0

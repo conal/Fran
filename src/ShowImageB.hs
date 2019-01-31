@@ -1,7 +1,7 @@
 -- Experimental support for displaying image behaviors in an existing
 -- window.  Intended for use with the ActiveX Hugs control
 -- 
--- Last modified Sun Sep 08 16:20:43 1996
+-- Last modified Mon Sep 09 10:01:15 1996
 -- 
 -- Recycled bits from ShowImageB.hs.
 
@@ -59,7 +59,7 @@ worldToScreen, screenToWorld :: Transform2
 
 worldToScreen =
   (scale2 (vector2XY pixelsPerLengthHorizontal
-                    pixelsPerLengthVertical) `compose2`
+		     pixelsPerLengthVertical) `compose2`
   translate2 (vector2XY 1 1))                `compose2`
   scale2     (vector2XY 1 (-1))                   -- flip Y
 

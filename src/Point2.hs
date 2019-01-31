@@ -1,6 +1,6 @@
 -- RBMH 2d point abstraction.
 --
--- Last modified Sat Sep 07 23:23:10 1996
+-- Last modified Mon Sep 09 11:07:36 1996
 --
 -- When Haskell has type relations (multi-parameter type classes), move most
 -- of stuff to an AffineSpace type relation.
@@ -49,7 +49,9 @@ point2XYCoords :: Point2 -> (RealVal,RealVal)
 point2XYCoords (Point2 x y) = (x,y)
 
 point2PolarCoords :: Point2 -> (Radians,Length)
-point2PolarCoords (Point2 x y) = (magnitude (Vector2 x y), atan2 y x)
+point2PolarCoords (Point2 x y) =
+  (magnitude (Vector2 x y),
+   if (x==0 && y==0) then 0 else atan2 y x)
 
 pointPlusVector2 :: Point2 -> Vector2 -> Point2
 pointPlusVector2  (Point2 x y) (Vector2 dx dy) = Point2 (x+dx) (y+dy)

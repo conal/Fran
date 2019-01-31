@@ -1,0 +1,76 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+
+<html>
+
+<head>
+<title>Reactive Behavior Modeling in Haskell</title>
+<meta name="GENERATOR" content="Microsoft FrontPage 1.1">
+</head>
+
+<body>
+<h1 align=center><b>RBMH Release 0.1</b> </h1>
+<h2 align=center>Reactive Behavior Modeling in Haskell </h2>
+<h2 align=center><a href="http://www.research.microsoft.com/research/graphics/elliott/">Conal Elliott</a> and <a href="http://www.dcs.gla.ac.uk/~sof">Sigbjorn Finne</a> </h2>
+<p align=center>&#160; </p>
+<p>RBMH Release 0 is now ready for a test drive. It includes support for simple 2D animation as a Haskell library, and should run on 
+<a href="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs</a> under Windows 95 and Windows NT, using Win32 graphics (GDI). </p>
+<p>Try it&#151;it's fun! Please let me know how it goes. </p>
+<p>Directions: </p>
+<ol>
+<li>Download <a href="rbmh0.zip"><strong>rbmh0.zip</strong></a></li>
+<li>Unzip to create a directory tree called <strong>rbmh0</strong>, with subdirectories <strong>Media</strong> and <strong>src</strong>. </li>
+<li>Start up Hugs (tested with Yale Release 0), and <strong>:cd</strong> to <strong>rbmh0\src</strong>. You'll end up in the module called <strong>ImageBTest</strong>, which 
+contains simple test cases. </li>
+<li>Type <strong>:p rbmh.prj</strong></li>
+<li>At the Hugs prompt, type <strong>disp &lt;name&gt;</strong>, where <strong>&lt;name&gt;</strong> is <strong>i1</strong>, <strong>i2</strong>, etc, as defined in <strong>ImageBTest.hs</strong>. There are very sparse 
+comments in the source. </li>
+<li>Try examples of your own. If you send me ones you've built, I'll consider them for inclusion (with credit to you) in future 
+releases. </li>
+</ol>
+<p>Notes: </p>
+<ul>
+<li>Represents alpha behaviors as <strong>[Time] -&gt; [alpha]</strong>. This form allows incremental behavior evaluation without implicit state, in 
+particular for <strong>untilB</strong> and <strong>integral</strong> behaviors. </li>
+</ul>
+<p>Bugs: </p>
+<ul>
+<li>Transformation doesn't work on all primitives. In particular: bitmaps, and text don't rotate, and text doesn't even scale. 
+<strong>SetWorldTransform</strong> might be a general fix, but from the documentation, it doesn't appear to work under Win95. </li>
+<li><strong>ImageBTest.iBlowStack</strong> blows the stack. </li>
+<li>Text doesn't center. </li>
+</ul>
+<p>Future work: </p>
+<ul>
+<li>More interesting demos. </li>
+<li>Fix the bugs above. </li>
+<li>Use strictness annotations for vector, point, and transform types. </li>
+<li>Figure out why the <strong>lotus</strong> examples in <strong>ImageTest</strong>.hs are so slow. </li>
+<li>Make ODEs work well and give lots of examples.</li>
+<li>Media support: </li>
+<li>Re-introduce sound. It's been implemented previously, and so shouldn't be hard to do again. I want to embed sound in 
+images, with simple stereo rendering. </li>
+<li>Do image presentation through DirectDraw, which will speed things up if you have a good video card. Again, this has been 
+done in a previous version, so should be coming soon. </li>
+<li>Add 3D. For performance, use Direct3D's retained mode. </li>
+<li>Define precise semantics for Image type and its operations, independent of representation/construction. For instance, make 
+sure that coloring and transformation work sensibly to bitmap- and text-based images. </li>
+<li>Short operator names for point/vector/scalar operations. </li>
+<li>Re-introduce &#147;interactive images&#148;. Depends on <strong>snapshot</strong> and <strong>when</strong>, which I haven't re-implemented on top of the time 
+stream representation of behaviors. </li>
+<li>Make modules selective about exports. I got lazy. </li>
+<li>Check names for consistency with ActiveX Animation and update exhaustive catalog of differences. </li>
+<li>Use bounding boxes pervasively in rendering. Define a function <strong>easyBBox :: Image -&gt; Maybe (Point2, Point2)</strong> that picks 
+off the easy cases: <strong>Circle</strong>, <strong>Square</strong>, <strong>Bitmap</strong>, <strong>Bezier</strong>, <strong>Text</strong>, and <strong>BBoxed2</strong>. </li>
+<li>Avoid off-window rendering, using bounding box. </li>
+<li>Subtler: avoid rendering fully occluded images. </li>
+<li>Optimize bitmap drawing to use BitBlt where applicable. </li>
+<li>Add HSV color construction and extraction functions. Switch color animations to use hsv. </li>
+</ul>
+<p><a href="http://www.research.microsoft.com/research/graphics/elliott/">Conal Elliott</a> <br>
+Graphics Research Group <br>
+Microsoft Research <br>
+<a href="mailto:conal@microsoft.com">conal@microsoft.com</a> </p>
+<p align=left><em>Last modified September 9, 1996 </em></p>
+</body>
+
+</html>

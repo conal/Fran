@@ -1,6 +1,6 @@
 -- Higher-level interaction
 --
--- Last modified Sat Sep 07 23:22:04 1996
+-- Last modified Mon Sep 09 10:03:07 1996
 
 module Interaction where
 
@@ -27,16 +27,19 @@ rbp :: Time -> Event (Event ())
 rbp t0 = primRBP t0 +=> \ t _ -> (primRBR t -=> ())
 
 
-{- Piecewise-constant mouse behavior 
+-- Piecewise-constant mouse behavior 
 
 mouse :: Time -> Point2B
 mouse t0 = mouse' t0 origin2
  where
   mouse' t0 p =
    lift0 p `untilB` primMousePos t0 +=> mouse'
--}
 
--- Piecewise-linear mouse behavior
+
+
+{- Piecewise-linear mouse behavior
+
+-- This one should be better, but it's too jerky.
 
 -- How long to wait before giving up on mouse motion
 mouseMotionTimeOut = 0.2 :: Time
@@ -54,6 +57,8 @@ mouse t0 = mouse' origin2 t0 origin2 (t0-1)
                  ((time - lift0 t0) / lift0 (t1-t0)) `untilB`
     (primMousePos t1 .|. (timeIs (t1+0.2) -=> p1)) +=> \ t2 p2 ->
    mouse' p1 t1 p2 t2
+
+-}
 
 viewSize :: Time -> Vector2B
 viewSize t0 = viewSz' t0 zeroVector
