@@ -6,11 +6,11 @@ way=mc
 
 
 # Note: I'm unsure whether to use c:/, //c/, or just / for these paths.
-# NT and Win95 seem to have different preferences.  Needs experimentation.
+# NT and Win9x seem to have different preferences.  Needs experimentation.
 
-HUGSDIR 	= /hugs
-GHCDIR		= /usr/fptools/bin/i386-unknown-cygwin32/ghc-2.10
-GHCLIB		= /usr/fptools/lib/i386-unknown-cygwin32/ghc-2.10
+HUGSDIR 	= c:/hugs98
+GHCDIR		= /ghc/ghc-4.08.2
+GHCLIB		= /ghc/ghc-4.08.2
 
 # If $(GHCDIR) isn't on your %PATH%, put it on, or use the following commented defs.
 #GHC		= $(GHCDIR)/ghc 
