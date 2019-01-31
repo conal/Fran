@@ -1,6 +1,6 @@
 -- Non-reactive behaviors
 -- 
--- Last modified Mon Sep 09 10:54:40 1996
+-- Last modified Mon Sep 16 14:33:54 1996
 
 module Behavior where
 
@@ -16,38 +16,43 @@ type Time = Double
 --  + Put interval sampling back.
 --  + Dynamic constant folding
 
-type RisingTimes = [Time]  -- such that monotonically increasing
-
-type Sampler a = RisingTimes -> [a]
+type Sampler a = [Time] -> [a]
 
 data Behavior a = Behavior (Sampler a)
 
-(Behavior fl) `ats` ts = fl ts
+~(Behavior fl) `ats` ts = fl ts
+
+time :: Behavior Time
+
+time = Behavior id
+
+
+timeTransform :: Behavior a -> Behavior Time -> Behavior a
+
+(Behavior afl) `timeTransform` (Behavior tfl) =  Behavior (afl . tfl)
+
 
 
 lift0 x = Behavior (map (const x))
 
 lift1 :: (a -> b) -> (Behavior a) -> (Behavior b)
 
-lift1 f (Behavior ats1) = Behavior (map f . ats1)
+lift1 f b = Behavior (\ts -> map f (b `ats` ts))
 
-lift2 f (Behavior ats1) (Behavior ats2) =
-  Behavior (\ts -> zipWith f (ats1 ts) (ats2 ts))
+lift2 f b1 b2 =
+  Behavior (\ts -> zipWith f (b1 `ats` ts) (b2 `ats` ts))
 
-lift3 f (Behavior ats1) (Behavior ats2) (Behavior ats3) =
-  Behavior (\ts -> zipWith3 f (ats1 ts) (ats2 ts) (ats3 ts))
+lift3 f b1 b2 b3 =
+  Behavior (\ts -> zipWith3 f (b1 `ats` ts) (b2 `ats` ts) (b3 `ats` ts))
 
 {- There is no zipWith4.  Wait until needed.
-lift4 f (Behavior ats1) (Behavior ats2) (Behavior ats3) (Behavior ats4) =
-  Behavior (\ts -> zipWith4 f (ats1 ts) (ats2 ts) (ats3 ts) (ats4 ts))
+lift4 f b1 b2 b3 b4 =
+  Behavior (\ts -> zipWith4 f (b1 `ats` ts) (b2 `ats` ts) (b3 `ats` ts)
+  (b4 `ats` ts))
 -}
 
 -- and so on
 
-
-time :: Behavior Time
-
-time = Behavior id
 
 -- Needed because Num derives from Eq and Text
 instance (Eq a) => Eq (Behavior a)

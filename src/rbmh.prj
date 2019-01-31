@@ -1,4 +1,4 @@
--- Last modified Mon Sep 09 11:52:01 1996 by conal
+-- Last modified Mon Sep 16 15:05:41 1996 by 
 
 -- To do: weed out some of these as possible
 
@@ -58,6 +58,7 @@ Interaction.hs   -- higher-level interaction support
 ShowImageB.hs
 
 ImageTest.hs
+RBMH.hs
 ImageBTest.hs
 -- IImageTest.hs
 

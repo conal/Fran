@@ -1,26 +1,41 @@
--- Integration
+-- Integration.  Handles systems of mutually recursive integral behaviors
+-- (ODEs).
 -- 
--- Last modified Sat Sep 07 23:23:09 1996
+-- Last modified Sun Sep 15 20:15:02 1996
 
 module Integral where
 
 import VectorSpace      
 import Behavior
+import Event
 import Until
 
 integral :: VectorSpace v => Behavior v -> Time -> Behavior v
 
+-- Here's the idea: sample the integrand behavior over a stream of times
+-- independent from time streams with with the integral behavior will be
+-- sampled.  Then resample the resulting list of integral values as
+-- needed.
+--
+-- Note: we could probably define the integral as a recursive reactive
+-- behavior, without having to know the representation of behaviors here.
+
 integral b t0 =
-  Behavior (\ ts -> let (ts',drop_0) =
-                          if head ts /= t0 then ((t0:ts),tail) else (ts,id)
-                    in
-                        drop_0 (integrateList ts' (b `ats` ts')) )
+  Behavior (stepper ts ys)
+  where
+    ts = [t0, t0 + integralEpsilon ..]
+    ys = integrateList ts (b `ats` ts)
+    integralEpsilon = 0.05
 
--- This implementation does work with recursively (ODEs), but not
--- efficiently, because the `ats` call starts another evaluation.  The
--- integrateList function works well in recursive situations (igl2 below),
--- because there's explicitly only one list involved.
+-- Simple piecewise-constant resampler.  Crucial note: value of resampling
+-- at time t depends on resampled behavior's value strictly *before* t.
+-- This property is what allows (possibly mutual) recursions to be broken.
 
+stepper txs@(_:txs'@(tx1:_)) xs@(x0:xs') ts@(t:ts')
+  | t <= tx1  =  x0 : stepper txs xs ts'
+  | otherwise =  stepper txs' xs' ts
+
+stepper _ _ [] = []
 
 -- "Integrate" a list of values, xs, with corresponding times, ts.
 
@@ -33,9 +48,7 @@ integrateList ts xs =
 
 -- tests
 
-tstIIg b = take 10 (b `ats` [0.1, 0.2 ..])
-
-tstIg b = (b `ats` [0.1, 0.2 ..]) !! 299  -- b 10
+tstIg b = b `ats` [0.1, 0.2 .. 3]
 
 ig1, ig2, ig3 :: Behavior Time
 ig1 = integral 1 0
@@ -45,11 +58,6 @@ igl1,igl2 :: [Time]
 igl1 = integrateList [0.1, 0.2 ..] igl1
 igl2 = map (1-) (integrateList [0.1, 0.2 ..] igl2)
 
-tstIgl t = 
-  igl !! (floor (t*10))
-  where igl = map (1-) (integrateList [0.1, 0.2 ..] igl)
+-- Recursive integrals (ODEs) work just fine
+ig3 = (1 - integral ig3 0) :: Behavior Double
 
-
-
--- Recursive integrals (ODEs) are pretty inefficient.
-ig3 = 1 - integral ig3 0

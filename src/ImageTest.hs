@@ -1,6 +1,6 @@
 -- Simple test harness for static Image values and their display
 -- 
--- Last modified Sat Sep 07 23:25:52 1996
+-- Last modified Tue Sep 10 11:52:22 1996
 -- To try these out, run disp i{j} where j `elem` [1..] 
 
 module ImageTest where
@@ -72,15 +72,20 @@ i18 =
 
 
 
-lotus :: Int -> Image
+lotus :: Int -> Int -> Image
 
-lotus n = uscale2 0.7 *% (withColor red all)
+-- n squares per ring and m rings
+
+lotus n m = uscale2 0.7 *% (withColor red all)
   where
-    all = unitBBoxed2 $
-          (rotate2 theta     *%
-           uscale2 shrinkage *%
-           all) `over`
-          ring
+    all = rings m
+
+    rings 0 = emptyImage
+    rings m = unitBBoxed2 $
+	      (rotate2 theta     *%
+	       uscale2 shrinkage *%
+	       rings (m-1))
+	      `over` ring
 
     ring = foldl1 over
              (map (\ i -> rotate2 (2 * fromInt i * theta)
@@ -99,5 +104,5 @@ lotus n = uscale2 0.7 *% (withColor red all)
 
 -- Warning: these guys are slow!
 
-i19 = lotus 7
-i20 = lotus 10
+i19 = lotus 7 5
+i20 = lotus 10 4

@@ -1,6 +1,11 @@
 -- Definition of `untilB`
 -- 
--- Last modified Sat Sep 07 23:23:12 1996
+-- Last modified Wed Sep 11 14:16:12 1996
+--
+-- Warning: the implementation of untilB assumes that the given time
+-- stream does not go backwards across events.  We cannot guarantee this
+-- property, so be careful!
+
 module Until where
 
 import Event
@@ -20,12 +25,13 @@ untilBB :: Behavior a -> Event (Behavior a) -> Behavior a
 b `untilBB` e =
   Behavior sampler
   where
-    sampler ts = sampler' ts (b `ats` ts)
-    sampler' ts@(t:ts')  ~(val:vals') =
-      case occ e t of
+    sampler ts = sampler' ts (b `ats` ts) (e `occ` ts)
+
+    sampler' ts@(t:ts')  ~(val:vals') (mb:mbs') =
+      case mb of
         Nothing ->
           --trace ("non-occurrence: " ++ show t ++ " ") $
-          val : sampler' ts' vals'
+          val : sampler' ts' vals' mbs'
         Just (te,b') ->
           --trace ("occurrence: " ++ show te ++ " for time " ++ show t ++ " ") $
           b' `ats` ts

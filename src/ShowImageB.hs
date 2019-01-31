@@ -1,7 +1,7 @@
 -- Experimental support for displaying image behaviors in an existing
 -- window.  Intended for use with the ActiveX Hugs control
 -- 
--- Last modified Mon Sep 09 10:01:15 1996
+-- Last modified Sat Sep 14 16:55:44 1996
 -- 
 -- Recycled bits from ShowImageB.hs.
 
@@ -25,7 +25,7 @@ import qualified RenderImage as Render
 import Utils (andOnError)
 import PrimInteract
 import Postpone
-import ShowImage(clientRect)
+import ShowImage(windowSize)
 
 
 -- Something that repeatedly paints into a window.  Expected to use
@@ -59,7 +59,7 @@ worldToScreen, screenToWorld :: Transform2
 
 worldToScreen =
   (scale2 (vector2XY pixelsPerLengthHorizontal
-		     pixelsPerLengthVertical) `compose2`
+                     pixelsPerLengthVertical) `compose2`
   translate2 (vector2XY 1 1))                `compose2`
   scale2     (vector2XY 1 (-1))                   -- flip Y
 
@@ -69,13 +69,14 @@ screenToWorld = inverse2 worldToScreen
 draw :: MilliSeconds -> ImageB -> WindowPainter
 
 draw startMS imb hwnd =
+  --debugMessage "Entering draw" >>
   times startMS               >>= \ ts ->
   let
   loop (im:ims') =
      postpone (
        (invalidateRect (Just hwnd) Nothing eraseBackground >>
         paintWith hwnd (\hdc lpps ->
-          clientRect hwnd >>= \ (l',t',r',b') ->
+          windowSize hwnd >>= \ (l',t',r',b') ->
           let 
             w' = r' - l'
             h' = b' - t'
@@ -95,7 +96,8 @@ draw startMS imb hwnd =
                 withCompatibleBitmap hdc (r'-l') (b'-t') (\ bitmap ->
                   selectBitmapIn buffer bitmap (
                     --putStrLn (show im)    >>
-		    Win32.bitBlt buffer 0 0 w' h' buffer 0 0 bLACKNESS >>
+                    Win32.bitBlt buffer 0 0 w' h' buffer 0 0 bLACKNESS >>
+                    -- debugMessage "Calling Render.draw" >>
                     Render.draw buffer im'  >>
                     bitBlt hdc 0 0 w' h' buffer 0 0 sRCCOPY
                   )

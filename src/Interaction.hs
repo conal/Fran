@@ -1,6 +1,6 @@
 -- Higher-level interaction
 --
--- Last modified Mon Sep 09 10:03:07 1996
+-- Last modified Mon Sep 16 14:48:25 1996
 
 module Interaction where
 
@@ -15,7 +15,7 @@ import Vector2
 import Vector2B (Vector2B)
 import Point2
 import Point2B (Point2B)
-import qualified Point2B (lerp2)
+import qualified Point2B (linearInterpolate2)
 import Image (Image)
 -- import Point2B
 import qualified Pick2Image
@@ -53,8 +53,8 @@ mouse t0 = mouse' origin2 t0 origin2 (t0-1)
    -- 
    -- Efficiency bug: when the mouse is quiet, we keep spinning.  Fix by
    -- adding an initial peaceful state.
-   Point2B.lerp2 (lift0 p0) (lift0 p1)
-                 ((time - lift0 t0) / lift0 (t1-t0)) `untilB`
+   Point2B.linearInterpolate2 (lift0 p0) (lift0 p1)
+			      ((time - lift0 t0) / lift0 (t1-t0)) `untilB`
     (primMousePos t1 .|. (timeIs (t1+0.2) -=> p1)) +=> \ t2 p2 ->
    mouse' p1 t1 p2 t2
 

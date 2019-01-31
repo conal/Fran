@@ -1,6 +1,6 @@
 -- Converting Picture values into graphical output (Win32 GDI).
 --
--- Last modified Mon Sep 09 10:21:22 1996
+-- Last modified Fri Sep 13 11:33:11 1996
 
 module RenderImage (draw) where
 
@@ -34,7 +34,7 @@ draw hdc im =
                   
  where
   f :: Transform2 -> Point2 -> Win32.POINT
-  f tr pt = case tr *% pt of Point2 x y -> (round x, round y)
+  f tr pt = case tr *% pt of Point2XY x y -> (round x, round y)
 
   draw' tr hasColor im =
    case im of
@@ -67,7 +67,7 @@ draw hdc im =
         if hasColor then
           draw' tr hasColor im
         else
-          drawWithColor hdc c (draw' tr True im)
+          drawWithColor hdc (toRGB c) (draw' tr True im)
      Over p q ->     
         -- draw p over q
         draw' tr hasColor q >> 
@@ -160,9 +160,9 @@ drawWithColor hdc (RGB r g b) m =
 
 
 drawCircle hdc xf =
-  case f (Point2 (-circleRadius) (-circleRadius)) of { (x0,y0) ->
-  case f (Point2   circleRadius    circleRadius ) of { (x1,y1) ->
-  case f (Point2 (-circleRadius)   circleRadius ) of { (x2,y2) ->
+  case f (Point2XY (-circleRadius) (-circleRadius)) of { (x0,y0) ->
+  case f (Point2XY   circleRadius    circleRadius ) of { (x1,y1) ->
+  case f (Point2XY (-circleRadius)   circleRadius ) of { (x2,y2) ->
   let
     rw = x1 - x0
     rh = y1 - y0
@@ -179,7 +179,7 @@ drawCircle hdc xf =
   }}}
   where
     f :: Point2 -> Win32.POINT
-    f pt = case xf *% pt of Point2 x y -> (round x, round y)
+    f pt = case xf *% pt of Point2XY x y -> (round x, round y)
 
 -- slowEllipse hdc _ = error "slowEllipse"
 slowEllipse hdc (X a b c d e f) =

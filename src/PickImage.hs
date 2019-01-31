@@ -1,6 +1,6 @@
 -- Picking Picture values
 --
--- Last modified Sat Sep 07 23:23:10 1996
+-- Last modified Fri Sep 13 11:33:55 1996
 
 module Pick2Image where
 
@@ -14,12 +14,12 @@ import Image
 pick2 :: Image -> Point2 -> Bool
 pick2 im pt = pick' pt False im
  where
-  pick' p@(Point2 x y) fill im =
+  pick' p@(Point2XY x y) fill im =
     case im of
       EmptyImage -> False
       Circle -> (distance2Squared p origin2 <= 1)
       Square -> abs x <= oneOverSqrtTwo && abs y <= oneOverSqrtTwo
-      Bitmap (Vector2 dx dy) _ -> x <= dx && y <= dy
+      Bitmap (Vector2XY dx dy) _ -> x <= dx && y <= dy
       Line _ _        -> False
       PolyLine _      -> False
       Bezier _ _ _    -> False
@@ -49,6 +49,6 @@ within a1 a2 v =
     v >= a1 && v <= a2
 
 insideRect :: Point2 -> Point2 -> Point2 -> Bool
-insideRect (Point2 x1 y1) (Point2 x2 y2) (Point2 a b) = 
+insideRect (Point2XY x1 y1) (Point2XY x2 y2) (Point2XY a b) = 
  within x1 x2 a &&
  within y1 y2 b

@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1">
+<meta name="GENERATOR" content="Microsoft FrontPage 2.0">
+<title>RBMH Release To Do List</title>
+</head>
+
+<body>
+
+<h1 align="center">RBMH Release To Do List</h1>
+
+<ul>
+    <li>More interesting demos. </li>
+    <li>Restore interval analysis and <strong>predicate</strong>.</li>
+    <li>Use strictness annotations for vector, point, and
+        transform types. </li>
+    <li>Figure out why the <strong>lotus</strong> examples in <strong>ImageTest</strong>.hs
+        are so slow. </li>
+    <li>Figure out why <strong>iBlowStack</strong> blows the
+        control stack.</li>
+    <li>Re-implement external events so that behaviors built out
+        of them time-transform well. (See the motion tracker examples
+        in <strong>ImageBTest.hs</strong>.)</li>
+    <li>Re-introduce sound. It's been implemented previously, and
+        so shouldn't be hard to do again. I want to embed sound
+        in images, with simple stereo rendering. </li>
+    <li>Do image presentation through <em>DirectDraw</em>, which
+        will speed things up if you have a good video card.
+        Again, this has been done in a previous version, so should
+        be coming soon. </li>
+    <li>Add 3D. For performance, use Direct3D's retained mode. </li>
+    <li>Define precise semantics for Image type and its
+        operations, independent of representation/construction.
+        For instance, make sure that coloring and transformation work sensibly
+        to bitmap- and text-based images. </li>
+    <li>Short operator names for point/vector/scalar operations
+        instead of <strong>pointMinusPoint2</strong>, for instance. </li>
+    <li>Restore <strong>when</strong> and image picking.</li>
+    <li>Re-introduce &quot;interactive images&quot;. </li>
+    <li>Switch color animations to use HSL. </li>
+    <li>Make modules selective about exports. I got lazy. </li>
+    <li>Check names for consistency with <em>ActiveX Animation</em>
+        and update exhaustive catalog of differences. </li>
+    <li>Use bounding boxes pervasively in rendering. Define a
+        function <strong>easyBBox :: Image -&gt; Maybe (Point2, Point2)</strong>
+        that picks off the easy cases: <strong>Circle</strong>, <strong>Square</strong>, <strong>Bitmap</strong>, <strong>Bezier</strong>, <strong>Text</strong>,
+        and <strong>BBoxed2</strong>. </li>
+    <li>Avoid off-window rendering, using bounding box. </li>
+    <li>Subtler: avoid rendering fully occluded images. </li>
+    <li>Optimize bitmap drawing to use <strong>BitBlt</strong>
+        where applicable. </li>
+</ul>
+
+<p><a
+href="http://www.research.microsoft.com/research/graphics/elliott/"><em>Conal
+Elliott</em></a><em> <br>
+Last modified September 16, 1996 </em></p>
+</body>
+</html>

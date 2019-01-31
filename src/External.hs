@@ -1,6 +1,6 @@
 -- External events.
 --
--- Last modified Sat Sep 07 23:23:09 1996
+-- Last modified Thu Sep 12 14:07:03 1996
 
 module External where
 
@@ -35,25 +35,30 @@ newStateEvent t0 =
 stateEvent :: Time -> EventVar a -> Event a
 
 stateEvent t0 var =
- mkEvt t0 ( 
-  \ t -> 
-  unsafePerformIO (
-  readVar var >>= \ mbTimeAndValue ->
-  case mbTimeAndValue of
-      -- If already set, compare times.
-      -- Just (tVal, _)  -> if tVal<t then mbTimeAndValue else Nothing
-      -- 
-      -- HACK: not ready to deal with interactions among different time
-      -- frames, in particular user/model, so ignore reported time minus a
-      -- little bit.
-      Just (tVal, x)  -> 
---         putStrLn ("event hit: "++show (t,tVal)) >>
-           return (Just (tVal, x))
+  Event (Behavior (map varFun))
+  where
+    varFun t =
+      unsafePerformIO $
+      readVar var >>= \ mbOcc ->
+      return (mbOcc >>= \ (tVal, _) -> if tVal<t then mbOcc else Nothing)
+
+
+{-
+stateEvent t0 var =
+  Event (Behavior (map . varFun))
+  where
+    varFun t =
+      unsafePerformIO (
+      readVar var >>= \ mbOcc ->
+      case mbOcc of
+	-- If already set, compare times.
+	Just (tVal, _)  -> return (if tVal<t then mbOcc else Nothing)
       -- If not set yet, say that tVal<t.  BUG: the state could
-      -- later get changed to hold a tVal>=t.  See notes in Readme.txt.
-      Nothing         -> 
---      putStrLn ("No hit: "++show t) >>
-        return Nothing))
+      -- later get changed to hold a tVal>=t.
+      | Nothing   -> 
+--        putStrLn ("No hit: "++show t) >>
+          return Nothing)
+-}
 
 -- External event generator state.  For things like mouse button press or
 -- window close.

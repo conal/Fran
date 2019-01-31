@@ -1,6 +1,6 @@
 -- 2D transforms.
 -- 
--- Last modified Mon Sep 09 10:01:11 1996
+-- Last modified Mon Sep 16 14:54:42 1996
 module Transform2 
         (
          Transform2(..),
@@ -52,31 +52,31 @@ class Transformable2 a where
 -- Overloadings of translate
 
 instance Translateable2 Vector2 where
-  translate2 (Vector2 dx dy) =  X   1    0  dx
-				    0    1  dy
+  translate2 (Vector2XY dx dy) =  X   1    0  dx
+				      0    1  dy
 
 
 -- Should we even have this one?
 instance Translateable2 Point2 where
-  translate2 (Point2 x y) = translate2 (Vector2 x y)
+  translate2 (Point2XY x y) = translate2 (vector2XY x y)
 
 -- Worth having?  (note: Double == RealVal)
 instance Translateable2 Double where
-  translate2 r = translate2 (Vector2 r r)
+  translate2 r = translate2 (vector2XY r r)
   
 {- We'd really like to be able to do this but cannot
 instance Translateable2 (RealVal,RealVal) where
-  translate (x,y) = translate (Vector2 x y)
+  translate (x,y) = translate (vector2XY x y)
 -}
 
 {- Overloadings of scale -}
 instance Scaleable2 Vector2 where
-  scale2 (Vector2 sx sy) = X  sx    0  0   
-			      0    sy  0
+  scale2 (Vector2XY sx sy) = X  sx    0  0   
+				0    sy  0
 
   
 instance Scaleable2 Double where
-  scale2 f = scale2 (Vector2 f f)
+  scale2 f = scale2 (Vector2XY f f)
   
 -- There is a problem with the overloading for Double: given an expression
 -- like "scale2 5.0", there isn't enough information to resolve the
@@ -108,8 +108,10 @@ uscale2 = scale2
 inverse2 :: Transform2 -> Transform2
 
 inverse2 xf@(X a b c d e f) =
- X (e/(-(b*d) + a*e)) (-(b/(-(b*d) + a*e))) ((-(c*e) + b*f)/(-(b*d) + a*e))
-   (-(d/(-(b*d) + a*e))) (a/(-(b*d) + a*e)) ((c*d - a*f)/(-(b*d) + a*e))
+ X ( e/det) (-b/det) ((-c*e + b*f)/det)
+   (-d/det) ( a/det) (( c*d - a*f)/det)
+ where
+   det = -(b*d) + a*e
 
 -- We could educate Compose2 about transformation identities, such as
 -- "Compose2 (Rotate2 theta) (Rotate2 rho) == Rotate2D (theta+rho)".
@@ -120,13 +122,13 @@ inverse2 xf@(X a b c d e f) =
 -- rotate until DirectDraw supports it.
 
 instance Transformable2 Point2 where
- (X a b c d e f) *% (Point2 x y) =
-   Point2 (a*x+b*y+c) (d*x+e*y+f)
+ (X a b c d e f) *% (Point2XY x y) =
+   point2XY (a*x+b*y+c) (d*x+e*y+f)
 
 
 -- Vector transformation is defined in terms of point transformation.
 -- BTW, translations have no effect on vectors.
 
 instance Transformable2 Vector2 where
- xf *% (Vector2 x y) =
-  xf *% (Point2 x y) `pointMinusPoint2` xf *% origin2
+ xf *% (Vector2XY x y) =
+  xf *% (point2XY x y) `pointMinusPoint2` xf *% origin2

@@ -1,13 +1,13 @@
 -- Toplevel fellow for displaying static Images in a window
 --
--- Last modified Sun Sep 08 16:33:44 1996
+-- Last modified Fri Sep 13 11:34:19 1996
 
 module ShowImage
         (
         showImage,  -- :: Image -> IO ()
 
 	-- HACK
-	clientRect  -- :: HWND -> IO RECT
+	windowSize  -- :: HWND -> IO RECT
         ) where
 
 import Win32 hiding (writeFile, readFile,rgb,loadBitmap)
@@ -128,12 +128,12 @@ draw hwnd im =
   paintWith hwnd (\hdc lpps ->
     -- I'd like to center the text.  Why doesn't the following work?
     setTextAlign hdc tA_CENTER  >>
-    clientRect hwnd 		>>= \ (l',t',r',b') ->
+    windowSize hwnd 		>>= \ (l',t',r',b') ->
     let 
       w' = r' - l'
       h' = b' - t'
       -- Map to screen space.  Can we do this with setWorldTransform?
-      stretch = Vector2 pixelsPerLengthHorizontal pixelsPerLengthVertical
+      stretch = Vector2XY pixelsPerLengthHorizontal pixelsPerLengthVertical
       im' = scale2     stretch            *%
             translate2 (vector2XY 1 1)    *%
             scale2     (vector2XY 1 (-1)) *%  -- flip Y
@@ -161,8 +161,8 @@ draw hwnd im =
 
 
 {- ToDo: do this `natively' -}
-clientRect :: HWND -> IO RECT
-clientRect hwnd =
+windowSize :: HWND -> IO RECT
+windowSize hwnd =
  alloc 			   >>= \ lprect ->
  getClientRect hwnd lprect >> 
  getLPRECT lprect          >>= \ r ->
