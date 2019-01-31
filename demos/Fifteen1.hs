@@ -44,7 +44,7 @@ puzzle pickFrom =
    movingPiece start@(col,row) locB =
      move (locToCenterPos locB .-. origin2)                $
      stretch 2                                             $
-     withColor (cond (locB ==* constantB start) green red) $
+     withColor (condB (locB ==* constantB start) green red) $
      showIm (row * rows + col)
 
 

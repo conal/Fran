@@ -1,0 +1,376 @@
+-- This is the brand new Haskell/C interface file for Fran using
+-- Green Card 2.0
+-- Gary Shu Ling
+
+module HSpriteLib where
+
+import StdDIS
+import Win32 (HWND, HDC, DWORD, LONG, Word32, COLORREF, SIZE)
+
+-- Open and Close SpriteLib
+
+%#include <windows.h>
+%#include "errors.h"
+%#include "SpriteLib.h"
+
+
+-- Argument: how many screen pixels correspond to one length unit
+%fun OpenSpriteLib :: Double -> IO ()
+%fun CloseSpriteLib :: IO ()
+
+-- For improving the resolution of timeGetTime under NT.  Minimum of 5.
+
+%fun SetTimerResolutionMS :: Int -> IO ()
+
+-- Goal period for vertical blank activities, in milliseconds.  Of course,
+-- it should really be the vertical blank.  If negative, use
+-- WaitForVerticalBlank, which is implemented very badly (by spinning!!) in
+-- current DirectDraw (as of 4/97).  Goes with SetTimerResolutionMS above.
+-- On NT, with a timer resolution of 10 ms, the following number will be
+-- rounded up to a multiple of 10, or with a resolution of 5 (minimum),
+-- then one more than the number will be rounded up to a multiple of 5.
+
+%#include "VBlankHandler.h"
+%fun get_vblankPeriodMS :: IO Int
+%{ res1 = vblankPeriodMS %}
+
+%fun set_vblankPeriodMS :: Int -> IO ()
+%{ vblankPeriodMS = arg1 %}
+
+-- Priority of the vblank handler thread.
+
+type ThreadPriority = Int
+%dis threadPriority t = int t
+
+%const ThreadPriority
+% [ threadPriorityIdle         = { THREAD_PRIORITY_IDLE }
+% , threadPriorityLowest       = { THREAD_PRIORITY_LOWEST }
+% , threadPriorityBelowNormal  = { THREAD_PRIORITY_BELOW_NORMAL }
+% , threadPriorityNormal       = { THREAD_PRIORITY_NORMAL }
+% , threadPriorityAboveNormal  = { THREAD_PRIORITY_ABOVE_NORMAL }
+% , threadPriorityHighest      = { THREAD_PRIORITY_HIGHEST }
+% , threadPriorityTimeCritical = { THREAD_PRIORITY_TIME_CRITICAL }
+% ]
+
+%fun SetVblankThreadPriority :: ThreadPriority -> IO ()
+
+%#include "Behavior.h"
+
+type SpriteTime = Double
+%dis spriteTime s = double s
+
+%fun CurrentSpriteTime :: IO SpriteTime
+
+-- When a behavior is updated with SetGoal(goalTime,goalVal), should the
+-- sprite engine interpolate from the *current* time and value, or the
+-- previous goal time and value.  Ideally, they would be the same.  Default
+-- False.
+
+%fun get_behaviorMakeContinuous :: IO Bool
+%{ res1 = behaviorMakeContinuous %}
+
+%fun set_behaviorMakeContinuous :: Bool -> IO ()
+%{ behaviorMakeContinuous = arg1 %}
+
+-- When a behavior is sampled past its end, should it continue sampling
+-- its linear function (true) or stop (false)?  Default False.
+
+%fun get_behaviorSamplePastGoal :: IO Bool
+%{ res1 = behaviorSamplePastGoal %}
+
+%fun set_behaviorSamplePastGoal :: Bool -> IO ()
+%{ behaviorSamplePastGoal = arg1 %}
+
+%#include "d3drm.h"
+%#include "ddhelp.h"
+
+%fun get_ddhelpTimeTrace :: IO Bool
+%{ res1 = ddhelpTimeTrace %}
+
+%fun set_ddhelpTimeTrace :: Bool -> IO ()
+%{ ddhelpTimeTrace = arg1 %}
+
+type HDDSurface = Word32
+%dis hDDSurface h = word32 h
+
+-- Sometimes useful for newSimpleSprite, but should be eliminated
+%const HDDSurface [ nullHDDSurface = { 0 } ]
+
+type HDSBuffer = Word32
+%dis hDSBuffer h = word32 h
+
+type HMeshBuilder = Word32
+%dis hMeshBuilder h = word32 h
+
+type HLight = Word32
+%dis hLight h = word32 h
+
+type HFrame = Word32
+%dis hFrame h = word32 h
+
+%fun get_g_pScratchSurf :: IO HDDSurface
+%{ res1 = g_pScratchSurf %}
+
+%fun set_g_pScratchSurf :: HDDSurface -> IO ()
+%{ if (arg1) g_pScratchSurf = arg1 %}
+
+%fun GetDDrawHDC :: HDDSurface -> IO HDC
+%fun ReleaseDDrawHDC :: HDDSurface -> HDC -> IO ()
+
+%fun clearDDSurface :: HDDSurface -> COLORREF -> IO ()
+
+%fun newPlainDDrawSurface :: Int -> Int -> COLORREF -> IO HDDSurface
+
+%fun newBitmapDDSurface :: String -> IO HDDSurface
+%{ h = newBitmapDDSurface(arg1) %}
+%fail { h == 0 } { ErrorString("newBitmapDDSurface") }
+%result (hDDSurface h)
+
+-- For testing, but phase out
+
+%fun textDDSurface :: String -> COLORREF -> HDDSurface
+
+%fun GetDDSurfaceSize :: HDDSurface -> SIZE
+%{ SIZE res1 = GetDDSurfaceSize(arg1) %}
+%result (size res1)
+
+-- To do: do consistent error-reporting
+
+bitmapDDSurface bmpName = unsafePerformIO $ newBitmapDDSurface bmpName
+
+%fun newWaveDSBuffer :: String -> IO HDSBuffer
+%{ h = newWaveDSBuffer(arg1) %}
+%fail { h == 0 } { ErrorString("newWaveDSBuffer") }
+%result (hDSBuffer h)
+
+waveDSBuffer fileName = unsafePerformIO $ newWaveDSBuffer fileName
+
+%fun newMeshBuilder :: String -> IO HMeshBuilder
+%{ h = newMeshBuilder(arg1) %}
+%fail { h == 0 } { ErrorString("newMeshBuilder") }
+%result (hMeshBuilder h)
+
+meshBuilder fileName = unsafePerformIO $ newMeshBuilder fileName
+
+type D3DColor = DWORD
+%dis d3DColor d = dWORD d
+
+%fun CreateColorRGB :: Double -> Double -> Double -> D3DColor
+
+type LightType = Int
+%dis lightType l = int l
+
+%const LightType
+% [ ambientLight       = { D3DRMLIGHT_AMBIENT }
+% , pointLight         = { D3DRMLIGHT_POINT }
+% , spotLight          = { D3DRMLIGHT_SPOT }
+% , directionalLight   = { D3DRMLIGHT_DIRECTIONAL }
+% , parallelPointLight = { D3DRMLIGHT_PARALLELPOINT }
+% ]
+
+%fun newHLight :: HFrame -> LightType -> IO HLight
+%fun HLightSetColor :: HLight -> D3DColor -> IO ()
+
+%fun newHFrame :: HFrame -> IO HFrame
+%fun newScene :: IO HFrame
+%fun HFrameAddMeshBuilder :: HFrame -> HMeshBuilder -> IO ()
+%fun HFrameSetColor :: HFrame -> D3DColor -> IO ()
+
+%fun HFrameClearTransform :: HFrame -> IO ()
+%fun HFrameRotate :: HFrame -> Double -> Double -> Double -> Double -> IO ()
+
+%fun HFrameScale :: HFrame -> Double -> Double -> Double -> IO ()
+%fun HFrameTranslate :: HFrame -> Double -> Double -> Double -> IO ()
+
+-- %fun renderGeometrySurf :: HFrame -> HFrame -> Double -> IO HDDSurface
+
+-- A "renderer" of a 3D scene.  Current serious limitation: cannot change
+-- the scale after creation.  To do: find a way to relax this restriction
+-- with tolerable efficiency.
+
+type HRMRenderer = Word32
+%dis hRMRenderer h = word32 h
+
+%fun newRMRenderer :: HFrame -> HFrame -> Double -> IO HRMRenderer
+%{ h = newRMRenderer(arg1, arg2, arg3) %}
+%fail { h == 0 } { ErrorString("newRMRenderer") }
+%result (hRMRenderer h)
+
+%fun doRMRenderer :: HRMRenderer -> IO HDDSurface
+
+%#include "Sprite.h"
+
+type HFlipBook = Word32
+%dis hFlipBook h = word32 h
+
+type Pixels = LONG
+%dis pixels p = lONG p
+
+-- Arguments: surface, width and height, X,Y start pos on surface, 
+-- number of columns, and rows of pages
+
+%fun newFlipBook :: HDDSurface -> Pixels -> Pixels -> Pixels -> Pixels -> Int -> Int -> IO HFlipBook
+%{ h = newFlipBook(arg1, arg2, arg3, arg4, arg5, arg6, arg7) %}
+%fail { h == 0 } { ErrorString("newFlipBook") }
+%result (hFlipBook h)
+
+-- %fun flipBookWidth :: HFlipBook -> Int
+-- %fun flipBookHeight :: HFlipBook -> Int
+%fun flipBookSize :: HFlipBook -> SIZE
+%{ SIZE res1 = flipBookSize(arg1) %}
+%result (size res1)
+
+%fun flipBookPages :: HFlipBook -> Int
+%fun deleteFlipBook :: HFlipBook -> IO ()
+
+flipBook surf width height srcXFirst srcYFirst columns rows =
+  unsafePerformIO $
+  newFlipBook surf width height srcXFirst srcYFirst columns rows
+
+type HSpriteTree = Word32
+%dis hSpriteTree h = word32 h
+
+type SpriteTreeChain = HSpriteTree
+%dis spriteTreeChain s = hSpriteTree s
+
+%const SpriteTreeChain [ emptySpriteTreeChain = { 0 } ]
+
+-- %fun paintAndFlip :: HSpriteTree -> HDDRawEnv -> SpriteTime -> IO ()
+%fun deleteSpriteTree :: HSpriteTree -> IO ()
+
+type HSprite = Word32
+%dis hSprite h = word32 h
+
+-- Arguments: sprite, posX, posY, goalTime
+
+%fun setGoalUpperLeft :: HSprite -> Double -> Double -> SpriteTime -> IO ()
+%fun setGoalScale :: HSprite -> Double -> Double -> SpriteTime -> IO ()
+%fun spriteToSpriteTree :: HSprite -> HSpriteTree
+
+type HFlipSprite = Word32
+%dis hFlipSprite h = word32 h
+
+-- Arguments flip book, posX0, posY0, scaleX0, scaleY0, page0, rest
+
+%fun newFlipSprite :: HFlipBook -> Double -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HFlipSprite
+%{ h = newFlipSprite(arg1, arg2, arg3, arg4, arg5, arg6, arg7) %}
+%fail { h == 0 } { ErrorString("newFlipSprite") }
+%result (hFlipSprite h)
+
+%fun flipSpriteToSprite :: HFlipSprite -> HSprite
+
+-- Arguments: flip sprite, goal page, goal time
+--%fun setGoalPage :: HFlipSprite -> Double -> SpriteTime -> IO ()
+
+-- Arguments: flip sprite, time, ulX, ulY, scaleX, scaleY
+%fun updateFlipSprite :: HFlipSprite -> SpriteTime -> Double -> Double -> Double -> Double -> Double -> IO ()
+
+type HSimpleSprite = Word32
+%dis hSimpleSprite h = word32 h
+
+-- Arguments surface, posX0, posY0, scaleX0, scaleY0, page0, rest
+
+%fun newSimpleSprite :: HDDSurface -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HSimpleSprite
+%{ h = newSimpleSprite(arg1, arg2, arg3, arg4, arg5, arg6) %}
+%fail { h == 0 } { ErrorString("newSimpleSprite") }
+%result (hSimpleSprite h)
+
+%fun simpleSpriteToSprite :: HSimpleSprite -> HSprite
+
+-- Arguments: simple sprite, goal time, new surface, ulX, ulY, scaleX, scaleY
+%fun updateSimpleSprite :: HSimpleSprite -> SpriteTime -> HDDSurface -> Double -> Double -> Double -> Double -> IO ()
+
+%fun get_MinSpriteSize :: IO Int
+%{ res1 = MinSpriteSize %}
+
+%fun set_MinSpriteSize :: Int -> IO ()
+%{ MinSpriteSize = arg1 %}
+
+type HSoundSprite = Word32
+%dis hSoundSprite h = word32 h
+
+-- Arguments orig buffer, vol, pan, freq, rest
+
+%fun newSoundSprite :: HDSBuffer -> Double -> Double -> Double -> SpriteTreeChain -> IO HSoundSprite
+%{ h = newSoundSprite(arg1, arg2, arg3, arg4, arg5) %}
+%fail { h == 0 } { ErrorString("newSoundSprite") }
+%result (hSoundSprite h)
+
+%fun soundSpriteToSpriteTree :: HSoundSprite -> HSpriteTree
+
+-- Update methods go here (volume, frequency)
+
+%fun updateSoundSprite :: HSoundSprite -> SpriteTime -> Double -> Double -> Double -> IO ()
+
+type HSpriteGroup = Word32
+%dis hSpriteGroup h = word32 h
+
+-- Arguments: elements, rest
+
+%fun newSpriteGroup :: SpriteTreeChain -> SpriteTreeChain -> IO HSpriteGroup
+%{ h = newSpriteGroup(arg1, arg2) %}
+%fail { h == 0 } { ErrorString("newSpriteGroup") }
+%result (hSpriteGroup h)
+
+%fun spriteGroupToSpriteTree :: HSpriteGroup -> HSpriteTree
+
+-- Arguments: sprite group, elements, whether mutable
+
+%fun ResetSpriteGroup :: HSpriteGroup -> SpriteTreeChain -> Bool -> IO ()
+
+%#include "SpriteEngine.h"
+
+type HSpriteEngine = Word32
+%dis hSpriteEngine h = word32 h
+
+%fun newSpriteEngine :: HWND -> HSpriteTree -> IO HSpriteEngine
+%{ h = newSpriteEngine(arg1, arg2) %}
+%fail { h == 0 } { ErrorString("newSpriteEngine") }
+%result (hSpriteEngine h)
+
+%fun onResizeSpriteEngine :: HSpriteEngine -> IO ()
+%fun deleteSpriteEngine :: HSpriteEngine -> IO Int
+
+-- Supertype coercions
+
+class  AkoSpriteTree a  where
+  toSpriteTree :: a -> HSpriteTree
+
+class  AkoSprite a  where
+  toSprite :: a -> HSprite
+
+
+-- instance  AkoSprite HFlipSprite  where
+--   toSprite = flipSpriteToSprite
+-- 
+-- instance  AkoSprite HSimpleSprite where
+--   toSprite = simpleSpriteToSprite
+-- 
+-- instance  AkoSpriteTree HSprite  where
+--   toSpriteTree = spriteToSpriteTree
+-- 
+-- instance  AkoSpriteTree HSpriteGroup  where
+--   toSpriteTree = spriteGroupToSpriteTree
+-- 
+-- instance  AkoSpriteTree HFlipSprite  where
+--   toSpriteTree = toSpriteTree . toSprite
+-- 
+-- instance  AkoSpriteTree HSimpleSprite  where
+--   toSpriteTree = toSpriteTree . toSprite
+-- 
+-- instance  AkoSpriteTree HSoundSprite  where
+--   toSpriteTree = soundSpriteToSpriteTree
+
+-- GSL
+
+%fun wordToSpriteTree :: Word -> HSpriteTree
+%{ res1 = arg1 %}
+
+%fun wordToSprite     :: Word -> HSprite
+%{ res1 = arg1 %}
+
+instance AkoSpriteTree Word where
+  toSpriteTree = wordToSpriteTree
+
+instance AkoSprite     Word where
+  toSprite     = wordToSprite

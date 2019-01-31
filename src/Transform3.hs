@@ -1,6 +1,6 @@
 -- 3D transforms.
 -- 
--- Last modified Sat Apr 26 22:50:47 1997
+-- Last modified Thu Oct 02 16:37:28 1997
 module Transform3 
         (
           Transform3(..)
@@ -55,7 +55,7 @@ instance Translateable3 Vector3 where
 
 -- Should we even have this one?
 instance Translateable3 Point3 where
-  translate3 p = translate3 (p .-. origin3)
+  translate3 p = translate3 (p .-.# origin3)
 
  
 {-  We'd really like to be able to do this but cannot

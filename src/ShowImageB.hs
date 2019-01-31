@@ -12,12 +12,12 @@ import Transform2
 import Vector2
 import Point2
 import qualified Win32
-import IORef
+import MutVar		-- GSL for unified Var interface
 import Monad (when)
 import Channel (Channel, putChan)
 import Event (EventChannel, newChannelEvent)
 import User
-import ImageB (bitmapPixelsPerLength, screenPixelsPerLength)
+import ImageB (importPixelsPerLength, screenPixelsPerLength)
 import IOExtensions( garbageCollect )
 
 type UserChannel = EventChannel UserAction
@@ -71,13 +71,13 @@ makeWindow createIO resizeIO updateIO closeIO
 
       fireKeyEvent wParam isDown =
 	do --putStrLn ("fireKeyEvent " ++ show (wParam, char, isDown, t))
-	   send (Key isDown (Win32.VKey wParam))
+	   send (Key isDown wParam) -- (Win32.VKey wParam)) -- GSL
 	   return 0
 
       wndProc2 hwnd msg wParam lParam
 
 	| msg == Win32.wM_DESTROY =
-	  do Win32.set_hugsQuitFlag True
+	  do -- Win32.set_hugsQuitFlag True -- GSL
 	     send Quit
 	     return 0
 
@@ -130,15 +130,24 @@ makeWindow createIO resizeIO updateIO closeIO
 	| otherwise
 	= Win32.defWindowProc (Just hwnd) msg wParam lParam
 
-      demoClass = Win32.mkClassName "Fran 3D"
+      demoClass = Win32.mkClassName "Fran"
 
+      -- this is to replace the old Win32.eventLoop; GSL
+      eventLoop :: Win32.HWND -> IO ()
+      eventLoop hwnd = (do
+	lpmsg <- Win32.getMessage (Just hwnd)
+	Win32.translateMessage lpmsg
+	Win32.dispatchMessage  lpmsg
+	eventLoop hwnd
+	) `catch` (\ _ -> return ())
+	
   in do
 	icon <- Win32.loadIcon   Nothing Win32.iDI_APPLICATION
 	cursor <- Win32.loadCursor Nothing Win32.iDC_ARROW
 	blackBrush <- Win32.getStockBrush Win32.bLACK_BRUSH
 	mainInstance <- Win32.getModuleHandle Nothing
 	Win32.registerClass (
-	      Win32.emptyb, -- no extra redraw on resize
+	      0, -- Win32.emptyb, -- no extra redraw on resize
 	      mainInstance,
 	      (Just icon),
 	      (Just cursor),
@@ -161,13 +170,13 @@ makeWindow createIO resizeIO updateIO closeIO
 	-- ddraw functions, Hugs bombs on the AST notebook.  (12/6/96)
 	--putStrLn ""
 	-- There should be a send Resize here
-	Win32.eventLoop w
+	eventLoop w
 	(Win32.unregisterClass demoClass mainInstance `catch` \_ -> return ())
 
 
 makeWindowNormal demoClass mainInstance wndProc2 =
  Win32.createWindow demoClass
-              "Fran 3D"
+              "Fran"
               Win32.wS_OVERLAPPEDWINDOW
               -- Nothing    Nothing    -- x y
               (Just 300) (Just 26)
@@ -190,6 +199,16 @@ windowSize hwnd =
 
 -- Misc
 
+updateRefStrict :: Eval a => MutVar a -> (a -> a) -> IO ()
+
+updateRefStrict var f =
+  readVar var >>= \ val ->
+  -- Force evaluation of val, so computations don't pile up
+  val `seq`
+  writeVar var (f val)
+
+{- GSL use MutVar instead
+
 updateRefStrict :: Eval a => Ref a -> (a -> a) -> IO ()
 
 updateRefStrict ref f =
@@ -198,38 +217,42 @@ updateRefStrict ref f =
   val `seq`
   setRef ref (f val)
 
+-}
 
 updatePeriodGoal :: SpriteTime
 updatePeriodGoal = 0.1
 
+-- ## Eliminate the t0 argument.
+
 -- Show a sprite tree
 
-showSpriteTree :: HSpriteTree -> IO () -> UserChannel -> SpriteTime -> IO ()
+showSpriteTree :: HSpriteTree -> IO () -> UserChannel -> IO ()
 
-showSpriteTree spriteTree updateIO userChan t0 =
- do spriteEngineVar <- newRef (error "spriteEngineVar not set")
-    updateCountVar  <- newRef (0::Int)
-    frameCountRef   <- newRef (error "frameCountRef not set")
-    windowVar	    <- newRef (error "windowVar not set")
+showSpriteTree spriteTree updateIO userChan =
+ do spriteEngineVar <- newVar (error "spriteEngineVar not set")
+    updateCountVar  <- newVar (0::Int)
+    frameCountRef   <- newVar (error "frameCountRef not set")
+    windowVar	    <- newVar (error "windowVar not set")
     
+    t0 <- currentSpriteTime
     makeWindow
        -- Create IO
        (\ w ->
-	 do setRef windowVar w
+	 do writeVar windowVar w
 	    eng <- newSpriteEngine w spriteTree
-	    setRef spriteEngineVar eng)
+	    writeVar spriteEngineVar eng)
        -- Resize IO.  Recreates the back buffer and clippers.
-       (do eng <- getRef spriteEngineVar
+       (do eng <- readVar spriteEngineVar
 	   onResizeSpriteEngine eng)
        -- Update IO
        (do -- garbageCollect
            updateIO
 	   updateRefStrict updateCountVar (+1))
        -- Close IO
-       (do eng   <- getRef spriteEngineVar
+       (do eng   <- readVar spriteEngineVar
 	   count <- deleteSpriteEngine eng
-	   setRef frameCountRef count
-	   win   <- getRef windowVar
+	   writeVar frameCountRef count
+	   win   <- readVar windowVar
 	   Win32.destroyWindow win)
        -- update interval in seconds
        updatePeriodGoal
@@ -238,8 +261,8 @@ showSpriteTree spriteTree updateIO userChan t0 =
     -- Clean up
     deleteSpriteTree spriteTree
     -- Show performance stats
-    updateCount <- getRef updateCountVar
-    frameCount  <- getRef frameCountRef
+    updateCount <- readVar updateCountVar
+    frameCount  <- readVar frameCountRef
     showStats t0 frameCount updateCount
     return ()
 
@@ -262,70 +285,6 @@ showStats t0 frameCount updateCount =
               show (fromInt updateCount / dt) ++ " ups, " ++
               show (round (1000 * dt / fromInt updateCount)) ++
               " MS average")
-
-
-{-
--- Testing.  Superceded by Spritify.hs
-
-type STGen = Time -> SpriteTreeChain -> IO SpriteTreeChain
-
--- Ignores user input
-
-disp :: STGen -> IO ()
-
-disp stGen =
-  do t0 <- currentSpriteTime
-     (ignoredUser, userChan) <- newChannelEvent t0
-     spriteTree <- stGen t0 emptySpriteTreeChain
-     showSpriteTree spriteTree (return ()) userChan t0
-
-------- Test cases --------
-
-
--- donutBmp = "c:\\Dxsdk\\sdk\\samples\\donuts\\donuts.bmp"
-donutBmp = "..\\..\\Media\\donuts.bmp"
-
-donutSurface :: HDDSurface
-donutSurface = bitmapDDSurface donutBmp
-
-donutFlipBook :: HFlipBook
-donutFlipBook = flipBook donutSurface 64 64 0 0 5 6
-
-
-donut :: Double -> Double -> Double -> Double -> STGen
-
-donut velX velY scaleRate frameRate t0 rest =
-  newFlipSprite donutFlipBook 0 0  1 1  0 rest     >>= \ flying ->
-  setGoalPosition (toSprite flying) velX' velY' (t0+1)  >>
-  setGoalScale (toSprite flying) scale' scale' (t0+1)  >>
-  setGoalPage flying frameRate (t0+1)   >>
-  return (toSpriteTree flying)
-  where
-   velX' = velX
-   velY' = velY
-   scale' = 1 + scaleRate
-
-donut1, donut2, donut3, twoDonuts, threeDonuts :: STGen
-
-donut1 = donut 0.40 0.35 0.0  50
-donut2 = donut 0.50 0.45 0.2  70
-donut3 = donut 0.45 0.40 0.5 100
-
--- [donut1, donut2, ...]
--- Could elide "rest" by using .>>=
-twoDonuts t0 rest =
-  donut2 t0 rest >>=
-  donut1 t0
-
--- [donut3, [donut1, donut2], ...]
-threeDonuts t0 rest =
-  twoDonuts t0 emptySpriteTreeChain >>= \ two ->
-  map toSpriteTree (newSpriteGroup two rest)  >>= \ group ->
-  donut3 t0 group
-
-noDonuts t0 rest = return rest
-
--}
 
 
 ----------------------------------------------------------------

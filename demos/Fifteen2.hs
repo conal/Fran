@@ -141,7 +141,7 @@ render'Was be  = switcher (render initialBoard) (be ==> render)
 render' :: Event Board -> Time -> ImageB
 
 render' be t0 = switcher (render ((initialBoard,initialBoard), t0))
-                         (withTimeE (withPrevE initialBoard be) ==> render)
+                         (withTimeE (withPrevE be initialBoard) ==> render)
  where
    render :: ((Board,Board), Time) -> ImageB
 

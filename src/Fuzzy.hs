@@ -1,6 +1,6 @@
 -- Fuzzy (interval) analysis.
 -- 
--- Last modified Thu Nov 07 14:31:30 1996
+-- Last modified Thu May 08 12:54:15 1997
 -- 
 -- I'm inconsistent with naming conventions.  Some derive from "fuzzy",
 -- while others from "interval".
@@ -41,6 +41,12 @@ mergeI :: Ord a => Fuzzy a -> Fuzzy a -> Fuzzy a
 (lo `Upto` hi) `mergeI` (lo' `Upto` hi') =
   (lo `min` lo') `Upto` (hi `max` hi')
 
+{-
+f@(lo `Upto` hi) `mergeI` f'@(lo' `Upto` hi')
+ | lo  > hi  = f'
+ | lo' > hi' = f
+ | otherwise = (lo `min` lo') `Upto` (hi `max` hi')
+-}
 
 -- A few convenient type abbreviations:
 

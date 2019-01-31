@@ -2,7 +2,7 @@
 -- to make it easier to do some simple things. I'd like to make it so that
 -- kids can use this simple vocabulary.
 --
--- Last modified Thu Jul 24 09:40:56 1997
+-- Last modified Thu Oct 02 11:17:44 1997
 
 module UtilsB where
 
@@ -23,43 +23,41 @@ import Integral
 import Interaction
 import HSpriteLib
 
--- Temporarily
-import IOExtensions (unsafePerformIO)
 
 -- Move
 
--- move dp thing = translate2 dp *% thing
-
+move dp thing = translate2 dp *% thing
 moveXY dx dy thing = move (vector2XY dx dy) thing
 
 -- Resize
-bigger = stretch
 
+stretch, bigger, smaller :: RealB -> ImageB -> ImageB
+
+stretch = bigger
+bigger sc = (uscale2 sc *%)
 smaller sc = bigger (1/sc)
+
+-- Currently only uniform scaling.  Sorry.
 
 -- biggerXY scx scy im = scale2 (vector2XY scx scy) *% im
 -- smallerXY scx scy = biggerXY (1/scx) (1/scy)
 
--- turnLeft frac im = rotate2 (frac * pi) *% im
--- turnRight frac = turnLeft (-frac)
-
--- No-ops for now.  Sorry
--- turnLeft frac im = im
--- turnRight frac im = im
+turnLeft frac im = rotate2 (frac * pi) *% im
+turnRight frac = turnLeft (-frac)
 
 -- Oscillates between -1 and 1
-wiggle  = sin (pi * timeSince 0)        -- Zero is Bogus!!! ###
+wiggle  = sin (pi * time)
 
 -- Ditto, but off phase
 -- waggle = later 0.5 wiggle
-waggle  = cos (pi * timeSince 0)        -- Bogus!!! ###
+waggle  = cos (pi * time)
 
 wiggleRange lo hi =
  lo + (hi-lo) * (wiggle+1)/2
 
 -- Shift a behavior to be later or earlier, faster or slower
 
-later, earlier :: TimeB -> Behavior a -> Behavior a
+later, earlier :: TimeTransformable bv => TimeB -> bv -> bv
 
 later dt b = b `timeTransform` (timeSince 0 - dt)  -- Bogus zero!!! ###
 earlier dt = later (-dt)
@@ -71,8 +69,8 @@ slower x   = faster (1/x)
 
 importBitmapWithSize :: String -> (ImageB, RealVal, RealVal)
 importBitmapWithSize fileName =
-  (flipImage book 0, fromInt w / bitmapPixelsPerLength
-                   , fromInt h / bitmapPixelsPerLength)
+  (flipImage book 0, fromInt w / importPixelsPerLength
+                   , fromInt h / importPixelsPerLength)
  where
   book  = --trace "Making flip book" $
           flipBook surf w h 0 0 1 1
@@ -85,8 +83,6 @@ importBitmap :: String -> ImageB
 importBitmap fileName = imB
  where (imB, width, height) = importBitmapWithSize fileName
 
-bezier = error "bezier not currently implemented -- sorry"
-circle = error "circle not currently implemented -- sorry"
 
 
 -- Continuous show, rendered into an image
@@ -100,7 +96,7 @@ showIm  = showBIm . constantB
 stringBIm :: Behavior String -> ImageB
 stringIm  ::          String -> ImageB
 
-stringBIm str = textImage (simpleText str) 0
+stringBIm str = textImage (simpleText str)
 stringIm      = stringBIm . constantB
 
 -- Synonym
@@ -129,3 +125,8 @@ viewStretch size u =
     (wWidth, wHeight) = pairBSplit (vector2XYCoords (viewSize u))
     (iWidth, iHeight) = pairBSplit (vector2XYCoords size)
 
+
+-- Convert a user-based event to one that produces the next user.
+
+nextUser :: (User -> Event a) -> (User -> Event User)
+nextUser f u = f u `afterE_` u

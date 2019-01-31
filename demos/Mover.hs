@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------
 -- Some experiments in bug's-eye view animation
 --
--- Last modified Thu Aug 07 12:50:08 1997 by conal
+-- Last modified Thu Sep 25 10:42:37 1997 by conal
 --------------------------------------------------------------------------
 
 
@@ -154,21 +154,25 @@ type UPicker = User -> Picker
 
 nothingPicker, randPicker, randPicker' :: UPicker
 mousePicker, randThenMousePicker :: (User -> Event a) -> UPicker
+alwaysPicker :: LocMove -> DTime -> UPicker
 
 -- Pick nothing
 nothingPicker _ = neverE
+
+alwaysPicker locMove dt u =
+ uAlarm dt u -=> locMove
 
 -- Pick locations at random
 randPicker' u = randInt ==> toLoc
  where
    randInt = occsE (zip [t0, t0+0.2 ..] (randoms (floor (t0 * 10))))
-   t0      = startTime u
+   t0      = userStartTime u
    toLoc i = (i' `mod` cols, (i' `div` cols) `mod` rows)  where i' = abs i
 
 -- Smarter algorithm: follows random path, moving one square at a time.
 -- Once it chooses a moveable piece, it will keep on doing so.
 randPicker u =
-  updateDone u `withElemE_` randLocPath (floor (startTime u * 10))
+  updateDone u `withElemE_` randLocPath (floor (userStartTime u * 10))
 
 randLocPath :: Int -> [Loc]
 randLocPath seed = path minLoc (map toLocMove (randoms seed))
@@ -191,7 +195,7 @@ randLocPath seed = path minLoc (map toLocMove (randoms seed))
 mousePicker button u = button u `snapshot_` motionToLocB (mouseMotion u)
 
 uAlarm :: DTime -> User -> Event ()
-uAlarm dt u = alarmE (startTime u) dt
+uAlarm dt u = alarmE (userStartTime u) dt
 
 -- Random until mouse motion sensed, and then mousePicker
 randThenMousePicker button =
@@ -228,7 +232,7 @@ demo upicker inhabitants = disp imF
 
 -- Show a value, and color green if at home an red otherwise.
 inhabIm :: Show a => a -> BoolB -> ImageB
-inhabIm a = \ atHomeB -> withColor (cond atHomeB green red) aIm
+inhabIm a = \ atHomeB -> withColor (condB atHomeB green red) aIm
  where
    aIm = stretch 2 (showIm a)
 
@@ -247,24 +251,39 @@ inhabs2 = [ Mover startLoc moveESWN (startIm startLoc)
 
 inhabs3 = tail (tail inhabs2)
 
-{-
+-- {-
 moverTest :: Inhabitant -> User -> ImageB
 moverTest inhab u = renderInhabitant loc inhab
  where
    loc   = moveInhabitant moveE inhab
    moveE = lbp u -=> allFree
-   -- moveE = alarmE (startTime u) 1 -=> allFree
+   -- moveE = alarmE (userStartTime u) 1 -=> allFree
 
 -- empty World
-worldTest0 = fillWorld []
+worldTest0 = fillWorld [] []
 -- Diagonally occupied World
-worldTest1 = fillWorld [ (i,i) | i <- [0 .. (cols `min` rows) - 1] ]
+--worldTest1 = fillWorld [ (i,i) | i <- [0 .. (cols `min` rows) - 1] ]
 
 -- Tester for doMove
 doMoveTest inhab upicker world u = renderInhabitant loc inhab
  where
    loc = doMove (upicker u) (constantB world) inhab
+{-
+   -- Move an Inhabitant around in a changing world
+   doMove :: Picker -> WorldB -> Inhabitant -> LocB
+   doMove picker worldB inhabitant = locB
+    where
+      locB = moveInhabitant envE inhabitant
+      envE = pickThis `snapshot_` neighborsB worldB locB
+             -- pickThis `snapshot_` (error "no neighborsB")
+      pickThis = whenSnap picker locB (==)
+
+   moveInhabitant moveE (Mover startLoc moveRule _) =
+     stepper startLoc (scanlE addLocMove startLoc (moveE ==> moveRule))
+
+   whenSnap e b pred = (e `snapshot` b `suchThat` uncurry pred) ==> fst
 -}
+-- -}
 
 --------------------------------------------------------------------------
 --                                To do

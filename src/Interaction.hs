@@ -1,6 +1,6 @@
 -- Higher-level interaction
 --
--- Last modified Wed Aug 06 15:48:47 1997
+-- Last modified Tue Sep 23 11:17:59 1997
 
 module Interaction where
 
@@ -8,7 +8,6 @@ import BaseTypes
 import Behavior
 import qualified StaticTypes as S
 import Vector2B
---import qualified VSBehavior as VSB
 import Point2B
 import Event
 import User
@@ -17,10 +16,10 @@ import Win32 (VKey)
 import Monad (when)
 
 
--- Time relative to user
+-- Time relative to user.
 
 userTime :: User -> TimeB
-userTime user = timeSince (startTime user)
+userTime u  = timeSince (userStartTime u)
 
 filterButton :: Bool -> Bool  ->  User -> Event ()
 
@@ -82,7 +81,7 @@ updateDone u = u `filterE` f
 
 userTimeIs :: Time -> User -> Event ()
 
-userTimeIs dt u = timeIs (startTime u + dt)
+userTimeIs dt u = timeIs (userStartTime u + dt)
 
 
 -- Piecewise-constant input behaviors.

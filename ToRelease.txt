@@ -1,0 +1,29 @@
+                      Notes on making a Fran Release
+
+             Last modified Thu Aug 07 16:50:49 1997 by conal
+
+
+- Update newFran.htm in FrontPage.  Change the version number and the
+  "Grab the file _here_" link.  Save.  Let the web-bot change the edited
+  date.
+
+- Do a recursive SourceSafe check-in at the Fran1 level.
+
+- Do a recursive SourceSafe "get" to a directory ToZip\Fran1, setting the
+  file dates to "modified", in the advanced controls for "get".
+
+- Copy Fran1\SpriteLib\src\Debug\SpriteLib.dll to ToZip\Fran1.  Copy
+  HSpriteLib.dll and HSpriteLib.hs from Fran1\SpriteLib\src to
+  ToZip\Fran1\src.
+
+- Make a new file, like "Fran1.04.zip" in ToZip; open it; and do a
+  recursive wildcard add.
+
+- Copy the new zip file and newFran.htm to my fran web directory.
+
+- Verify that it works, by following the link from my external web page:
+  http://www.research.microsoft.com/~conal/fran/newFran.htm. 
+
+- Assuming it works, do a SourceSafe "label" to the Fran pjt.
+
+- Put out the word.

@@ -1,7 +1,7 @@
 -- Event combinators that involve events.  Separated out from Event.hs to
 -- avoid a mutual module recursion.
 --
--- Last modified Tue Aug 05 16:05:53 1997
+-- Last modified Fri Sep 26 14:54:59 1997
 --
 -- To do:
 --
@@ -14,6 +14,7 @@ import Event
 import User
 import Behavior
 import Interaction
+import Maybe (isJust)
 
 import Trace
 import MVar                             -- for forkIO, which is for testing
@@ -24,23 +25,51 @@ infixl 9 `snapshot`, `snapshot_`, `whenE`
 -- value is e's value together with a snapshot of b at te.  A counterpart
 -- to afterE.
 
-snapshot :: {- Forceable b => -} Event a -> Behavior b -> Event (a, b)
+snapshot :: Event a -> Behavior b -> Event (a, b)
 
-Event possOccs `snapshot` b = Event (loop possOccs b)
+Event possOccs `snapshot` b =
+  Event (loop possOccs (b `ats` (map fst possOccs)))
  where
    loop [] _ = []
 
-   -- Pair up the event data, if any, with the behavior sample.  Do I
-   -- need to force y ?  Sometimes yes.  Maybe instead just take b' to
-   -- WHNF?  Look carefully at untilB and integral.
-   loop ((te,mb) : possOccs') b =
-     -- b' `seq`
-     (te, map (`pair` y) mb) : loop possOccs' b'
+   -- Pair up the event data, if any, with the behavior sample.
+   -- This lazy pattern is necessary, so that b doesn't get sampled
+   -- too soon, which is especially important in self-reactive situations.
+   -- ## But, it does create a possible space leak and later latency from
+   -- unevaluated tails.  :-(  Look for an alternative.  Gary suggested
+   -- just sampling at the actual occurrences.  The "seq" below was
+   -- attempt to find a middle ground, but it's still too strict.  The
+   -- test function iTst9 in Spritify.hs trips over it.
+   loop ((te,mb) : possOccs') ~(x:xs') =
+     (te, map (`pair` x) mb) : ({-xs' `seq` -}loop possOccs' xs')
+
+
+{-
+
+-- This next version wedges iTst9 and iTst10 in Spritify.hs
+e@(Event possOccs) `snapshot` b =
+  Event (loop possOccs (b `ats` occTimes e))
+ where
+   loop [] _ = []
+
+   loop ((te,mb) : possOccs') ~xs@(x:xs') =
+     (te, mbSnap) : loop possOccs' xs'
     where
-      (y,b') = b `at` te
+      (mbSnap, xs') = case mb of
+                        Nothing -> (Nothing   , xs )
+                        Just y  -> (Just (y,x), xs')
+
+--occTimes :: Event a -> [Time]
+
+occTimes (Event possOccs) = loop possOccs
+ where
+   loop ((_, Nothing) : possOccs') = loop possOccs'
+   loop ((te, _) : possOccs')      = te : loop possOccs'
+-}
+
 
 -- Shortcut when ignoring the given event's data
-snapshot_ :: {- Forceable a => -} Event a -> Behavior b -> Event b
+snapshot_ :: Event a -> Behavior b -> Event b
 
 e `snapshot_` b = (e `snapshot` b) ==> snd
 
@@ -51,10 +80,10 @@ whenSnap e b pred = (e `snapshot` b `suchThat` uncurry pred) ==> fst
 whenE :: Event a -> BoolB -> Event a
 
 -- Snapshot condition, test and discard
-e `whenE` b = (e `snapshot` b `suchThat` snd) ==> fst
+-- e `whenE` b = (e `snapshot` b `suchThat` snd) ==> fst
 
 -- Test out the following alternative:
--- e `whenE` b = whenSnap e b (curry snd)
+e `whenE` b = whenSnap e b (curry snd)
 
 
 predicate :: BoolB -> User -> Event ()

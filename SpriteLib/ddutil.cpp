@@ -1,6 +1,6 @@
 /*==========================================================================
  *
- *  Copyright (C) 1995-1996 Microsoft Corporation. All Rights Reserved.
+ *  Copyright (C) 1995-1997 Microsoft Corporation. All Rights Reserved.
  *
  *  File:       ddutil.cpp
  *  Content:    Routines for loading bitmap and palettes from resources
@@ -287,7 +287,8 @@ extern "C" DWORD DDColorMatch(IDirectDrawSurface *pdds, COLORREF rgb)
     if (hres == DD_OK)
     {
         dw  = *(DWORD *)ddsd.lpSurface;                     // get DWORD
-        dw &= (1 << ddsd.ddpfPixelFormat.dwRGBBitCount)-1;  // mask it to bpp
+        if(ddsd.ddpfPixelFormat.dwRGBBitCount < 32)
+            dw &= (1 << ddsd.ddpfPixelFormat.dwRGBBitCount)-1;  // mask it to bpp
         pdds->Unlock(NULL);
     }
 

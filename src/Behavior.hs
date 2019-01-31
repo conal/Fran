@@ -1,26 +1,32 @@
--- Non-reactive behaviors, represented as infinite "behavior trees" of
--- sample values.  This version doesn't do interval analysis.
+-- Reactive behaviors, represented using memoized functions from time
+-- streams to value streams.
 -- 
--- Last modified Thu Aug 07 09:22:33 1997
+-- Last modified Thu Oct 02 10:59:59 1997
+--
+-- Notes
+--
+-- + This version doesn't do interval analysis.
+-- + Correctness relies on untilB behaviors getting only monotonically
+--   increasing time lists.  Time transformation can violate this
+--   assumption.  I don't know of any practical way around this problem.
 --
 -- To do:
 --
---  + Re-examine the notion of start times for events.  The current
---    implementation is bogus!
---  + untilB: Try to shift work from sampling to construction.
---  + This representation space leaks in Hugs, and I don't know why.  See
---    notes in the test section.
---  + Finish timeTransform.  See notes.
---  + Make sampling do no cons'ing.  See note in "at" definition.
+--  + Restore lift/untilB and lift/constantB optimization.
 --  + Many of the liftings are unnecessary, because of the default methods
---    in Prelude.hs.
+--    in Prelude.hs. 
+--  + Consider how to exploit UntilB in timeTransform.  If b or tt is
+--    reactive, we're losing that knowledge, and afterTimes works very
+--    badly!! 
 
 
 module Behavior where
 
-import qualified BStack as BP   -- defines BPrim
 import BaseTypes
 import Event
+import Maybe (isJust)
+import MutVar
+import IOExtensions (unsafePerformIO)
 import Trace
 
 infixr 8  ^*, ^^*
@@ -28,137 +34,286 @@ infix  4  ==*, <*, <=* , >=*, >*
 infixr 3  &&*
 infixr 2  ||*
 
+infixr 0  $*
 
--- A behavior is represented by a single constant, an untilB, or a
--- "primitive behavior".
+-- Type of samplers and "afterers", mapping time lists to value lists or
+-- residual behaviors.
+type SamplerB a = [Time] -> [a]
+type AftererB a = [Time] -> [BStruct a]
 
-data Behavior a
-  = ConstantB a
-  | UntilB (Behavior a) (Event (Behavior a))
-  | BPrim (BP.BPrim a)
+-- Sampler cache
+type BCache   a = [([Time],[a])]
+type CacheVar a = MutVar (BCache a)
 
+-- A behavior contains structure and possibly a sampler cache.  The
+-- structure is used for $*/constantB and $*/untilB optimizations.
+-- Together, these optimizations do a lot of constant folding.
+
+data Behavior a = Behavior (BStruct a) (Maybe (MutVar (BCache a)))
+
+data BStruct a
+   = ConstantB a                         -- K
+   | SamplerB (SamplerB a) (AftererB a)  -- for S, I, etc
+   | TimeTransB (Behavior a) (Behavior Time)  -- C
+   | UntilB (Behavior a) (Event (Behavior a))
+  deriving Show
+
+-- I'd really like to remove SamplerB and add the following two
+-- constructors:
+--   | TimeB                               -- I
+--   | AppB (Behavior (b->a)) (Behavior b) -- S
+
+-- The problem is that TimeB would have type (BStruct Time), and AppB
+-- would need existential types (?).  It would be nice to use these
+-- constructors instead, for printing, at least.  We could get rid of the
+-- Afterer type as well.
+
+-- To show, just say whether cached, and show the structure.
 instance (Show a) => Show (Behavior a) where
-  -- Are these two right?  I doubt it.  Needs parens sometimes, right?
-  showsPrec p (ConstantB x) = showString "ConstantB " . showsPrec 10 x
-  showsPrec p (BPrim bprim) = showString "BPrim " . showsPrec 10 BPrim
-  showsPrec p (UntilB b e)  = showParen (p > 1) $
-                              shows b . showString " `UntilB` " . shows e
+  showsPrec p (Behavior bstruct mb) =
+      showString ("<<" ++ (if isJust mb then "" else "un")
+                     ++ "cached Behavior ")
+    . showsPrec 0 bstruct . showString ">>"
+
+
+-- The abstract interface: sample a behavior with a list of times to get a
+-- list of values.  N.B.: if the time list is finite, the resulting value
+-- list may be infinite anyway.  This allows some cases to be more
+-- efficient, and the time lists are almost always infinite.
+ats :: Behavior a -> [Time] -> [a]
+
+ats (Behavior struct mbCacheVar) =
+  -- Use the cache if it's there, and just atsS otherwise.
+  case mbCacheVar of
+     Just cacheVar -> cacheLookup (atsS struct) cacheVar
+     Nothing       -> atsS struct 
+
+atsS :: BStruct a -> [Time] -> [a]
+
+-- It would be less efficient to use "map (const x)" here, but that would
+-- only be correct even for finite time lists.  Usually the time lists are
+-- infinite, with the only current exception coming from snapshot.  And
+-- snapshot doesn't mind if the length changes.
+atsS (ConstantB x) = const (repeat x)
+
+atsS (SamplerB sampler _) = sampler
+
+atsS (TimeTransB b tt) = ats b . ats tt
+
+-- Untilb behaviors change at event occurrences
+atsS (b `UntilB` e) = \ ts -> loop ts (b `ats` ts) (e `occs` ts)
+ where
+   -- First event occurrence.  Discard the rest of the b values and
+   -- possible event occurrences, and continue.
+   loop ts _ (Just (_, b') : _) = b' `ats` ts
+
+   loop (_:ts') (x:xs') (Nothing:mbOccs') =
+     x : loop ts' xs' mbOccs'
+
 
 instance GBehavior (Behavior a) where
-  untilB          = UntilB              -- For now
-  b `afterTime` t = snd (b `at` t)
+  b `untilB` e = Behavior (b `UntilB` e)
+                          (Just (unsafePerformIO (newVar [])))
 
-  startTime (ConstantB _)       = minTime
-  startTime (BPrim bprim)       = startTime bprim
-  -- When does an UntilB start?
-  startTime (b `UntilB` e)      = startTime b -- `max` startTime e
+  Behavior bstruct mbCacheVar `afterTimes` ts =
+    zipWith Behavior
+            (bstruct `afterTimesSt` ts)
+            (case mbCacheVar of
+              Nothing       -> repeat Nothing
+              Just cacheVar -> map Just (cacheVar `afterTimesCV` ts))
 
+afterTimesSt :: BStruct a -> [Time] -> [BStruct a]
 
--- The abstract interface: sample a behavior with a time to get a new time
--- and behavior.
+bstruct@(ConstantB _) `afterTimesSt` ts = map (const bstruct) ts
 
-at :: Behavior a -> Time -> (a, Behavior a)
+SamplerB sampler afterer `afterTimesSt` ts = afterer ts
 
-b@(ConstantB x) `at` _ = (x, b)
+TimeTransB b tt `afterTimesSt` ts =
+  zipWith TimeTransB
+          (b `afterTimes` (tt `ats` ts))
+          (tt `afterTimes` ts)
 
-BPrim bprim `at` t = --trace ("Sampling BStack at " ++ show t ++ "\n") $
-                     (x, BPrim bprim')
+-- UntilB behaviors change at event occurrences
+(b `UntilB` e) `afterTimesSt` ts =
+  loop ts (b `afterTimes` ts) (e `occs` ts)
+          (e `afterTimes` ts)
  where
-  (x, bprim') = bprim `BP.at` t
+   -- First occurrence.  Continue with new behavior
+   loop ts _ (Just (_, Behavior bstruct' _) : _) _ =
+     bstruct' `afterTimesSt` ts
 
--- Simple implementation of UntilB.  Try to shift work from sampling to
--- construction.
+   -- Non-occurrence.  Still an UntilB, and generate more
+   loop (te:ts') (bAfter : bAfters')
+        (Nothing : mbOccs') (eAfter : eAfters')  =
+     bAfter `UntilB` eAfter : loop ts' bAfters' mbOccs' eAfters'
 
-(b `UntilB` e) `at` t =
-  --trace ("UntilB/at " ++ show t ++ " ") $
-  case mbOcc of
-    Nothing       -> --trace "non-occurrence\n" $
-                     (x, bNext `UntilB` eNext)
-    Just (te, b') -> --trace "occurrence\n" $
-                     b' `at` t
+
+afterTimesCV :: CacheVar a -> [Time] -> [CacheVar a]
+afterTimesCV cv [] = []
+afterTimesCV cv (t:ts') = cv' : afterTimesCV cv' ts'
  where
-  (mbOcc, eNext) = e `occ` t
-  (x,     bNext) = b `at`  t
+   cv' = updateCacheVar cv t
+
+updateCacheVar :: CacheVar a -> Time -> CacheVar a
+updateCacheVar cacheVar te = unsafePerformIO $ do
+  --putStrLn ("updateCacheVar: " ++ show te)
+  cache <- readVar cacheVar
+  let pairs = (map (uncurry trim) cache)
+  newVar pairs
+ where
+   -- Trim away all time/value pairs that occur at or before te
+   trim []         _          = ([],[])
+   trim ts@(t:ts') xs@(x:xs') =
+     if t <= te then
+       --trace ("trim " ++ show t ++ " ")$
+       trim ts' xs'
+     else (ts,xs)
+
+
+-- Look up or compute a value stream
+cacheLookup :: SamplerB a -> CacheVar a -> [Time] -> [a]
+cacheLookup sampler cacheVar ts = unsafePerformIO $ do
+  --putStr "cacheLookup "
+  allPairs <- readVar cacheVar
+  -- Could probably use the "find" function in the List module, but for
+  -- now I want to keep stats.
+  let find [] n = do
+        --report "miss" n
+        let xs = sampler ts
+        writeVar cacheVar ((ts,xs) : allPairs)
+        return xs
+
+      find ((tsFound,xsFound) : pairs') n =
+        if ts `cacheMatch` tsFound then
+          --report "hit" n >>
+          return xsFound
+         else
+          --putStrLn ("cache skip " ++ show (head ts, head tsFound)) >>
+          find pairs' (n+1)
+
+      report str n = putStrLn ("cache " ++ str ++ " after "
+                            ++ show n ++ " entries.  head "
+                            ++ show (head ts))
+
+  find allPairs 0
+
+cacheMatch :: Eval a => a -> a -> Bool
+x `cacheMatch` x' = --x `ptrEq` x'
+                    getCell x `cellPtrEq` getCell x'
+
+-- The following requires INTERNAL_PRIMS to be set in Hugs/src/options.h.
+-- These declarations copied from Hugs/lib/hugs/HugsInternals.hs
+-- breaks referential transparency - use with care
+primitive ptrEq :: a -> a -> Bool
+data Cell
+primitive getCell                  :: a -> Cell
+primitive cellPtrEq                :: Cell -> Cell -> Bool
+
+
+-- Utility.  Make the initially empty cache.
+samplerB :: SamplerB a -> Behavior a
+samplerB sampler =
+  Behavior (SamplerB sampler afterer) (Just cv)
+ where
+   cv = unsafePerformIO (newVar [])
+   afterer = map (const (SamplerB sampler afterer))
 
 
 -- We define the usual assortment of behavior primitives and building
 -- blocks.
 
--- Our bstacks need start times, so no plain old "time"
-timeSince :: Time -> Behavior Time
-timeSince t0 = BPrim (BP.timeSince t0)
+-- Time is the identity ("I" combinator).
 
+time :: Behavior Time
+time = Behavior bstruct Nothing
+ where bstruct =  SamplerB id (map (const bstruct))
+
+-- I would put the timeTransform method in GBehavior, but then there would
+-- be a cyclic dependency between Behavior and Event.  What's the right
+-- thing?
+class TimeTransformable bv where
+  timeTransform :: bv -> TimeB -> bv
 
 -- Time transformation is semantically equivalent to function composition.
--- Upon sampling, the new behavior is constructed from the new behavior
--- argument and time transformation.
 
-timeTransform :: Behavior a -> Behavior Time -> Behavior a
-
-timeTransform b@(ConstantB _) _ = b
-
-timeTransform b (ConstantB t) = ConstantB (fst (b `at` t))
-
--- How to implement the non-constant case?  In particular, what's the
--- start time?  Maybe the time transform's start time, but what if the
--- pre-transformed behavior doesn't start at the time transform's
--- transformed start time?  Other than this possible gotcha, this function
--- is not hard to implement, I think, assuming monotonically increasing
--- time transform.
-
-timeTransform b tt = 
-  error "{Behavior} timeTransform: not implemented, sorry"
+instance TimeTransformable (Behavior a) where
+  timeTransform b tt = samplerB (ats b . ats tt)
 
 
--- The basics for non-reactivity.  These guys are K and S !!
+-- The basics for non-reactivity.  The classic K and S.
 
 constantB :: a -> Behavior a
-($*) :: Behavior (a -> b) -> Behavior a -> Behavior b
+constantB x = Behavior (ConstantB x) Nothing
 
--- lift0, i.e., K
-
-constantB = ConstantB
 
 -- lift2 ($), i.e., S
+($*) :: Behavior (a -> b) -> Behavior a -> Behavior b
 
-(ConstantB f) $* (ConstantB x) = ConstantB (f x)
+-- Fully constant case
+Behavior (ConstantB f) _ $* Behavior (ConstantB x) _ =
+ constantB (f x)
 
--- Use this optimization with the explicit definition lift1 below (not in
--- terms of ($*), and then optimize here.  I think it will then kick in
--- for behaviors like 3+b.  Think about how to do b+3 efficiently.
+-- untilB cases.  Especially good for optimizing sometimes-constant
+-- behaviors.  (Later generalize to piecewise-polynomial, etc.)
 
-ConstantB f $* b = lift1 f b
+-- (constantB f `untilB` e) $* constantB x
+Behavior (Behavior (ConstantB f) _ `UntilB` e) _ $* xb@(Behavior (ConstantB x) _) = 
+  constantB (f x) `untilB` e ==> \ fb' -> fb' $* xb
 
-BPrim bprim $* ConstantB x =  BPrim (bprim `BP.applyToConstant` x)
+-- constantB f $* (constantB x `untilB` e)
+fb@(Behavior (ConstantB f) _) $* Behavior (Behavior (ConstantB x) _  `UntilB` e) _ = 
+  constantB (f x) `untilB` e ==> \ xb' -> fb  $* xb'
 
--- Move UntilB inside of $*
 
-(fb `UntilB` e) $* xb = 
+-- This one seems like it should be useful, but slows down Mover.hs.  :(
+
+{-
+-- (constantB f `untilB` fe) $* (constantB x `untilB` xe)
+Behavior (Behavior (ConstantB f) _ `UntilB` fe) _ $*
+  Behavior (Behavior (ConstantB x) _  `UntilB` xe) _ =
+  --trace "untilB $* untilB optimization\n" $
+  constantB (f x) `untilB`
+        (fe `afterE` xe) ==> (\ (fb',xe') -> fb' $* (constantB x `untilB` xe'))
+    .|. (xe `afterE` fe) ==> (\ (xb',fe') -> (constantB f `untilB` fe') $* xb')
+-}
+
+{-
+-- The most general transformations.  Two problems: (a) there's a bug
+-- somewhere that is being tickled here and I can't find; and (b) too much
+-- unhelpful transformation.  See constant alternatives above.
+Behavior (fb `UntilB` e) _ $* xb = 
   (fb $* xb) `untilB` (e `afterE` xb) ==> \ (fb',xb') -> fb' $* xb'
 
-fb $* (xb `UntilB` e) = 
+fb $* Behavior (xb `UntilB` e) _ = 
   (fb $* xb) `untilB` (e `afterE` fb) ==> \ (xb',fb') -> fb' $* xb'
+-}
+
+-- constant/no-structure
+Behavior (ConstantB f) _ $* b =
+  samplerB (\ts -> map f (b `ats` ts))
+
+fb $* Behavior (ConstantB x) _ =
+  samplerB (\ts -> map ($ x) (fb `ats` ts))
 
 
--- Other cases
-
-BPrim bpf $* BPrim bp = BPrim (bpf `BP.apply` bp)
-
--- Alternate definition of lift1.  See comments above.  Test sometime to
--- see if it helps.
-
-lift1 f (ConstantB x1) = ConstantB (f x1)
-
--- Move UntilB inside of lift1
-lift1 f (b `UntilB` e) = lift1 f b `untilB` e ==> lift1 f
-
-lift1 f (BPrim bp) = BPrim (f `BP.applyConstant` bp)
+-- General case
+fb $* xb = samplerB (\ts -> zipWith ($) (fb `ats` ts) (xb `ats` ts))
 
 
 -- Lifting.  All derived from constantB and ($*) !!
 
-lift0                        = constantB      {-
-lift1 f b1                   = lift0 f $* b1   -}
+lift0 :: a -> Behavior a
+lift1 :: (a -> b) ->
+         Behavior a -> Behavior b
+lift2 :: (a -> b -> c) ->
+         Behavior a -> Behavior b -> Behavior c
+
+-- etc
+
+---- End of primitives.
+
+lift0                        = constantB
+lift1 f b1                   = lift0 f $* b1
 lift2 f b1 b2                = lift1 f b1 $* b2
 lift3 f b1 b2 b3             = lift2 f b1 b2 $* b3
 lift4 f b1 b2 b3 b4          = lift3 f b1 b2 b3 $* b4
@@ -167,7 +322,12 @@ lift6 f b1 b2 b3 b4 b5 b6    = lift5 f b1 b2 b3 b4 b5 $* b6
 lift7 f b1 b2 b3 b4 b5 b6 b7 = lift6 f b1 b2 b3 b4 b5 b6 $* b7
 
 
+
 -- Utilities
+
+
+timeSince :: Time -> Behavior DTime
+timeSince t0 = time - constantB t0
 
 stepper :: a -> Event a -> Behavior a
 stepper x0 e = switcher (constantB x0) (e ==> constantB)
@@ -183,8 +343,8 @@ accumB f soFar e =
   soFar `untilB` (withRestE e `afterE` soFar) ==> \ ((x,e'),soFar') ->
   accumB f (f soFar' x) e'
 
--- Here's a much simpler accumB definition, but it has a problem.  See the
--- comment in scanlE.
+-- Here's a much simpler accumB definition, but it has the problem that it
+-- does't "age" soFar.  See the comment in scanlE.
 -- 
 -- accumB f soFar e = switcher soFar (scanlE f soFar e)
 --
@@ -193,11 +353,13 @@ accumB f soFar e =
 
 -- A few convenient type abbreviations:
 
-type BoolB = Behavior Bool
-type TimeB = Behavior Time
-type RealB = Behavior RealVal
-type IntB = Behavior Int
+type BoolB   = Behavior Bool
+type TimeB   = Behavior Time
+type RealB   = Behavior RealVal
+type IntB    = Behavior Int
 type StringB = Behavior String
+type IOB a   = Behavior (IO a)
+
 
 -- Now we define a bazillion liftings.  The naming policy is to use the
 -- same name as the unlifted function if overloaded and the types permit.
@@ -373,8 +535,10 @@ isIEEEB          = lift1 isIEEE
 
 
 
-cond :: BoolB -> Behavior a -> Behavior a -> Behavior a
-cond = lift3 (\ a b c -> if a then b else c)
+-- The non-strictness of "if" may be a problem here, since there may be a
+-- lot of catching up to do when a boolean behavior changes value.
+condB :: BoolB -> Behavior a -> Behavior a -> Behavior a
+condB = lift3 (\ a b c -> if a then b else c)
 
 notB :: BoolB -> BoolB
 notB = lift1 (not)
@@ -428,30 +592,16 @@ showB = lift1 show
 
 ------ Testing
 
--- This representation space leaks, at least with the tests below, and I
--- don't know why.
-
-ats :: Behavior a -> [Time] -> [a]
-
-b `ats` []      = []
-b `ats` (t:ts') = x : (b' `ats` ts')
- where
-  (x,b') = b `at` t
-
 -- Make our test behaviors be functions of start time, just to avoid space
--- leaky CAFs.  With a 1Mb heap, using 300 instead of 3 below and trying
--- "tstB b1" eventually crashes Hugs, by overflowing the stack in the Hugs
--- implementation.  With b2, Hugs eventually runs out
--- of heap, although the GC messages are not strictly decreasing !?!
+-- leaky CAFs.
 
-tstB f = f 0 `ats` [0.0, 0.1 .. 3]
+tstB f = take 10 $ f 0 `ats` [0.0, 0.1 ..]
+tstBAfter f = take 10 $ f 0 `afterTimes` [0.0, 0.1 ..]
 
--- Just get the nth member.  "tstNth b0 3000" leads to "Control stack
--- overflow".  The usual trick of adding an end enumeration value (1.0e8)
--- didn't help.  (Oddly, "[0 .. ] !! 1000000" doesn't bomb the heap or
--- evaluation stack when I just tried.  Why not?)
 
-tstNth f n = (f 0 `ats` [0.1, 0.2 ..]) !! n
+-- Just get the nth member.
+
+tstBNth f n = (f 0 `ats` [0.1, 0.2 ..]) !! n
 
 -- To confirm that we do no redundant behavior sampling
 sinTB = lift1 sinT

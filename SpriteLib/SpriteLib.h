@@ -3,8 +3,12 @@
 
 #include "cdecls.h"
 
-EXT_API void OpenSpriteLib ();
+// Open the sprite library.  Say how many screen pixels correspond to one
+// length unit.
+EXT_API void OpenSpriteLib (double screenPixelsPerLength);
 EXT_API void CloseSpriteLib ();
+
+EXT_DECL_DATA double g_screenPixelsPerLength;
 
 // For improving the resolution of timeGetTime under NT.
 EXT_API void SetTimerResolutionMS (int newRes);

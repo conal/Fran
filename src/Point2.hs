@@ -1,6 +1,6 @@
 -- RBMH 2d point abstraction.
 --
--- Last modified Sun Nov 10 16:02:49 1996
+-- Last modified Tue Sep 30 15:39:13 1997
 --
 -- When Haskell has type relations (multi-parameter type classes), move most
 -- of stuff to an AffineSpace type relation.
@@ -20,6 +20,8 @@ module Point2
          ,distance2              -- :: Point2 -> Point2 -> Length
          ,distance2Squared       -- :: Point2 -> Point2 -> Length
          ,linearInterpolate2     -- :: Point2 -> Point2 -> RealVal -> Point2
+	 ,swapCoordSys4Pt	 -- :: Point2 -> Point2 -> Point2; GSL
+	 ,swapCoordSysInv4Pt	 -- :: Point2 -> Point2 -> Point2; GSL
 
          ,(.+^)                  -- :: Point2 -> Vector2 -> Point2
          ,(.-^)                  -- :: Point2 -> Vector2 -> Point2
@@ -80,7 +82,17 @@ linearInterpolate2 p1 p2 frac =
 instance Forceable Point2 where
   force p@(Point2XY x y) = force x `seq` force y `seq` p
 
+-----------------------------------------------------------------
+-- swap coordinate system between that origin in center of are
+-- and that origin in upper-left corner; first argument is for
+-- new origin; both points are in Fran coordinate system
+-----------------------------------------------------------------
 
+swapCoordSys4Pt :: Point2 -> Point2 -> Point2
+swapCoordSys4Pt newOrigin pt =
+  let Vector2XY x y = pt .-. newOrigin
+  in  Point2XY x (-y)
 
-
-
+swapCoordSysInv4Pt :: Point2 -> Point2 -> Point2
+swapCoordSysInv4Pt oldOrigin (Point2XY x y) =
+  oldOrigin .+^ Vector2XY x (-y)

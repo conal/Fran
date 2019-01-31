@@ -7,6 +7,7 @@
 #include "Sprite.h"
 #include "ddcheck.h"
 #include "ddhelp.h"
+#include "SpriteLib.h" // for g_screenPixelsPerLength
 
 // C interfaces for Haskell
 
@@ -26,11 +27,13 @@ EXT_API FlipBook *newFlipBook(IDirectDrawSurface *pSurface,
     return new FlipBook(pSurface, width, height,
                         srcXFirst, srcYFirst, columns, rows); }
 
-EXT_API int flipBookWidth(FlipBook *pFlipBook)
-{ return pFlipBook->Width(); }
+EXT_API SIZE flipBookSize(FlipBook *pFlipBook)
+{ return pFlipBook->Size(); }
 
-EXT_API int flipBookHeight(FlipBook *pFlipBook)
-{ return pFlipBook->Height(); }
+// EXT_API int flipBookWidth(FlipBook *pFlipBook)
+// { return pFlipBook->Width(); }
+// EXT_API int flipBookHeight(FlipBook *pFlipBook)
+// { return pFlipBook->Height(); }
 
 EXT_API int flipBookPages(FlipBook *pFlipBook)
 { return pFlipBook->Pages(); }
@@ -43,10 +46,10 @@ EXT_API void deleteSpriteTree (SpriteTree *pSpriteTree)
 { delete pSpriteTree; }
 
 
-EXT_API void setGoalPosition(Sprite *pSprite,
-                             double posX, double posY,
+EXT_API void setGoalUpperLeft(Sprite *pSprite,
+                             double ulX, double ulY,
                              SpriteTime goalTime)
-{ pSprite->SetGoalPosition(posX, posY, goalTime); }
+{ pSprite->SetGoalUpperLeft(ulX, ulY, goalTime); }
 
 EXT_API void setGoalScale(Sprite *pSprite,
                           double scaleX, double scaleY,
@@ -60,21 +63,29 @@ EXT_API SpriteTree *spriteToSpriteTree(Sprite *pSprite)
 
 EXT_API FlipSprite *
 newFlipSprite (FlipBook *pFlipBook,
-               double posX0, double posY0, 
+               double ulX0, double ulY0, 
                double scaleX0, double scaleY0, 
                double startPage,
                SpriteTreeChain rest)
-{ return new FlipSprite(pFlipBook, posX0, posY0, scaleX0, scaleY0, startPage, rest); }
+{ return new FlipSprite(pFlipBook, ulX0, ulY0, scaleX0, scaleY0, startPage, rest); }
 
 EXT_API Sprite *
 flipSpriteToSprite (FlipSprite *pFlipSprite)
 { return pFlipSprite; }
 
+void updateFlipSprite (FlipSprite *pFlipSprite,
+                       SpriteTime t, 
+                       double ulX, double ulY, 
+                       double scaleX, double scaleY,
+                       double page)
+{ pFlipSprite->Update(t, ulX, ulY, scaleX, scaleY, page); }
+
+/* Phasing out
 EXT_API void
 setGoalPage (FlipSprite *pFlipSprite,
               double goalPage, SpriteTime goalTime)
 { pFlipSprite->SetGoalPage(goalPage, goalTime); }
-
+*/
 
 EXT_API SimpleSprite *
 newSimpleSprite (IDirectDrawSurface *pSurface,
@@ -87,10 +98,14 @@ EXT_API Sprite *
 simpleSpriteToSprite (SimpleSprite *pSimple)
 { return pSimple; }
 
-EXT_API void
-setSurface (SimpleSprite *pSimple, IDirectDrawSurface *pSurface)
-{ pSimple->SetSurface(pSurface); }
-
+EXT_API void 
+updateSimpleSprite (
+    SimpleSprite *pSimple,
+    SpriteTime t,
+    HDDSurface pSurface, 
+    double ulX, double ulY, 
+    double scaleX, double scaleY)
+{ pSimple->Update(t, pSurface, ulX, ulY, scaleX, scaleY); }
 
 
 EXT_API SoundSprite *
@@ -153,6 +168,16 @@ void PaintAll(SpriteTreeChain chain, IDirectDrawSurface *pDest, SpriteTime t)
     }
 }
 
+// Useful converter. from Fran coordinates to window coordinates.  Recall
+// that in Fran, the origin is at the middle of the window and positive y
+// is up, and distances are in logical continuous units; while in DDraw
+// (as in GDI), the origin is in the upper left corner of the window with
+// positive being down, and distances are in pixels.
+static inline int toPixels(double val, int maxSize)
+{
+  return (int) (val * g_screenPixelsPerLength + 0.5 + maxSize/2);
+}
+
 EXT_DEF_DATA int MinSpriteSize = 1;
 
 void ImageSprite::Paint (IDirectDrawSurface *pDest, SpriteTime t)
@@ -165,31 +190,53 @@ void ImageSprite::Paint (IDirectDrawSurface *pDest, SpriteTime t)
     GetSrc (t, &srcSurf, &srcRect);
     if (srcSurf) {
         CSize destSize = GetDDSurfaceSize(pDest);
-        // First, calculate sprite center relative to window upper-left,
-        // recalling that posX, posY are of the sprite's center, relative
-        // to the window's center, and window coords use positive == down.
-        int posXRelDestUL = m_posX.atToInt(t) + destSize.cx/2,
-            posYRelDestUL = (-m_posY.atToInt(t)) + destSize.cy/2;
-        // Next, the transformed sprite's height and width in pixels
+        // The transformed sprite's height and width in pixels
         int width  = (int) (srcRect.Width () * m_scaleX.at(t) + 0.5),
             height = (int) (srcRect.Height() * m_scaleY.at(t) + 0.5);
-        // Then sprite upper-left relative to window upper-left.
-        int destULx = posXRelDestUL - width/2,
-            destULy = posYRelDestUL - height/2;
+        // Sample sprite's upper-left corner.
+        int destULx = toPixels( m_ulX.at(t), destSize.cx),
+            destULy = toPixels(-m_ulY.at(t), destSize.cy);
+        
+        // If the width or height is negative, we have to do mirroring,
+        // via the final Blt flag.
+        //HRESULT result;
+        DDBLTFX dbf;
+        BOOL mirror = FALSE;
+
+        if ((width < 0) || (height < 0))
+        {
+            mirror = TRUE;
+            memset( &dbf, 0, sizeof( dbf ) );
+
+            dbf.dwSize = sizeof(dbf);
+            if (width < 0) {
+                dbf.dwDDFX |= DDBLTFX_MIRRORLEFTRIGHT;
+                width = -width;
+            }
+            if (height < 0) {
+                dbf.dwDDFX |= DDBLTFX_MIRRORUPDOWN;
+                height = -height;
+            }
+        }
+
+
         CRect destRect (destULx, destULy,
                         destULx + width, destULy + height);
         // Do the BLiT.  Using Blt rather than BltFast, since we're
         // clipping and stretching.  However, first check for a large
         // enough rectangle
-        if (destRect.Width() >= MinSpriteSize &&
-            destRect.Height() >= MinSpriteSize) {
+        if (width  >= MinSpriteSize &&
+            height >= MinSpriteSize) {
             ddcheck (pDest->Blt (&destRect, srcSurf, &srcRect,
-                                 DDBLT_KEYSRC | DDBLT_WAIT, NULL));
+                                 DDBLT_KEYSRC | DDBLT_WAIT |
+                                     (mirror ? DDBLT_DDFX : 0),
+                                 mirror ? &dbf : NULL));
             //TRACE("ImageSprite::Paint did Blt to back buffer\n");
         }
     }
     Unlock();
 }
+
 
 // Flip books
 
@@ -227,6 +274,17 @@ void FlipBook::GetPage (int pageNum, IDirectDrawSurface **pSrc, CRect *pSrcRect)
 }
 
 
+void FlipSprite::Update (SpriteTime t, 
+                         double ulX, double ulY, 
+                         double scaleX, double scaleY,
+                         double page)
+{
+    // Update the behaviors
+    SetGoalUpperLeft(ulX,ulY,t);
+    SetGoalScale(scaleX,scaleY,t);
+    SetGoalPage(page,t);
+}
+
 void FlipSprite::GetSrc (SpriteTime t, IDirectDrawSurface **pSrc,
                          CRect *pSrcRect)
 {
@@ -249,12 +307,14 @@ SimpleSprite::SimpleSprite (IDirectDrawSurface *pSurface,
     TRACE("SimpleSprite::SimpleSprite\n");
 }
 
-
 void SimpleSprite::GetSrc (SpriteTime t, IDirectDrawSurface **pSrc,
                            CRect *pSrcRect)
 {
     *pSrc = m_pSurface;
-
+    // If there's no surface yet, we're not quite initialized.  Leave the
+    // rect undefined.
+    if (!m_pSurface)
+	return;
     // Get surface size.
     DDSURFACEDESC ddsd;
     ddsd.dwSize = sizeof(ddsd);
@@ -264,18 +324,27 @@ void SimpleSprite::GetSrc (SpriteTime t, IDirectDrawSurface **pSrc,
     *pSrcRect = CRect(0, 0, ddsd.dwWidth, ddsd.dwHeight);
 }
 
- void SimpleSprite::SetSurface (IDirectDrawSurface *pSurface)
+void SimpleSprite::Update (SpriteTime t, 
+                           IDirectDrawSurface *pSurface,
+                           double ulX, double ulY, 
+                           double scaleX, double scaleY)
 {
+    // Switch the surface, but wait until it's safe.
+    // Should probably delay the switch.
     Lock();				// lock out Paint
 
-    // If the new surface differs from the old one, free the old.
-    // I don't think this is quite
-    if (pSurface != m_pSurface) {
+    // If there is an old surface and it differs from the new one, free it.
+    // WARNING: This is not right!  For instance, suppose we're
+    // ping-ponging between two constant surfaces.
+    if (m_pSurface && pSurface != m_pSurface) 
 	m_pSurface->Release();
-	m_pSurface = pSurface;
-    }
+	
+    m_pSurface = pSurface;
 
     Unlock();
+    // And update the behaviors
+    SetGoalUpperLeft(ulX,ulY,t);
+    SetGoalScale(scaleX,scaleY,t);
 }
 
 

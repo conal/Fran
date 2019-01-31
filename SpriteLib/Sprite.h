@@ -7,7 +7,6 @@
 
 #include "Behavior.h"
 #include "ddhelp.h"
-// #include "Surface.h"
 #include "DDrawEnv.h"
 
 typedef LONG Pixels;
@@ -18,8 +17,9 @@ EXT_CLASS(FlipBook);
 EXT_API HFlipBook newFlipBook(HDDSurface, Pixels width, Pixels height,
                               Pixels srcXFirst, Pixels srcYFirst,
                               int columns, int rows);
-EXT_API int flipBookWidth(HFlipBook);
-EXT_API int flipBookHeight(HFlipBook);
+EXT_API SIZE flipBookSize(HFlipBook);
+//EXT_API int flipBookWidth(HFlipBook);
+//EXT_API int flipBookHeight(HFlipBook);
 EXT_API int flipBookPages(HFlipBook);
 
 EXT_API void deleteFlipBook(HFlipBook);
@@ -30,7 +30,7 @@ typedef HSpriteTree SpriteTreeChain;  // Okay if NULL
 EXT_API void deleteSpriteTree (HSpriteTree);
 
 EXT_CLASS(Sprite);
-EXT_API void setGoalPosition(HSprite, double posX, double posY,
+EXT_API void setGoalUpperLeft(HSprite, double ulX, double ulY,
                              SpriteTime goalTime);
 EXT_API void setGoalScale(HSprite, double scaleX, double scaleY,
                           SpriteTime goalTime);
@@ -40,12 +40,20 @@ EXT_DECL_DATA int MinSpriteSize;
 EXT_CLASS(FlipSprite);
 
 EXT_API HFlipSprite newFlipSprite (HFlipBook,
-               double posX0, double posY0, 
+               double ulX0, double ulY0, 
                double scaleX0, double scaleY0, 
                double page0, SpriteTreeChain rest);
 EXT_API HSprite flipSpriteToSprite (HFlipSprite);
+
+/* Phasing out
 EXT_API void setGoalPage 
-  (HFlipSprite, double goalPage, SpriteTime startTime);
+(HFlipSprite, double goalPage, SpriteTime t);
+*/
+EXT_API void updateFlipSprite (HFlipSprite,
+                               SpriteTime t, 
+                               double ulX, double ulY, 
+                               double scaleX, double scaleY,
+                               double page);
 
 EXT_CLASS(SimpleSprite);
 EXT_API HSimpleSprite newSimpleSprite (HDDSurface,
@@ -53,7 +61,12 @@ EXT_API HSimpleSprite newSimpleSprite (HDDSurface,
 		       double scaleX0, double scaleY0, 
 		       SpriteTreeChain rest);
 EXT_API HSprite simpleSpriteToSprite (HSimpleSprite);
-EXT_API void setSurface (HSimpleSprite, HDDSurface);
+EXT_API void updateSimpleSprite (
+    HSimpleSprite,
+    SpriteTime t,
+    HDDSurface pSurface,
+    double ulX, double ulY, 
+    double scaleX, double scaleY);
 
 EXT_CLASS(SoundSprite);
 EXT_API HSoundSprite newSoundSprite (
@@ -83,6 +96,7 @@ public:
     void GetPage (int pageNum, IDirectDrawSurface **pSrc, CRect *pSrcRect);
     Pixels Width  () const { return m_width ; }
     Pixels Height () const { return m_height; }
+    SIZE Size () const { return CSize(m_width, m_height); }
     int Pages () const { return m_numPages; }
 protected:
     IDirectDrawSurface *m_pSurface;
@@ -119,15 +133,15 @@ void paintAndFlip (SpriteTree*, DDrawEnv*, SpriteTime);
 
 class AFX_EXT_CLASS Sprite : public SpriteTree {
 public:
-    Sprite (double posX0, double posY0,
+    Sprite (double ulX0, double ulY0,
             double scaleX0, double scaleY0, 
             SpriteTreeChain rest)
      : SpriteTree(rest),
-       m_posX(posX0), m_posY(posY0), 
+       m_ulX(ulX0), m_ulY(ulY0), 
        m_scaleX(scaleX0), m_scaleY(scaleY0) { }
-    void SetGoalPosition (double posXVal, double posYVal, SpriteTime goalTime) {
-        m_posX.SetGoalValue(posXVal, goalTime);
-        m_posY.SetGoalValue(posYVal, goalTime);
+    void SetGoalUpperLeft (double ulXVal, double ulYVal, SpriteTime goalTime) {
+        m_ulX.SetGoalValue(ulXVal, goalTime);
+        m_ulY.SetGoalValue(ulYVal, goalTime);
     }
     void SetGoalScale (double scaleXVal, double scaleYVal, SpriteTime goalTime) {
         m_scaleX.SetGoalValue(scaleXVal, goalTime);
@@ -138,7 +152,7 @@ protected:
     // protected on their own.
     virtual void Lock () { }
     virtual void Unlock () { }
-    LinearDouble m_posX, m_posY;
+    LinearDouble m_ulX, m_ulY;
     LinearDouble m_scaleX, m_scaleY;
 };
 
@@ -150,10 +164,10 @@ protected:
 // offset.
 class AFX_EXT_CLASS ImageSprite : public Sprite {
 public:
-    ImageSprite (double posX0, double posY0,
+    ImageSprite (double ulX0, double ulY0,
                  double scaleX0, double scaleY0, 
                  SpriteTreeChain rest)
-	  : Sprite(posX0, posY0, scaleX0, scaleY0, rest) {}
+	  : Sprite(ulX0, ulY0, scaleX0, scaleY0, rest) {}
 protected:
     void Paint (IDirectDrawSurface *pDest, SpriteTime t);
     // Get a surface and rectangle for blitting.
@@ -168,14 +182,20 @@ protected:
 class AFX_EXT_CLASS FlipSprite : public ImageSprite {
 public:
     FlipSprite (FlipBook *pFlipBook,
-                double posX0, double posY0, 
+                double ulX0, double ulY0, 
                 double scaleX0, double scaleY0, 
                 double page0,
                 SpriteTreeChain rest) :
-        ImageSprite(posX0, posY0, scaleX0, scaleY0, rest), 
+        ImageSprite(ulX0, ulY0, scaleX0, scaleY0, rest), 
         m_pFlipBook(pFlipBook), m_page(page0) { }
+    // phasing out
     void SetGoalPage (double pageVal, SpriteTime goalTime) {
         m_page.SetGoalValue(pageVal, goalTime); }
+    void Update (SpriteTime t, 
+		 double ulX, double ulY, 
+		 double scaleX, double scaleY,
+                 double page);
+    
 protected:
     void GetSrc (SpriteTime t, IDirectDrawSurface **pSrc, CRect *pSrcRect);
     FlipBook *m_pFlipBook;
@@ -191,9 +211,12 @@ public:
 		  double posX0, double posY0, 
 		  double scaleX0, double scaleY0, 
 		  SpriteTreeChain rest);
-    void SetSurface (IDirectDrawSurface *pSurface);
+    void Update (SpriteTime t, 
+		 IDirectDrawSurface *pSurface,
+		 double ulX, double ulY, 
+		 double scaleX, double scaleY);
     void Render (SpriteTime t) ;
-    ~SimpleSprite() { m_pSurface->Release(); }
+    ~SimpleSprite() { RELEASEIF(m_pSurface); }
 protected:
     void GetSrc (SpriteTime t, IDirectDrawSurface **pSrc, CRect *pSrcRect);
     void Lock   () { m_critSec.Lock()  ; }

@@ -15,11 +15,10 @@ data SoundB = SilentS
             | PitchS  RealB SoundB            -- multiplies
           --| ImageS  ImageB                  -- listen to an image
             | UntilS  SoundB (Event SoundB)
+            | TimeTransS SoundB TimeB         -- timeTransform on SoundB
+
   deriving Show
 
-instance  Show HSpriteLib.HDSBuffer  where
-  showsPrec p _ = showString "<sound buffer>"
- 
 
 -- Primitives
 
@@ -42,26 +41,28 @@ pitch = PitchS
 
 
 instance  GBehavior SoundB  where
-  untilB = UntilS
-  afterTime = afterTimeS
-  startTime = error "startTime not yet implemented for SoundB"
+  untilB     = UntilS
+  afterTimes = afterTimesS
 
+instance TimeTransformable SoundB where timeTransform = TimeTransS
 
-afterTimeS :: SoundB -> Time -> SoundB
+afterTimesS :: SoundB -> [Time] -> [SoundB]
 
-SilentS `afterTimeS` _ = SilentS
+s@SilentS `afterTimesS` _ = repeat s
 
-s@(BufferS buff) `afterTimeS` _ = s
+s@(BufferS buff) `afterTimesS` _ = repeat s
 
-(snd `MixS` snd') `afterTimeS` t =
-  (snd `afterTime` t) `MixS` (snd' `afterTime` t)
+(snd `MixS` snd') `afterTimesS` ts =
+  zipWith MixS (snd `afterTimesS` ts) (snd' `afterTimesS` ts)
 
-VolumeS v snd `afterTimeS` t =
-  VolumeS (v `afterTime` t) (snd `afterTime` t)
+VolumeS v snd `afterTimesS` ts =
+  zipWith VolumeS (v `afterTimes` ts) (snd `afterTimesS` ts)
 
-PitchS p snd `afterTimeS` t =
-  PitchS (p `afterTime` t) (snd `afterTime` t)
+PitchS p snd `afterTimesS` ts =
+  zipWith PitchS (p `afterTimes` ts) (snd `afterTimesS` ts)
 
-(snd `UntilS` e) `afterTimeS` t =
-  (snd `afterTime` t) `UntilS` (e ==> (`afterTime` t))
+-- ## This guy is wrong!!
+(snd `UntilS` e) `afterTimesS` ts =
+  -- (snd `afterTimesS` t) `UntilS` (e ==> (`afterTimesS` ts))
+  error "No afterTimes yet on SoundB untilB, sorry."
 

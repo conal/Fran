@@ -1,6 +1,6 @@
 -- Behavior vectors
 --
--- Last modified Wed Jul 09 09:06:11 1997
+-- Last modified Tue Sep 30 10:04:19 1997
 
 module Vector2B where
 
@@ -15,6 +15,7 @@ vector2XY          = lift2 V.vector2XY
 vector2Polar       = lift2 V.vector2Polar
 vector2XYCoords    = lift1 V.vector2XYCoords
 vector2PolarCoords = lift1 V.vector2PolarCoords
+rotateVector2      = lift2 V.rotateVector2
 
 -- Vector space operations lifted in VectorSpaceB.hs
 

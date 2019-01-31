@@ -1,5 +1,6 @@
--- Various routines to create and draw into surfaces.  Adapted from
--- ..\RenderImage.hs
+-- Various routines to create and draw into surfaces.
+--
+-- Last modified Thu Oct 02 15:24:01 1997
 
 module RenderImage where
 
@@ -14,12 +15,21 @@ import Win32 hiding (readFile, writeFile)
 import IOExtensions (unsafePerformIO)
 import HSpriteLib
 
--- text, angle, optional color, stretch
+import Trace
 
-renderText :: TextT -> RealVal -> Color -> RealVal  -> HDDSurface
-renderText (TextT (Font.Font fam bold italic) str) angle color stretch =
+-- the last 2 are for upperleft corner of the bounding box
+
+type HDDSurfacePos = (HDDSurface, RealVal, RealVal)
+
+-- text, angle, color, stretch
+
+renderText :: TextT -> Color -> Transform2 -> HDDSurfacePos
+renderText (TextT (Font.Font fam bold italic) str) color
+	   xf@(Transform2 (Vector2XY x y) stretch angle) =
  -- HSurfaces are immutable, and there are no visible side-effects.
+ -- ## BUT memory management is crucially important.  BUGGY!!
  unsafePerformIO $
+ --putStrLn ("renderText " ++ show xf)>>
  createFont fontWidth 0
 	    escapement			-- escapement
 	    escapement                  -- orientation
@@ -51,25 +61,27 @@ renderText (TextT (Font.Font fam bold italic) str) angle color stretch =
    -- setTextAlign hdc (tA_BOTTOM `orb` tA_LEFT)	       >>
    textOut hdc dulx (- duly) str) >>= \hSurface ->
  deleteFont hf                             >>
+
 {-
- putStrLn (--"renderText: str " ++ show str ++
-	   --", color " ++ show color ++
-	   --", stretch " ++ show stretch ++
+ putStrLn ("renderText: str " ++ show str ++
+	   ", color " ++ show color ++
+	   ", stretch " ++ show stretch ++
 	   ", angle " ++ show angle ++
-	   --", fontWidth " ++ show fontWidth ++
+	   ", fontWidth " ++ show fontWidth ++
 	   ", horizSize " ++ show horizSize ++
 	   ", surfSize " ++ show (surfWidth,surfHeight) ++
 	   ", dul " ++ show (dulx,duly) ++
-	   -- ", esc " ++ show escapement
+	   ", esc " ++ show escapement ++
 	   "" ) >>
 -}
- return hSurface
+ return (hSurface, x - (fromInt surfWidth) / 2.0 / screenPixelsPerLength,
+		   y + (fromInt surfHeight) / 2.0 / screenPixelsPerLength)
  where
   backColor | color /= black =  black
 	    | otherwise      =  white
   backColorREF = asColorRef backColor
   -- The "20" was empirically determined
-  fontWidth  = round (20 * stretch)
+  fontWidth  = round (screenPixelsPerLength * stretch / 5.0)
   escapement = round (angle * 1800/pi)	-- hundredths of a degree
   weight  | bold      = fW_BOLD
           | otherwise = fW_NORMAL
@@ -96,8 +108,8 @@ rotateSize (width, height) rotAngle =
       ur = point2XY w2 h2		-- upper right and lower right
       lr = point2XY w2 (-h2)
       xf = rotate2 rotAngle
-      (urx',ury') = point2XYCoords(xf *% ur) -- x,y of rotated versions
-      (lrx',lry') = point2XYCoords(xf *% lr)
+      Point2XY urx' ury' = xf *% ur     -- x,y of rotated versions
+      Point2XY lrx' lry' = xf *% lr
       -- Two cases: new width&height determined by ur&lr or by lr&ur
       (w2',h2')  |  abs urx' > abs lrx'  =  (abs urx', abs lry')
 		 |  otherwise		 =  (abs lrx', abs ury')
@@ -105,6 +117,7 @@ rotateSize (width, height) rotAngle =
       -- ul' is (-lrx, -lry), and new box's upper left is (-w2',h2')
       dul = (round (-lrx' - (- w2')), round (-lry' - h2'))
   in
+      --trace ("angle " ++  show rotAngle ++ ".  ur = " ++ show ur ++ ".  ur' = " ++ show (xf *% ur) ++ "\n") $
       (size', dul)
 	
 
@@ -129,9 +142,134 @@ withNewHDDSurfaceHDC :: Int -> Int -> COLORREF
 		     -> (HDC -> IO ()) -> IO HDDSurface
 
 withNewHDDSurfaceHDC width height colRef f =
- do surf <- newPlainDDrawSurface width height colRef
+ do -- (+1) below is important. e.g. renderLine will sometimes
+    -- crash without it (two pixels are adjacent to each other
+    -- the width should be 2 instead of 1
+    surf <- newPlainDDrawSurface (width + 1) (height + 1) colRef
     -- Clear the surface first, since we're going to draw
+    -- Maybe newPlainDDrawSurface should do that
     clearDDSurface surf colRef
     withDDrawHDC surf f
     return surf
 
+-----------------------------------------------------------------
+-- renderCircle: rendering the unit size circle
+-----------------------------------------------------------------
+
+renderCircle :: Color -> Transform2 -> HDDSurfacePos
+renderCircle color (Transform2 (Vector2XY x y) radius' _) =
+  unsafePerformIO $
+    withNewHDDSurfaceHDC
+      (toPixel width) (toPixel height) (asColorRef black) (\ hdc ->
+        withColor hdc color $
+	ellipse hdc upperLeftX upperLeftY lowerRightX lowerRightY)
+    >>= \ hDDSurface -> return (hDDSurface, x - radius, y + radius)
+  where
+    radius = abs radius'
+    width  = 2.0 * radius
+    height = width
+    upperLeft  = origin2
+    lowerRight = swapCoordSys4Pt (point2XY (-radius) radius)
+				 (point2XY radius (-radius))
+    (upperLeftX,  upperLeftY)  = toPixelPoint2 upperLeft
+    (lowerRightX, lowerRightY) = toPixelPoint2 lowerRight
+
+-----------------------------------------------------------------
+-- renderPolyline, renderPolygon, renderPolyBezier
+-----------------------------------------------------------------
+
+renderPolyline   :: [Point2] -> Color -> Transform2 -> HDDSurfacePos
+renderPolygon    :: [Point2] -> Color -> Transform2 -> HDDSurfacePos
+renderPolyBezier :: [Point2] -> Color -> Transform2 -> HDDSurfacePos
+
+renderPolyline   = renderPoly polyline
+renderPolygon    = renderPoly polygon
+renderPolyBezier = renderPoly polyBezier
+
+renderPoly :: (HDC -> [POINT] -> IO ()) -> [Point2] -> Color ->
+	      Transform2 -> HDDSurfacePos
+renderPoly polyF pts color xf =
+  unsafePerformIO $
+    withNewHDDSurfaceHDC
+      (toPixel width) (toPixel height) (asColorRef black) (\ hdc ->
+        withColor hdc color $
+	polyF hdc (map toPixelPoint2 pts''))
+    >>= \ hDDSurface -> return (hDDSurface, minimumX, maximumY)
+  where
+    pts' = map (xf *%) pts
+    ptsTuples = map point2XYCoords pts'
+    xs = map fst ptsTuples
+    ys = map snd ptsTuples
+    width  = maximum xs - minimumX
+    height = maximumY - minimum ys
+    pts'' = map (swapCoordSys4Pt (point2XY minimumX maximumY)) pts'
+    minimumX = minimum xs
+    maximumY = maximum ys
+
+-----------------------------------------------------------------
+-- renderLine: takes 2 points
+-----------------------------------------------------------------
+
+renderLine :: Point2 -> Point2 -> Color -> Transform2 -> HDDSurfacePos
+renderLine p0 p1 color xf =
+  unsafePerformIO $
+    withNewHDDSurfaceHDC
+      (toPixel width) (toPixel height) (asColorRef black) (\ hdc ->
+        withColor hdc color $ do
+	  moveToEx hdc x0' y0'
+	  lineTo   hdc x1' y1')
+    >>= \ hDDSurface -> return (hDDSurface, ulx, uly)
+  where
+    p0' = xf *% p0
+    p1' = xf *% p1
+    (x0, y0) = point2XYCoords p0'
+    (x1, y1) = point2XYCoords p1'
+    (x0', y0') = toPixelPoint2 $ swapCoordSys4Pt newOrigin p0'
+    (x1', y1') = toPixelPoint2 $ swapCoordSys4Pt newOrigin p1'
+    width  = abs (x1 - x0)
+    height = abs (y1 - y0)
+    ulx    = x0 `min` x1
+    uly	   = y0 `max` y1
+    newOrigin = point2XY ulx uly
+
+-----------------------------------------------------------------
+-- utility functions
+-----------------------------------------------------------------
+
+-- This stuff really should be optimized.  We should use pen and brush
+-- values and behaviors.
+withColor :: HDC -> Color -> IO () -> IO ()
+withColor hdc color action = do
+  brush    <- createSolidBrush colorRef
+  oldBrush <- selectBrush hdc brush
+  pen      <- createPen pS_SOLID 1 colorRef
+  oldPen   <- selectPen hdc pen
+  action
+  selectPen   hdc oldPen
+  selectBrush hdc oldBrush
+  deletePen pen
+  deletePen brush
+ where
+   colorRef = asColorRef color
+
+
+toPixel :: RealVal -> Int
+toPixel r = round (r * screenPixelsPerLength)
+
+toPixelPoint2 :: Point2 -> (Int, Int)
+toPixelPoint2 pt = let (x, y) = point2XYCoords pt
+		   in  (toPixel x, toPixel y)
+
+-----------------------------------------------------------------
+-- bitmap -> Fran Coordinate System -> screen
+-----------------------------------------------------------------
+
+-- Should really be two constants -- horizontal and vertical.
+importPixelsPerLength = 100 :: RealVal
+
+-- Note that screen pixels per world length and bitmap pixels per world
+-- length do not have to agree.  If they do, however, the scalings will
+-- cancel out in the absence of explicit scaling, which makes for much
+-- faster display on video cards that don't do hardware scaling.
+
+screenPixelsPerLength = importPixelsPerLength :: RealVal

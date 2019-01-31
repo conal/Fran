@@ -2,6 +2,7 @@
 
 module User ( UserAction(..), User
             --, UserChannel, newUser, addUserUpdate
+            , userStartTime, startTime
             ) where
 
 import BaseTypes (Time)
@@ -31,8 +32,19 @@ data UserAction
   | Quit
   deriving Show
 
+{-
 -- So UserAction can derive Show.  Should be in Win32.hs, and more
 -- informative.
 instance Show VKey where
   showsPrec p _ = showString "<<VKey>>"
+-}
 
+
+-- Start time of user.
+-- ## Bug: violates event abstraction.  Events don't really have start
+-- times.  I put it in for convenience, but reconsider.
+
+userStartTime :: User -> Time
+userStartTime (Event ((t0,_) : _))  = t0
+
+startTime = userStartTime               -- for compat

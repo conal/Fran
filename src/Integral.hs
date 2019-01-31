@@ -1,10 +1,17 @@
 -- Integration.  Handles systems of mutually recursive integral behaviors
 -- (ODEs).
---
--- This version is modified from ../Integral.hs to use a "user" to get the
--- frame period.  Needs to be made invisible somehow.
 -- 
--- Last modified Tue Jul 15 21:44:50 1997
+-- Last modified Tue Sep 23 11:32:34 1997
+--
+-- To do:
+--
+-- + Switch from trivial Euler's implementation to RK4 soon.  (See old
+--   commented-out RK4 code below.)
+--
+-- + If I do keep the time stream interface, then replace the User
+--   argument with a t0 argument.  Better yet would be switching to local
+--   zero start times, and eliminating the t0 argument.
+
 
 module Integral where
 
@@ -17,8 +24,31 @@ import BehaviorEvent
 import Force
 
 import Trace
-import User (User)
+import User (User, userStartTime)
 import Interaction (updateDone)
+
+
+integral :: (Forceable v, VS.VectorSpace v) => 
+	    Behavior v -> User -> Behavior v
+
+integral b u = integralFrom b (userStartTime u)
+
+integralFrom b t0 =
+  samplerB (\ ts -> let (ts',drop_0) =
+                          if head ts /= t0 then ((t0:ts),tail) else (ts,id)
+                    in
+                      drop_0 (integrateList ts' (b `ats` ts')) )
+
+-- "Integrate" a list of values, xs, with corresponding times, ts.
+
+integrateList :: VS.VectorSpace v => [Time] -> [v] -> [v]
+integrateList ts xs =
+  -- Euler's algorithm: y_0 = 0; y_{i+1} = y_i+(t_{i+1}-t_i)*x_i
+  ys where ys  = VS.zeroVector : zipWith (VS.^+^) ys (zipWith (VS.*^) dts xs)
+           dts = zipWith (-) (tail ts) ts
+
+
+{-
 
 -- Approximate Runge-Kutta method.  Step forward from the starting time,
 -- taking regular steps, keeping an accumulator of the integral so far.  A
@@ -127,3 +157,4 @@ rungeKuttaStep b tn yn stepBehavior
                         (((1/3) VS.*^ k2_over_h) VS.^+^
                         (((1/3) VS.*^ k3_over_h) VS.^+^
                          ((1/6) VS.*^ k4_over_h))) ))
+-}

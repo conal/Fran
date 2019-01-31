@@ -85,9 +85,9 @@ EXT_API void HFrameScale (HFrame frame, double x, double y, double z);
 EXT_API void HFrameTranslate (HFrame frame, double x, double y, double z);
 
 
-// Render a geometry to produce a new DDraw surface
-EXT_API HDDSurface 
-renderGeometrySurf (HFrame sceneFrame, HFrame cameraFrame, double scale);
+// Render a geometry to produce a new DDraw surface.  Obsolete
+//EXT_API HDDSurface 
+//renderGeometrySurf (HFrame sceneFrame, HFrame cameraFrame, double scale);
 
 // A "renderer" of a 3D scene.  Current serious limitation: can't change
 // the scale after creation.  To do: find a way to relax this restriction

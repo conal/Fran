@@ -1,30 +1,35 @@
 -- Envelope module for RBMH
 --
--- Last modified Thu Jul 24 10:49:33 1997
+-- Last modified Thu Oct 02 16:22:46 1997
 --
 -- To do: Maybe imitate John P's structuring
 
 
-module Fran
- (
-    module BaseTypes,
-    module Event,
-    module Behavior,
-    module BehaviorEvent,
-    module VectorSpaceB,
-    module Vector2B,
-    module Point2B,
-    module ColorB,
-    module TextB,
-    module SoundB,
-    module ImageB,
-    module Integral,
-    module User,
-    module Interaction,
-    --module HSpriteLib,
-    module UtilsB,
-    disp -- Spritify
- ) where
+module Fran (
+              module BaseTypes
+            , module Event
+            , module Behavior
+            , module BehaviorEvent
+            , module VectorSpaceB
+            , module Vector2B
+            , module Point2B
+            , module Vector3B
+            , module Point3B
+            , module ColorB
+            , module TextB
+            , module Transform2B
+            , module Transform3B
+            , module SoundB
+            , module ImageB
+            , module GeometryB
+            , module Integral
+            , module User
+            , module Interaction
+            , module HSpriteLib
+            , module UtilsB
+            , initialWindowSize -- ShowImageB
+            , disp -- Spritify
+          ) where
 
 import BaseTypes
 import Event
@@ -33,13 +38,25 @@ import BehaviorEvent
 import VectorSpaceB
 import Vector2B
 import Point2B
+import Vector3B
+import Point3B
 import ColorB
 import TextB
+import Transform2B
+import Transform3B
 import SoundB
 import ImageB
+import GeometryB
 import Integral
 import User
 import Interaction
---import HSpriteLib
+import HSpriteLib(
+                   HDDSurface, HDSBuffer, HMeshBuilder, HLight, HFrame
+                 , bitmapDDSurface, waveDSBuffer, meshBuilder
+                 , LightType, ambientLight, pointLight, spotLight
+                 , directionalLight, parallelPointLight
+                 , HFlipBook, flipBook
+                 )
 import UtilsB
+import ShowImageB (initialWindowSize)
 import Spritify (disp)

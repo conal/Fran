@@ -69,8 +69,12 @@ static BOOL g_SpriteLibIsOpen = FALSE;
 // For improving the resolution of timeGetTime under NT.
 static int timerResolutionMS = 5;
 
-void OpenSpriteLib ()
+// How many screen pixels correspond to one length unit
+double g_screenPixelsPerLength = 1;
+
+void OpenSpriteLib (double screenPixelsPerLength)
 {
+    g_screenPixelsPerLength = screenPixelsPerLength;
     if (! g_SpriteLibIsOpen) {
 	// Allows thread creation and message boxes even if
 	// run from a console app (like hugs).

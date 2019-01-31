@@ -1,6 +1,12 @@
 -- "Geometry behavior" type defined directly, i.e., without Image or Behavior.
+-- 
+-- Last modified Fri Oct 03 10:54:35 1997
 
 -- To do:
+-- 
+-- Much better code factoring!
+-- 
+-- Deallocate the renderer, etc.
 -- 
 -- It looks like D3DRM is locking out DDraw, which kills the whole idea of
 -- separating rendering rate from sprite update rate.
@@ -35,8 +41,7 @@ import SoundB
 import ImageB
 import Event
 import Transform3B
-import Update
-import IORef
+import MVar
 import Maybe
 
 -- The fixities of `unionG` and **% are the same as + and *
@@ -52,10 +57,8 @@ data GeometryB
    | ColorG     ColorB GeometryB        -- Apply a color
    | TextureG   ImageB GeometryB
    | UntilG     GeometryB (Event GeometryB)     -- "untilB" on GeometryB
+   | TimeTransG GeometryB TimeB             -- timeTransform on ImageB
    deriving Show
-
-instance  Show SL.HMeshBuilder  where
-  showsPrec p _ = showString "<mesh builder>"
 
 
 -- Primitives
@@ -70,9 +73,10 @@ texture       = TextureG
 withColorG    = ColorG
 
 instance  GBehavior GeometryB  where
-  untilB    = UntilG
-  afterTime = error "afterTime not yet implemented for GeometryB"
-  startTime = error "start not yet implemented for GeometryB"
+  untilB     = UntilG
+  afterTimes = error "afterTime not yet implemented for GeometryB, sorry."
+
+instance TimeTransformable GeometryB where timeTransform = TimeTransG
 
 instance  Transformable3B GeometryB  where
   (**%) = TransformG
@@ -93,72 +97,104 @@ parallelPointLightG = lightG SL.parallelPointLight
 
 renderGeometry :: GeometryB -> Transform3B -> ImageB
 
-renderGeometry geom cameraXfB = syntheticImageIO render
+renderGeometry geom cameraXfB = renderImage renderIO
  where
-  render mbColorB scaleB =
-    do -- Make the scene and camera
-       -- putStrLn "rG: making scene"
-       sceneFrame  <- SL.newScene
-       -- putStrLn "rG: fillFrame"
-       geomUpdates <- fillFrame sceneFrame geom'
-       -- Prepare for updating
-       geomUpdatesRef <- newRef geomUpdates
-       -- scaleBRef      <- newRef scaleB
-       cameraXfBRef   <- newRef cameraXfB
-       cameraFrame    <- SL.newHFrame sceneFrame
-       -- For now, use 1 for scale.  Later fix to use scaleBRef
-       renderer       <- SL.newRMRenderer sceneFrame cameraFrame
-                            (1 * screenPixelsPerLength)
-       -- Return the surface generator / updater action
-       -- putStrLn "rG: returning surface generator"
-       return $ \ t t' ->
-         -- updateBvrRefIO scaleBRef     t $ \ scale ->
-         updateBvrRefIO cameraXfBRef t $ \ cameraXf ->
-         do -- Do the updates and store new updates
-            -- putStrLn "rG: doing geometry update trees"
-            updateRefIO geomUpdatesRef (doUpdateTrees t t')
+  renderIO mbColorB xfB t0 xt0 ts xts requestV replyV above = do
+    -- Make the scene and camera
+    --putStrLn ("rG: making scene from geometry" ++ show geom)
+    sceneFrame  <- SL.newScene
+    geomRequestV <- newMVar
+    geomReplyV   <- newMVar
+    --putStrLn "rG: fillFrame"
+    fillFrame sceneFrame geom' ts geomRequestV geomReplyV
+    cameraFrame  <- SL.newHFrame sceneFrame
+    -- For now, use 1 for scale.  Fix later to use scaleB.  The problem is
+    -- I don't know how to resize the D3DRM device with a tolerable
+    -- efficiency.  DirectX 5 fixes this problem.
+    renderer     <- SL.newRMRenderer sceneFrame cameraFrame 1
+    -- Initialization: it's awkward to come up with an initial surface, so
+    -- give a null surface.  Improve this stuff later.  Then I'll need to
+    -- pass t0 around in fillFrameRec
+    hSimpleSprite <- SL.newSimpleSprite SL.nullHDDSurface (-1) 1 1 1 above
+
+    let update ~(t:ts') ~(cameraXf:cameraXfs')
+               ~(S.Transform2 (S.Vector2XY dx dy) scale rotate : xfs') = do
+          continue <- takeMVar requestV
+          --putStrLn "geometry got request"
+          -- Update D3D RM geometry
+          putMVar geomRequestV continue
+          if continue then do
             -- Set the camera frame
             S.hFrameSetTransform cameraFrame cameraXf
-            -- Now do the rendering and return the surface
-            -- putStrLn "rG: calling renderGeometrySurf"
-            SL.doRMRenderer renderer
-    where
-      -- Throw in light.  I was coloring the geometry, but I realized it's
-      -- bogus to do so.  I think that the proper, but not very useful,
-      -- meaning would be to apply the color and use flat shading.
-      geom' = sceneLight `unionG` geom
+            -- Sync with the geometry update threads
+            -- ## Why can't I say "True <- ..." here?  I get a complaint
+            -- that IO isn't in MonadZero.
+            _ <- takeMVar geomReplyV
+            -- Do the rendering and return the surface
+            newSurface <- SL.doRMRenderer renderer
+            --putStrLn "renderer produced new surface"
+            -- Bogus: using (-1,1) as upper left, because that's what the
+            -- renderer does for now.
+	    SL.updateSimpleSprite hSimpleSprite t newSurface (-1) 1 1 1
+            putMVar replyV True
+            update ts' cameraXfs' xfs'
+           else do
+            _ <- takeMVar geomReplyV
+            putMVar replyV False
+    forkIO $ update ts (cameraXfB `ats` xts) (xfB `ats` xts)
+    return hSimpleSprite
 
-      sceneLight = withColorG (grey 0.4) ambientLightG `unionG`
-                   rotate3 yVector3 (pi/4) **% directionalLightG
+  -- Throw in light.  I was coloring the geometry, but I realized it's
+  -- bogus to do so.  I think that the proper, but not very useful,
+  -- meaning would be to apply the color and use flat shading.
+  geom' = sceneLight `unionG` geom
+
+  sceneLight = withColorG (grey 0.4) ambientLightG `unionG`
+               rotate3 yVector3 (pi/4) **% directionalLightG
 
 
--- Construct D3DRM frames in a top-down fashion
-
-fillFrame :: SL.HFrame -> GeometryB -> IO [UpdateTree]
-
-fillFrame parentFrame geomB =
-  fillFrameRec parentFrame Nothing geomB []
+--  fillFrame sceneFrame geom' ts geomRequestV geomReplyV
 
 
-fillFrameRec :: SL.HFrame -> Maybe (Ref SL.D3DColor) -> GeometryB
-             -> TransformIO [UpdateTree]
+-- Construct D3DRM frames and update them
 
-fillFrameRec parentFrame mbColorRef EmptyGeometry = \ otherUpdates ->
-  -- Return the given updates, without extension.
-  return otherUpdates
+fillFrame :: SL.HFrame -> GeometryB -> [Time]
+          -> SyncVar -> SyncVar -> IO ()
 
-fillFrameRec parentFrame _ (MeshG builder) = \ otherUpdates ->
-  -- This one is very simple.  Just throw in the mesh builder.  There is
-  -- nothing new to update
-  do SL.hFrameAddMeshBuilder parentFrame builder
-     return otherUpdates
+fillFrame parentFrame geomB = fillFrameRec parentFrame Nothing geomB
 
-fillFrameRec parentFrame mbColorRef (LightG lightType) = \ otherUpdates ->
-  -- Add a new light to the frame
-  do hLight    <- SL.newHLight parentFrame lightType
-     -- Just add the light update to the others
-     return (updateColorIO (SL.hLightSetColor hLight) mbColorRef
-             : otherUpdates)
+
+fillFrameRec :: SL.HFrame -> Maybe ColorB -> GeometryB
+             -> [Time] -> SyncVar -> SyncVar -> IO ()
+
+-- Code mostly copied from EmptyImage case of spritifyRec in Spritify.hs.
+-- Improve abstraction for reuse.
+fillFrameRec parentFrame _ EmptyGeometry =
+  \ ts requestV replyV -> forwardSyncVars requestV replyV
+
+fillFrameRec parentFrame mbColorB (MeshG builder) =
+  coloredLeaf parentFrame mbColorB
+              (\ frame -> --putstrLn "adding mesh builder" >>
+                          SL.hFrameAddMeshBuilder frame builder)
+
+fillFrameRec parentFrame mbColorB (LightG lightType) =
+  \ ts requestV replyV -> do
+  --putstrLn "adding light"
+  hLight <- SL.newHLight parentFrame lightType
+  -- No color.  Add the leaf and then just forward requests to replies.
+  case mbColorB of
+    Nothing -> forwardSyncVars requestV replyV
+    Just colorB -> do
+      let update ~(color:colors') = do
+            continue <- takeMVar requestV
+            if continue then do
+              let (r,g,b) = S.colorRGBCoords color
+              SL.hLightSetColor hLight (SL.createColorRGB r g b)
+              putMVar replyV True
+              update colors'
+             else
+              putMVar replyV False
+      forkIO $ update (colorB `ats` ts)
 
 
 {-
@@ -168,74 +204,82 @@ fillFrameRec parentFrame _ (SoundG sound) =
   displaySoundB
 -}
 
-
-fillFrameRec parentFrame mbColorRef@(Just _) (ColorG colB geom) =
+fillFrameRec parentFrame mbColorB@(Just _) (ColorG colB geom) =
   -- Being colored from outside, which paints over the coloring here.
   -- (Unconventional, but simpler functional semantics, in my opinion.)
-  fillFrameRec parentFrame mbColorRef geom
+  fillFrameRec parentFrame mbColorB geom
 
-fillFrameRec parentFrame Nothing (ColorG colorB geom) =  \ otherUpdates ->
-  -- Okay, so we really get to set a color.
-  do colorBRef   <- newRef colorB
-     d3dColorRef <- newRef (error "d3dColorRef not yet set")
-     -- Make a new frame so the color doesn't affect the siblings.
-     newFrame <- SL.newHFrame parentFrame
-     -- putStrLn "rG: Doing ColorG"
-     let
-         -- Update: get current color, and set the d3dColorRef
-         update t t' = updateBvrRefIO colorBRef t $ \ color -> do
-                    let (r,g,b) = S.colorRGBCoords color
-                    -- putStrLn ("updating color to " ++ show (r,g,b))
-                    setRef d3dColorRef (SL.createColorRGB r g b)
+fillFrameRec parentFrame Nothing (ColorG colorB geom) =
+  -- No color from the outside.  Just pass down the color
+  fillFrameRec parentFrame (Just colorB) geom
 
-         mbColorRef = Just d3dColorRef
-      in do
-         -- Put component GeometryB in the new frame, but note that
-         -- a color is being applied.  Provide augmented update list so
-         -- that the new frame's color gets updated.  In this case, the
-         -- color update has to come first, since the geom updates will
-         -- depend on it having been done.  All of this hassle is because
-         -- color is not inherited down the scene tree in D3DRM.
-         geomUpdates <- fillFrameRec newFrame mbColorRef geom
-                      (updateColorIO (SL.hFrameSetColor newFrame) mbColorRef
-                       : otherUpdates)
-         return (UpdateIO update : geomUpdates)
+fillFrameRec parentFrame mbColorB (TransformG xfB geomB) =
+  \ ts requestV replyV -> do
+  -- Make a new frame, which will be the parent for geomB.  The update
+  -- action sets the frame's transform.  To do: introduce only one frame
+  -- for multiple transforms.
+  geomRequestV <- newMVar
+  geomReplyV   <- newMVar
+  -- Make a new frame so the color doesn't affect the siblings.
+  --putstrLn "making new frame for transformed geometry"
+  newFrame <- SL.newHFrame parentFrame
+  fillFrameRec newFrame mbColorB geomB ts geomRequestV geomReplyV
+  let update ~(xf:xfs') = do
+        continue <- takeMVar requestV
+        putMVar geomRequestV continue
+        if continue then do
+          -- Set the transform and sync with geometry update threads
+          S.hFrameSetTransform newFrame xf
+          _ <- takeMVar geomReplyV
+          putMVar replyV True
+          update xfs'
+         else do
+          _ <- takeMVar geomReplyV
+          putMVar replyV False
+  forkIO $ update (xfB `ats` ts)
 
-fillFrameRec parentFrame mbColorRef (TransformG xfB geomB) =
-  \ otherUpdates ->
-  -- Much like withColorG.  Make a new frame, which will be the parent for
-  -- geomB.  The update action sets the frame's transform.  To do:
-  -- introduce only one frame for multiple transforms.
-  do xfBRef <- newRef xfB
-     -- Make a new frame so the color doesn't affect the siblings.
-     newFrame <- SL.newHFrame parentFrame
-     let
-         update t t' = updateBvrRefIO xfBRef t
-                      (S.hFrameSetTransform newFrame)
-      in
-         fillFrameRec newFrame mbColorRef geomB
-             (updateColorIO (SL.hFrameSetColor newFrame) mbColorRef
-              : UpdateIO update : otherUpdates)
   
-fillFrameRec parentFrame mbColorRef (geomB `UnionG` geomB') =
-  -- Just add geomB and geomB' to parent frame
-  fillFrameRec parentFrame mbColorRef geomB  .>>=
-  fillFrameRec parentFrame mbColorRef geomB'
+fillFrameRec parentFrame mbColorB (geomB `UnionG` geomB') =
+  \ ts requestV replyV -> do
+  syncV  <- newMVar
+  -- Add both parts to the frame.
+  fillFrameRec parentFrame mbColorB geomB  ts requestV syncV
+  fillFrameRec parentFrame mbColorB geomB' ts syncV    replyV
 
--- Catch-all
+fillFrameRec parentFrame mbColorB (TimeTransG geomB tt) =
+  \ ts -> fillFrameRec parentFrame mbColorB geomB (tt `ats` ts)
 
-fillFrameRec _ _ geomB =
-  error ("Sorry Geometry not handled: " ++ show geomB)
 
-updateColorIO :: (SL.D3DColor -> IO ()) -> Maybe (Ref SL.D3DColor) -> UpdateTree
 
-updateColorIO setter Nothing =
-  -- UpdateIO (const (return ()))
-  NoUpdate
+-- Add a possibly colored leaf in a given frame.
+-- I thought I could use this guy for lights as well as meshes, but I was
+-- wrong. 
 
-updateColorIO setter (Just d3dColorRef) =
-  UpdateIO (const $ const $
-           --putStrLn "Updating with color" >>
-             getRef d3dColorRef >>= setter
-             -- return () 
-             )
+coloredLeaf :: SL.HFrame -> Maybe ColorB -> (SL.HFrame -> IO ())
+            -> [Time] -> SyncVar -> SyncVar -> IO ()
+
+coloredLeaf parentFrame Nothing addLeaf =
+  \ ts requestV replyV -> do
+  -- No color, so no new frame.  Add the leaf and then just forward
+  -- requests to replies.
+  --putstrLn "coloredLeaf with no color"
+  addLeaf parentFrame
+  forwardSyncVars requestV replyV
+
+coloredLeaf parentFrame (Just colorB) addLeaf =
+  \ ts requestV replyV -> do
+  -- Make a frame containing the leaf and repeatedly set the color in the
+  -- frame.
+  --putstrLn "coloredLeaf with color.  Making new frame."
+  newFrame <- SL.newHFrame parentFrame
+  addLeaf newFrame
+  let update ~(color:colors') = do
+        continue <- takeMVar requestV
+        if continue then do
+          let (r,g,b) = S.colorRGBCoords color
+          SL.hFrameSetColor newFrame (SL.createColorRGB r g b)
+          putMVar replyV True
+          update colors'
+         else
+          putMVar replyV False
+  forkIO $ update (colorB `ats` ts)

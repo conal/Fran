@@ -1,6 +1,6 @@
 -- Transform behaviors
 -- 
--- Last modified Wed Jul 09 16:57:23 1997
+-- Last modified Wed Oct 01 09:29:48 1997
 
 module Transform2B where
 
@@ -12,24 +12,13 @@ import Behavior
 
 type Transform2B = Behavior T.Transform2
 
-identity2  = constantB T.identity2
+factorTransform2 = lift1 T.factorTransform2
+identity2  = lift0 T.identity2
+translate2 = lift1 T.translate2
 rotate2    = lift1 T.rotate2
+uscale2    = lift1 T.uscale2
 compose2   = lift2 T.compose2
 inverse2   = lift1 T.inverse2
-uscale2    = lift1 T.uscale2
-
-translate2 :: T.Translateable2 a => Behavior a -> Transform2B
-translate2 =  lift1 T.translate2
-
-scale2 :: T.Scaleable2 a => Behavior a -> Transform2B
-scale2 =  lift1 T.scale2
-
-{- Needs generalization to handle native ImageB type.
-
-(*%) ::  T.Transformable2 a => Transform2B -> Behavior a -> Behavior a
-(*%) =  lift2 (T.*%)
-
--}
 
 class Transformable2B a where
   (*%)  ::  Transform2B -> a -> a

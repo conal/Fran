@@ -1,18 +1,19 @@
 {- RBMH 2D (static) Vectors
 
- Last modified Sun Nov 10 16:17:04 1996
+ Last modified Tue Sep 30 10:04:59 1997
 -}
 module Vector2 
         (
-         Vector2(..),
-           -- instance Vector2 (Eq,Show,Num,VectorSpace,Transformable2)
-         xVector2, yVector2,    -- :: Vector2, Vector2  -- unit vectors
+          Vector2(..)
+          -- instance Vector2 (Eq,Show,Num,VectorSpace,Transformable2)
+        , xVector2, yVector2    -- :: Vector2, Vector2  -- unit vectors
 
-         vector2XY,             -- :: RealVal -> RealVal -> Vector2
-         vector2Polar,          -- :: Length  -> Radians -> Vector2
-         vector2XYCoords,       -- :: Vector2 -> (RealVal, RealVal)
-         vector2PolarCoords,    -- :: Vector2 -> (Length, Radians)
-         -- instance  VectorSpace Vector2
+        , vector2XY             -- :: RealVal -> RealVal -> Vector2
+        , vector2Polar          -- :: Length  -> Radians -> Vector2
+        , vector2XYCoords       -- :: Vector2 -> (RealVal, RealVal)
+        , vector2PolarCoords    -- :: Vector2 -> (Length, Radians)
+        -- instance  VectorSpace Vector2
+        , rotateVector2         -- :: RealVal -> Vector2 -> Vector2
         ) where
 
 import BaseTypes
@@ -63,3 +64,9 @@ instance Forceable Vector2 where
 
 -- This is here so we can use + and - on Vector2B.
 instance Ord Vector2
+
+
+rotateVector2 :: RealVal -> Vector2 -> Vector2
+rotateVector2 theta' vec = vector2Polar (theta'+theta) rho
+ where
+  (theta, rho) = vector2PolarCoords vec

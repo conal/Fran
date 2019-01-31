@@ -181,7 +181,7 @@ renderPiece :: Event PMove -> Loc -> ImageB
 renderPiece moves start@(col,row) =
   move (locToCenterPos loc .-. origin2)                 $
   stretch 2                                             $
-  withColor (cond (loc ==* constantB start) green red)  $
+  withColor (condB (loc ==* constantB start) green red)  $
   showIm (row * rows + col)
  where
    loc = pieceLoc start moves

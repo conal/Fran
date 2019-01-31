@@ -5,6 +5,7 @@
 #include "ddhelp.h"
 #include "ddcheck.h"
 #include "waveBuffer.h"
+#include "SpriteLib.h"  // for g_screenPixelsPerLength
 
 // Globals.  See ddhelp.h for explanation.
 
@@ -164,7 +165,7 @@ newBitmapDDSurface (LPCSTR bmpName)
     // ASSERT (pSurface);
     // Just return NULL if the load failed.
     if (pSurface)
-        DDSetColorKey( pSurface, CLR_INVALID );
+        ddcheck(DDSetColorKey( pSurface, CLR_INVALID ));
     return pSurface;
 }
 
@@ -316,7 +317,7 @@ void HFrameTranslate (HFrame frame, double x, double y, double z)
 // double-loads a dll each time.
 
 // To do: make the quality settable
-
+#ifdef use_renderGeometrySurf
 HDDSurface
 renderGeometrySurf (HFrame sceneFrame, HFrame cameraFrame, double scale)
 {
@@ -365,6 +366,7 @@ renderGeometrySurf (HFrame sceneFrame, HFrame cameraFrame, double scale)
     dev->Release();
     return surf;
 }
+#endif // use_renderGeometrySurf
 
 
 // New rendering code that avoids making a device for each render
@@ -398,7 +400,7 @@ RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale)
     // The ddraw surface will space from -scale to scale in X and Y.
     TTRACE("Makeing Renderer.\n");
     DWORD timeWas, timeIs;
-    int trySize = (int) (2 * scale);
+    int trySize = (int) (2 * scale * g_screenPixelsPerLength);
     timeWas = timeGetTime();
     TTRACE("Creating %dx%d surface...  ", trySize, trySize);
     m_surf =
@@ -437,7 +439,7 @@ RMRenderer::Render ()
 {
     // The ddraw surface will space from -scale to scale in X and Y.
     TTRACE("Clearing and rendering scene.\n");
-    DWORD timeWas, timeIs;
+    DWORD timeWas=timeGetTime(), timeIs;
 
     TTRACE("Doing view->Clear()...  ");
     d3check(m_view->Clear());

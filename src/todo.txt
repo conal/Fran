@@ -1,25 +1,44 @@
                                To Do Items
 
-                  Last modified Thu Aug 07 12:50:54 1997
+                  Last modified Thu Oct 02 17:16:45 1997
 
 
-- Make events carry a start time, and re-implement startTime
+- Better error messages from newBitmapDDSurface, etc.  For instance:
+  newBitmapDDSurface: could not open file "fiddle.bmp".  I tried, but I
+  didn't know how.
 
-- Add rectangular trimming to ImageB and use for making a photo background
-  in ..\demos\Mover.hs.
+- keyPress should perhaps have VKey and Char alternatives.  For Char, it
+  should be possible to get lower-case, control, etc.
 
-- Adjust operator precedences so we can chain all of the event modifiers:
-  -=>, ==>, `afterE`, `snapshot`, etc.  They need to all be
-  left-associative and of the same precedence.  See, e.g., whenSnap.  The
-  .|. operator should be of lower precedence.
+- Specifying the upperLeft to the sprite engine has a weird artifact due
+  to interpolation.  Try "disp (\u -> bigger wiggle circle)", which looks
+  like it is slipping diagonally.  Part of the problem is that the source
+  surface is not interpolated, while the upperLeft is.  If we went back to
+  specifying the bbox center, center-symmetric would scale better, but
+  what about non-symmetric ones?  See also wordy4.
 
-- Something is fishy with the external event queue.  In {Spritify}disp, I
-  insert an updateDone event for tNow + updatePeriodGoal, but after that
-  events can get inserted that will have an earlier time.  Test case:
-  "disp donut8" in Spritify.hs, and give the display window focus, and
-  wave the mouse around in it.  I think the right solution is to sample
-  for now, but give future times to the sprite engine.  This choice
-  reflects a deliberate introduction of latency.
+
+- Non-black backgrounds for flipsprites.
+
+- Negative scaling of flip sprites.  According to Jeff Noyle, "specify the
+  DDBLT_MIRROR flags and leave your rect as normal."
+
+- Fix problem with jerky time-transformed ImageB's.  See
+  followMouseAndDelay and followMouseAndDelay' in tutorial.hs.
+
+- Maybe switch tutorial to use white backgrounds, but how?
+
+- Black text is very cool, because it's see-through!
+
+- Test changing init window size and screenPixelsPerLength
+
+- Reconsider liftings for functions that produce tuple values, such as
+  point2XYCoords and factorTransform2.  It would be more convenient,
+  though less consistent, to produce a tuple of behaviors.
+
+- Stenciling.
+
+- Non-uniform scale.
 
 - Handle sound sharing gracefully.  Sometimes another application, say
   NetShow, will have grabbed the sound card before Fran could get it it,
@@ -32,30 +51,63 @@
   least make OpenSpriteLib return some kind of error value to be treated
   as an IO Error.
 
-- 
+- Maybe eliminate afterE in favor of the following
 
-- Consider user event accumulation: can the afterE's or afterTime's pile
-  up unevaluated if they're not examined?  I'm guessing that this is
-  happening, because franimations that don't care about user input aren't
-  tripping over the event timing problem mentioned above.
+      residualB :: GBehavior bv => bv -> Behavior bv
+
+  Then
+
+      e `afterE` bv = e `snapshot` residualB bv
+
+- Get transparency of flip-images with non-black backgrounds to work.
+
+- Does lazy spritification make sense?  I'd like to put in bounding
+  volumes and then rely on spritification to be lazy.  Then I can do
+  infinite patterns again.
+
+- Maybe rename "-=>" to "==>-", and in general use a trailing "-" in
+  operator names just as "_" in alphabetic names. 
+
+- filterE remaps event data and removes some occurrences.  Maybe replace
+  by a simplified function: Event (Maybe a) -> Event a, to be used in
+  conjunction with ==>.
+
+- Fix the space leaks caused by the lazy patterns in afterE and snapshot.
+
+- Find and fix the bug tickled by the general *$/untilB transformations in
+  Behavior.hs.  Probably related to afterE, but I don't know.
+
+- Hey!! Now that events have several occurrences, maybe some of the
+  occurrences could be at the same time??  This seems an important
+  improvement.  For instance, suppose a ball hits two walls simultaneously
+  (a corner).
+
+- Fix integral to use RK4.  
+
+- Improve factoring so that untilB-related code is shared rather than
+  replicated.
+
+- Make events carry a start time, and re-implement startTime
+
+- Add a rectangular trimming operation to ImageB and use for making a
+  photo background in ..\demos\Mover.hs.
+
+- Make condB belong to GBehavior.  For ImageB, we'll probably have to add
+  a conditional sprite tree.
+
+- Adjust operator precedences so we can chain all of the event modifiers:
+  -=>, ==>, `afterE`, `snapshot`, etc.  They need to all be
+  left-associative and of the same precedence.  See, e.g., whenSnap.  The
+  .|. operator should be of lower precedence.
+
+- Revisit integral and strictness of the accumulator.  If a fix is needed,
+  it could be to return (force ynp1 `seq` (ynp1 : ys))
 
 - Fix memory management of DD surfaces.  The Release done in
   SimpleSprite::SetSurface is probably wrong, since a surface can now be
   shared, thanks to dynamic constant folding.
 
-- wiggle and start time.  I guess make it be a function of a user, and use
-  "userTime u".  Doesn't feel right, however, since it's logically
-  independent of users.  Alternative: go back to using polynomials, and
-  have no start time.
-
 - Other places marked with "###"
-
-- Support time transformation on ImageB, SoundB and GeometryB (as a GBehavior
-  method).
-
-- In BStack's `at` implementation, use the middle value when the middle
-  time is close to the sample time, rather than when the interval is small
-  enough.  Would, however, need the t>=t0 assumption.
 
 - Re-org the behavior/event modules a bit, renaming "Event.hs" to
   "EventPart1.hs" and "BehaviorEvent.hs" to "Event.hs", importing and
@@ -65,14 +117,9 @@
 - Setting of surfaces and of transforms happens too soon.  Should happen
   at t', not t, but there's no interface for it.
 
-- Is the "==" case in occ necessary?  Mouse motion loops without it.
-
 - Push dynamic reactive constant folding all the way to display.
 
-- Amend bitmapDDSurface et al in HSpriteLib.ss as in UtilsB.
-
 - Transformable3 for points and vectors
-
 
 - startTime on Event is problematic.  There is no way of knowing, since we
   know only a lower bound for the first occurrence time.
@@ -105,14 +152,7 @@
   My current SpriteTree representation handles these optimizations
   quite naturally.  A good reason to stick with it.
 
-- Add sound, embedded in image behaviors.  Add to sprite engine first.
-  Note that we'll probably want to have a sound untilB in the sprite
-  engine, so that we can set up changes in advance and execute them
-  accurately.
-
 - Continue with Asteroids game.
-
-- Use worldToScreen and screenToWorld more, in particular for flipbooks.
 
 - Maybe change page number argument interpretation with a scale factor.
   Or, better yet, use time transformation.
@@ -121,8 +161,3 @@
 
 - Unify SimpleImage and FlipImage somehow to eliminate redundancy.
 
-- Rotation.
-
-- Transforms.  How to fit them in?  Perhaps as a native Transform2B type
-  that maintains factorization.  Supporting untilB seems tricky, at least
-  for transformation composition.  Maybe not entirely general at first.
