@@ -10,7 +10,7 @@ content="text/html; charset=iso-8859-1">
 
 <body>
 
-<h1 align="center"><b>RBMH Release 0.6</b> </h1>
+<h1 align="center"><b>RBMH Release 0.7</b> </h1>
 
 <h2 align="center">Reactive Behavior Modeling in Haskell </h2>
 
@@ -22,8 +22,8 @@ Elliott</a></h2>
 bot="TimeStamp" startspan s-type="EDITED" s-format="%B %d, %Y" -->October 25, 1996<!--webbot
 bot="TimeStamp" i-checksum="31577" endspan --></em></p>
 
-<p>RBMH is now ready for a test drive. It includes support for
-simple 2D animation as a Haskell library, and should run on <a
+<p>RBMH is a Haskell library (or &quot;embedded language&quot;)
+for simple 2D animation. It runs on <a
 href="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs</a> under
 Windows 95 and Windows NT, using Win32 graphics (GDI). </p>
 
@@ -35,7 +35,7 @@ one version to another.</p>
 <h3>Directions</h3>
 
 <ol>
-    <li>Download <a href="http:rbmh0.6.zip"><strong>rbmh0.6.zip</strong></a></li>
+    <li>Download <a href="http:rbmh0.6.zip"><strong>rbmh0.7.zip</strong></a></li>
     <li>Unzip to create a directory tree called <strong>rbmh</strong>,
         with subdirectories <strong>Lib</strong>, <strong>Media</strong> and <strong>src</strong>. </li>
     <li>Start up Hugs (tested with Yale Release 0), and <strong>:cd</strong>
@@ -57,20 +57,22 @@ one version to another.</p>
 <h3>Notes</h3>
 
 <ul>
-    <li>Currently there is a space leak with recursive integrals
-        (ODEs), so don't let <strong>i16</strong> and, especially, <strong>i17</strong>,
-        run very long. If you see the update rate decreasing dramatically, move
-        on to the next example before you blow Hugs's heap. Also, <strong>i23</strong>
-        seems to exhibit a slow space leak.</li>
-    <li>Represents alpha behaviors as <strong>[Time] -&gt;
-        [alpha]</strong>. This form allows incremental behavior
-        evaluation without implicit state, in particular for <strong>untilB</strong>
-        and <strong>integral</strong> behaviors. </li>
+    <li>As of version 0.7, alpha behaviors are represented as <strong>Time
+        -&gt; (alpha, Behavior a)</strong>. This form allows incremental
+        behavior evaluation without implicit state, in particular
+        for <strong>untilB</strong> and <strong>integral</strong>
+        behaviors. </li>
 </ul>
 
 <h3>Bugs</h3>
 
 <ul>
+    <li>Currently there is a space leak with recursive integrals
+        (ODEs), so don't let <strong>i16</strong> and,
+        especially, <strong>i17</strong>, run very long. If you
+        see the update rate decreasing dramatically, move on to
+        the next example before you blow Hugs's heap. Also, <strong>i23</strong>
+        seems to exhibit a slow space leak.</li>
     <li>Button-up and key-up events are missed if they happen too
         soon after the down event. Be careful with <strong>i8,
         i9, i10, i11</strong> in <strong>ImageBTest.</strong> If
@@ -108,8 +110,8 @@ one version to another.</p>
     <li>Greg Schechter, Ricky Yeung, Salim AbiEzzi, and I
         collaborated at Sun Microsystems on <a
         href="http://www.research.microsoft.com/research/graphics/elliott/tbag/index.htm">TBAG</a>,
-        a system for constraint-based, semi-declarative modeling of
-        3D animation. Some of the RBMH ideas were initially
+        a system for constraint-based, semi-declarative modeling
+        of 3D animation. Some of the RBMH ideas were initially
         explored there.</li>
     <li><a
         href="http://www.research.microsoft.com/research/graphics/knoblock/">Todd
@@ -118,6 +120,9 @@ one version to another.</p>
     <li><a href="http://www.dcs.gla.ac.uk/~sof">Sigbjorn Finne</a>
         helped a lot with the implementation during his summer
         '96 internship.</li>
+    <li>Anthony Daniels has been pushing the limits of
+        physics-oriented reactive behavior, uncovering some
+        limitations in the implementation.</li>
     <li><a
         href="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/hudak-paul.html">Paul
         Hudak</a> has been collaborating on the ideas and, in

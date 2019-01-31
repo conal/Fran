@@ -1,222 +1,288 @@
--- The "event algebra"
+-- The "event algebra".
 -- 
--- An event represents a (tVal,x) :: (Time, a) pair, and responds the
--- question of whether a given time t > tVal, and if so, what are tVal and
--- x.  (I used to call this notion an "event occurrence" or a "timed
--- value".)
---
--- This implementation represents an (Event a) as a behavior whose values
--- are Maybe (Time,a).
---
--- Last modified Wed Sep 11 16:48:19 1996
+-- Last modified Fri Oct 25 10:08:02 1996
+
 
 module Event where
 
-import Behavior
+import Behavior (Time, Behavior, at)
+import Prelude hiding (MutVar, newVar,readVar,writeVar)
+import MutVar
+
+infixl 9 `snapshot`
 
 infixl 2 +=>
 infixl 2 ==>
 infixl 2 -=>
 infixl 2 *=>
-infixl 0 .|.
+infixl 1 .|.
+
+infixl 1 +>>=   -- generalization of >>=
 
 
-infixl 9 `snapshot`
+-- An event maps a time to either a time/value pair, in case of an
+-- occurrence, or a new event, if no occurrence.
+
+data Event a = Event (Time -> PossibleOcc a)
+
+data  PossibleOcc a  =  Occ Time  a | NonOcc (Event a)  -- deriving Text
+
+-- The abstract interface:
+
+occ :: Event a -> Time -> PossibleOcc a
+
+occ (Event sample) = sample
 
 
-type EventOcc a = Maybe (Time, a)
-
-data Event a = Event (Behavior (EventOcc a))
+-- Event handling:
 
 
+timeIsAtLeast :: Time -> Event a -> Event a
 
-occ :: Event a -> [Time] -> [EventOcc a]
+timeIsAtLeast lowerBound ev = ev'
+ where
+  ev'       =  Event sample
 
--- Note: knows the representation of Behavior.
+  sample t  =  if t <= lowerBound then
+                 NonOcc ev'
+               else ev `occ` t
 
-(Event maybeB) `occ` ts = maybeB `ats` ts
 
+-- The event "ev +=> f" occurs exactly when ev occurs.  Its value is
+-- (f te x), where te and x are the time and value of ev's occurrence.
 
 (+=>) :: Event a -> (Time -> a -> b) -> Event b
+
+ev +=> f =
+ Event $ \ t ->
+ case  ev `occ` t  of
+   Occ te x   ->  Occ te (f te x)
+   NonOcc ev' ->  NonOcc (ev' +=> f)
+
+
+-- The event e .|. e' corresponds to the earlier of e and e', prefering
+-- e if they occur simultaneously.
+
+(.|.) :: Event a -> Event a -> Event a
+
+ev .|. ev'  =
+  Event $ \ t ->
+  case  (ev `occ` t, ev' `occ` t)  of 
+    (NonOcc evNew, NonOcc evNew' )  -> NonOcc (evNew .|. evNew')
+    (o           , NonOcc _      )  -> o
+    (NonOcc _    , o'            )  -> o'
+    (o@(Occ te _), o'@(Occ te' _))  -> if te <= te' then o else o'
+
+
+-- joinEvent e is the event that occurs when e' occurs, where e' is the
+-- event data part of e.  (Should be time adjusted to be no earlier than
+-- e.)  This is "join" for the Event monad.  I use it to define +>>=
+-- below, which is used to define >>=.  Look into turning this around, so
+-- that I can just use "join", as defined in StdLib/Monad.hs.
+
+joinEvent :: Event (Event a) -> Event a
+
+joinEvent ev =
+ Event $ \ t ->
+ case ev `occ` t of
+   NonOcc newEv  -> NonOcc (joinEvent newEv)
+   Occ te ev'    ->
+     --trace ("+>>= found LHS occurrence " ++ show te ++ "\n") $
+     ev' `occ` t
+
+-- A "constant event" that has a given time and value
+
+constEvent :: Time -> a -> Event a
+
+constEvent te x = constEv
+  where constEv = Event sample
+        sample t
+          | te <= t   =  Occ te x
+          | otherwise =  NonOcc constEv
+
+
+-- An event that never happens
+
+neverEvent :: Event a
+
+neverEvent = Event (\ t -> NonOcc neverEvent)
+
+
+-- The event "e `snapshot` b" occurs at the time te when e occurs.  Its
+-- value is e's value together with a snapshot of b at te.
+
+snapshot :: Event a -> Behavior b -> Event (a,b)
+
+ev `snapshot` b =
+  Event $ \ t ->
+  case  ev `occ` t  of
+    Occ te x   ->  Occ te (x,y)
+                     where (y, _) = b `at` te
+    NonOcc ev' ->  NonOcc (ev' `snapshot` b')
+                     -- move b along
+                     where (_, b') = b `at` t
+
+
+-- Earliest event time
+minPossibleTime = -(10^20) :: Time
+
+
+-- This one does caching.  See Until.hs for a use.
+
+cacheEvent :: Event a -> (Time -> Maybe (Time, a))
+
+cacheEvent ev = cachedEv
+ where
+  cachedEv =
+   unsafePerformIO (
+    newVar (Right (minPossibleTime, ev))  >>= \ cacheVar ->
+    return $ \ t ->
+    unsafePerformIO (
+     readVar cacheVar      >>= \ cacheVal ->
+     case cacheVal of
+       -- Already occurred
+       Left pair@(te, _) ->
+	 return (if  t <= te then Nothing else Just pair)
+       -- Not yet occurred
+       Right (lowerBound, ev') ->
+	 if t <= lowerBound then
+	   return Nothing
+	 else
+	   case  ev' `occ` t  of
+	     Occ te x    ->
+	       writeVar cacheVar (Left (te, x)) >>
+	       return (Just (te,x))
+	     NonOcc ev'' ->
+	       writeVar cacheVar (Right (t,  ev'')) >>
+	       return Nothing ) )
+
+
+
+-- Non-primitives
+
 (==>) :: Event a -> (a ->         b) -> Event b
 (*=>) :: Event a -> (Time      -> b) -> Event b
 (-=>) :: Event a ->               b  -> Event b
 
--- (+=>) is the general form.  The others are shorthands.
 ev ==> f  =  ev +=> const f               -- ignore event time
 ev *=> f  =  ev +=> \ t _ -> f t          -- ignore event value
 ev -=> x  =  ev ==> const x               -- ignore event time and value
 
-(Event eb) +=> f =
-  Event (lift1 g eb)
+
+
+-- "e +>>= f" is the event e' = f te x, where te and x are the time and
+-- value from e.  Note: if e' occurs earlier than e, it will still not be
+-- detected until after e.  Thus occurrence time should probably be
+-- tweaked to be at least e's.
+
+(+>>=) :: Event a -> (Time -> a -> Event b) -> Event b
+
+-- Use +=> to make an event-valued event, and joinEvent to flatten.
+
+ev +>>= f  =  joinEvent (ev +=> f)
+
+
+-- First time cond is true after t0
+
+predicate :: Behavior Bool -> Time -> Event ()
+
+-- Sample the condition at regular intervals.
+
+predicate cond t0 =
+  --trace ("predicate: time == " ++ show t0 ++ ", condVal == " ++ show condVal ++ "\n") $
+  -- We know that the predicate event happens no sooner than t0.  Saying
+  -- so here will prevent cond from getting sampled at t0 or before, which
+  -- is necessary for "self reactive" (or systems of mutually reactive)
+  -- behaviors.
+  timeIsAtLeast t0 $
+    if condVal then
+      timeIs t0
+    else
+      --trace ("predicate: trying time " ++ show t0Next ++ "\n")$
+      timeIs t0Next          >>    -- using monad interpretation
+      predicate cond' t0Next
   where
-    g mb  =  mb >>= (return . (\ (te,a) -> (te, f te a)))
+    (condVal, cond') = cond `at` t0
+    t0Next = t0 + epsilon
+    epsilon = 0.05 :: Time
 
 
--- Earlier of two events
-
-(.|.) :: Event a -> Event a -> Event a
-
-(Event eb) .|. (Event eb') =
-  Event (lift2 (.|.#) eb eb')
-  where 
-    (.|.#) :: EventOcc a -> EventOcc a -> EventOcc a
-
-    Nothing .|.# mb' =  mb'
-
-    mb .|.# Nothing  =  mb
-
-    mb@(Just (te,x)) .|.# mb'@(Just (te',x'))
-      | te<=te'    =  mb
-      | otherwise  =  mb'
-
-
--- Literally specified event
-
-constEvent :: Time -> a -> Event a
-
-{-  The following definition yields an error saying that the declared type
-    is too general, and the inferred type is
-    Ord a => Time -> a -> Event a.  Why?
-constEvent t v =
-  Event (cond (time >* lift0 t) liftOcc liftNonOcc)
-  where
-    liftOcc    = lift0 (Just (t,v))
-    liftNonOcc = lift0 Nothing
--}
-
-constEvent tEv v =
-  Event (Behavior (map (\t -> if t > tEv then occ else Nothing)))
-  where
-    occ = Just (tEv,v)
-
-
-filterEv :: (Time -> Event a) -> (a -> Maybe b) -> Time -> Event b
-
-filterEv evg f t0 = 
-  Event (Behavior (tryEvB (evg t0)))
-  where
-    -- tryEvB :: Event a -> [Time] -> [EventOcc b]
-
-    tryEvB (Event (Behavior ebf)) ts  =  filt (ebf ts) ts
-
-    filt (Nothing : mbs') (_ : ts') = Nothing : (filt mbs' ts')
-
-    filt (Just (te,a) : _) (_ : ts')  =
-      case f a of
-        Just b   ->  [Just (te, b)]
-        Nothing  ->  tryEvB (evg te) ts'
-
-
-
-{-
-
-whenEv :: (Time -> Event a) -> Behavior Bool -> Time -> Event a
-
-whenEv evg boolB t0 =
-  -- Working here: make a list of the event time/value pairs from evg,
-  -- feed the times to boolB, ...
-
--}
-
+-- Filter out events whose data doesn't satisfy a condition.  Take a
+-- function that generates events from start time.  If the first generated
+-- event doesn't satisfy the condition, try another and repeat.
 
 suchThat :: (Time -> Event a) -> (a -> Bool) -> Time -> Event a
 
 suchThat evg pred =
-  filterEv evg (\ a -> if pred a then Just a else Nothing)
+  filterEv evg (\a -> if pred a then Just a else Nothing) 
 
 
--- Like predicate (time ==* tVal) (-infinity)
-timeIs t = constEvent t ()
+-- Generalization of suchThat, replacing a condition by a maybe value.
 
--- The event that never happens.  Left- and right-identity for .|.
+filterEv :: (Time -> Event a) -> (a -> Maybe b) -> Time -> Event b
 
-never :: Event a
+filterEv evg f t0 = loop t0
+ where
+  -- Simple sequential recursion
+  loop t0 =
+    evg t0           +>>= \ tVal a ->
+    case  f a  of
+      Just b   ->  constEvent tVal b
+      Nothing  ->  loop tVal
 
-never = Event (lift0 Nothing)
+
+-- Like predicate (time ==* tVal) minPossibleTime
+
+timeIs :: Time -> Event ()
+
+timeIs tVal  =  constEvent tVal ()
 
 
 
-snapshot :: Event a -> Behavior b -> Event (a,b)
+-- Type class instances.  Monadic stuff.
 
-(Event eb) `snapshot` b =
-  Event (Behavior sf)
+instance Functor Event where
+  map = flip (==>)
+
+instance Monad Event where
+ ev >>= f   =  ev +>>= const f
+ return v   =  constEvent minPossibleTime v
+
+instance MonadZero Event where
+ zero  = neverEvent
+
+instance MonadPlus Event where
+ (++)  = (.|.)
+
+
+{- Delete the rest
+
+-- It's also useful to filter on whether a boolean behavior is true at the
+-- occurrence of an event.
+
+whenEv :: (Time -> Event a) -> Behavior Bool -> Time -> Event a
+
+whenEv evg condB t0 = tryEv (evg t0) condB
   where
-    sf ts =
-      loop mbs (b `ats` tsPatched mbs ts)
-      where
-        mbs = eb `ats` ts
-    
-        tsPatched (Nothing     : mbs') (t : ts') = t : tsPatched mbs' ts'
-        tsPatched (Just (te,_) : _)    _         = [te]
-
-        loop :: [EventOcc a] -> [b] -> [EventOcc (a,b)]
-
-        loop (Just (te,x):_)    [bVal]     = repeat (Just (te, (x,bVal)))
-
-        loop (Nothing : mbs') (_:bVals') = Nothing : loop mbs' bVals'
-
-        loop _ _ = error "snapshot length mismatch"
+    tryEv ev condB t =
+      case  ev t  of
+        NonOcc ev'   ->  NonOcc (tryEv ev' condB')
+                         where
+                          -- move condB along
+                          (_, condB') = condB `at` t
+        o@(Occ te x) -> if condVal then
+                          NonOcc (whenEv evg condB' te)
+                        else o
+                        where
+                         (condVal, condB') = condB `at` te
 
 
+predicate condB t0 = Event sample
+ where
+  sample t = if t <= t0 then NonOcc event
+	     else if condVal then Occ t ()
+	     else NonOcc (predicate condB' t)
+	     where
+	       (condVal, condB') = condB `at` t
 
-predicate :: Behavior Bool -> Time -> Event ()
-
--- Simple implementation, not using interval analysis.
-{-
-predicate condB t0 =
-  Event (Behavior (\ ts -> testCond ts (condB `ats` ts) t0))
-  where
-    -- When we find a True, assume that the event occurred midway
-    -- between the previously checked time and this one.
-    testCond (t : _)     (True : _)      tPrev =
-      [Just (tPrev + (t-tPrev)/2, ())]
-    testCond (t : tRest) (False : bools') _    =
-      Nothing : testCond tRest bools' t
 -}
-{-
--- This version contains a work-around for the problem of recursive
--- reactivity.  Tack on an initial False condition.
-predicate condB t0 =
-  Event (Behavior (\ ts -> testCond ts (False : (condB `ats` ts)) t0))
-  where
-    -- When we find a True, assume that the event occurred midway
-    -- between the previously checked time and this one.
-    testCond (t : _)     (True : _)      tPrev =
-      [Just (tPrev, ())]
-    testCond (t : tRest) (False : bools') _    =
-      Nothing : testCond tRest bools' t
--}
-
--- This version uses an independent sampling rate for the predicate and steps
--- through the behaviors sampling using a piecewise constant stepper function.
-predicate condB t0 = 
-    Event (Behavior (stepperE tsFixed es))
-  where
-    tsFixed = [t0, t0 + deltat ..]
-    bs = False : condB `ats` tsFixed
---    es  = forceList (testCond tsFixed bs t0)
-    es  = (testCond tsFixed bs t0)
-    deltat = 0.05
-
--- forceList [] = []
--- forceList (y : ys) = force y `seq` (y : forceList ys) 
-
--- When we find a True, assume that the event occurred midway
--- between the previously checked time and this one.
-testCond (t : _)  (True : _)   tPrev = repeat (Just (tPrev, ()))
-testCond (t : ts) (False : bs) _     = Nothing : testCond ts bs t
-
-stepperE tsFixed@(tFixed0:tsFixedTail@(tFixed1:_)) es@(e0:esTail) 
-        tsSample@(tSample0:tsSampleTail)
-  | tSample0 <= tFixed1  =  e0 : stepperE tsFixed es tsSampleTail
-  | otherwise =  stepperE tsFixedTail esTail tsSample
-
-stepperE _ _ [] = []
-
-
--- Testing
-
-tstE (Event mbB) = tstB mbB
-
-e1 = timeIs 3

@@ -2,7 +2,7 @@
 --
 -- These functions should not be used directly.  See Interaction.hs.
 --
--- Last modified Tue Oct 15 12:27:51 1996
+-- Last modified Mon Oct 21 11:36:18 1996
 
 module PrimInteract 
         (
@@ -64,7 +64,7 @@ initUser =
 
 primBPEGVar = 
  unsafePerformIO (
-   newExternalEGen 0        >>= \ (egv, tev) ->
+   newExternalEGen "button" 0        >>= \ (egv, tev) ->
    writeVar primBPTEv tev   >>
    return egv)
 
@@ -105,7 +105,7 @@ primRBR = filteredBP False False
 
 primKeyEGVar = 
  unsafePerformIO (
-   newExternalEGen 0        >>= \ (egv, tev) ->
+   newExternalEGen "key" 0        >>= \ (egv, tev) ->
    writeVar primKeyTEv tev  >>
    return egv)
 
@@ -140,7 +140,7 @@ primKR = filteredKey False
 
 primMouseEGVar = 
  unsafePerformIO (
-   newExternalEGen 0          >>= \ (egv, tev) ->
+   newExternalEGen "mouse" 0          >>= \ (egv, tev) ->
    writeVar primMouseTEv tev  >>
    return egv)
 
@@ -156,7 +156,7 @@ primMousePos = unsafePerformIO (readVar primMouseTEv)
 
 primViewSzEGVar = 
  unsafePerformIO (
-   newExternalEGen 0            >>= \ (egv, tev) ->
+   newExternalEGen "view size" 0            >>= \ (egv, tev) ->
    writeVar primViewSzTEv tev   >>
    return egv)
 
@@ -174,7 +174,7 @@ primViewSz = unsafePerformIO (readVar primViewSzTEv)
 
 primFPSEGVar = 
  unsafePerformIO (
-   newExternalEGen 0         >>= \ (egv, tev) ->
+   newExternalEGen "fps" 0         >>= \ (egv, tev) ->
    writeVar primFPSTEv tev   >>
    return egv)
 

@@ -1,99 +1,113 @@
 -- Non-reactive behaviors
 -- 
--- Last modified Fri Oct 11 14:39:16 1996
+-- Last modified Tue Oct 15 22:55:25 1996
+-- 
+-- To do:
+--   + Dynamic constant folding
 
 module Behavior where
 
-import BaseTypes
 import VectorSpace
 
-type Time = Double
+-- A behavior maps a time to a value plus and another behavior:
 
--- Behavior map from time streams to value streams, rather than a single
--- time, because some behaviors want to use incremental evaluation
--- techniques (esp. integral and untilB).
+type Time  = Double
 
--- To do:
---  + Put interval sampling back.
---  + Dynamic constant folding
-
-type Sampler a = [Time] -> [a]
+type Sampler a = Time -> (a, Behavior a)
 
 data Behavior a = Behavior (Sampler a)
 
-~(Behavior fl) `ats` ts = fl ts
+-- with the understanding that the resulting behavior be given times no
+-- later than the one that produced it (a monotonicity property).
 
--- Convenient type synonyms
+-- Simon PJ pointed out that this representation should deforest much more
+-- easily than my previous representation as a function from time streams
+-- to value streams, and should be nicely susceptible to lazy memoization.
+-- Also, it should eliminate the unsafeInterleaveIO hack I had to use for
+-- creating time streams.
 
-type TimeB = Behavior Time
-type BoolB = Behavior Bool
+-- A behavior is sampled via the "at" function:
 
-type RealValB  =  Behavior RealVal
-type LengthB   =  Behavior Length
-type RadiansB  =  Behavior Radians
-type FractionB =  Behavior RealVal
+at :: Behavior a -> Sampler a
 
+(Behavior f `at`) = f
+
+-- We define the usual assortment of behavior primitives and building
+-- blocks.  "time" maps a time to itself, yielding itself as the
+-- "new" behavior.
 
 time :: Behavior Time
 
-time = Behavior id
+time = Behavior (\ t -> (t, time))
 
+-- Time transformation is semantically equivalent to function composition.
+-- Upon sampling, the new behavior is constructed from the new behavior
+-- argument and time transformation.
 
 timeTransform :: Behavior a -> Behavior Time -> Behavior a
 
-(Behavior afl) `timeTransform` (Behavior tfl) =  Behavior (afl . tfl)
+b `timeTransform` tt =
+  Behavior (\ t ->
+    let
+      (ttVal, tt') = tt `at` t
+      (bVal , b' ) = b  `at` ttVal
+    in
+      (bVal, b' `timeTransform` tt') )
 
+-- Lifting is not quite as simple as before, but is still reasonable.
+-- Zero-ary lifting ignores the given time, and gives back the same
+-- value/behavior pair:
 
-
-lift0 x = Behavior (map (const x))
-
-lift1 :: (a -> b) -> (Behavior a) -> (Behavior b)
-
-lift1 f b = Behavior (\ts -> map f (b `ats` ts))
-
-lift2 f b1 b2 =
-  Behavior (\ts -> zipWith f (b1 `ats` ts) (b2 `ats` ts))
-
-lift3 f b1 b2 b3 =
-  Behavior (\ts -> zipWith3 f (b1 `ats` ts) (b2 `ats` ts) (b3 `ats` ts))
-
-
-lift4 f (Behavior ats1) (Behavior ats2) (Behavior ats3) (Behavior ats4) =
-  Behavior (\ts -> zipWith4 f (ats1 ts) (ats2 ts) (ats3 ts) (ats4 ts))
-
-
-zipWith4 :: (a -> b -> c -> d -> e)
-	 -> [a]
-         -> [b]
-         -> [c] 
-         -> [d] 
-         -> [e]
-zipWith4 f (a:as) (b:bs) (c:cs) (d:ds) = f a b c d : zipWith4 f as bs cs ds
-zipWith4 _  _ _ _ _ = []
-
-merge :: [[a]] -> [[a]]
-merge lss = 
-  case decons lss of
-    (a,lss') -> a:merge lss'
+lift0 x = b
   where
-  --decons :: [[a]] -> [([a],[[a]])]
-  decons lss = 
-     foldr (\ (a,as) (acc,accs) -> (a:acc,as:accs))
-	   ([],[])
-	   (map (\ (x:xs) -> (x,xs)) lss)
-     
+    b    = Behavior (\ t -> pair)
+    pair = (x, b)
+
+-- For n>0, n-ary lifting samples the component behaviors applies the
+-- unlifted function to the resulting values, and applies the lifted
+-- function to the resulting behaviors.
+
+lift1 f b = Behavior sampler
+  where sampler t = (f x, lift1 f b')
+          where (x, b') = b `at` t
+
+lift2 f b1 b2 = Behavior sampler
+  where sampler t = (f x1 x2, lift2 f b1' b2')
+          where (x1, b1') = b1 `at` t
+                (x2, b2') = b2 `at` t
+
+lift3 f b1 b2 b3 = Behavior sampler
+  where sampler t = (f x1 x2 x3, lift3 f b1' b2' b3')
+          where (x1, b1') = b1 `at` t
+                (x2, b2') = b2 `at` t
+                (x3, b3') = b3 `at` t
+
+lift4 f b1 b2 b3 b4 = Behavior sampler
+  where sampler t = (f x1 x2 x3 x4, lift4 f b1' b2' b3' b4')
+          where (x1, b1') = b1 `at` t
+                (x2, b2') = b2 `at` t
+                (x3, b3') = b3 `at` t
+                (x4, b4') = b4 `at` t
+
+-- and so on.
 
 liftLs :: [Behavior a] -> Behavior [a]
-liftLs ls = 
- Behavior 
-   (\ts -> 
-     let
-      ass = map (`ats` ts) ls
-     in
-     merge ass)
+liftLs bs = Behavior ( \t ->
+  let (xs, bs') = unzip (map (`at` t) bs) in
+    (xs, liftLs bs') )
 
--- and so on
+-- End of primitives
 
+-- A few convenient type abbreviations:
+
+type BoolB = Behavior Bool
+type TimeB = Behavior Time
+
+-- Now we define a bazillion liftings.  The naming policy is to use the same
+-- name as the unlifted function if overloaded and the types permit.
+-- Otherwise, add a suffix of "*" or "B" if the name is a syntactic
+-- "operator" rather than an identifier.  (Does the Haskell language spec use
+-- the terms "operator" and "identifier" in this way?)
 
 -- Define number-valued behaviors as numbers.  Sadly, type restrictions
 -- prevent us from defining some of the methods on behaviors.
@@ -129,8 +143,8 @@ instance  Ord a => Ord (Behavior a)  where
   (<=)  =  noOverloadOp "<="
   (>)   =  noOverloadOp ">"
   (>=)  =  noOverloadOp ">="
-  min	=  lift2 min
-  max	=  lift2 max
+  min   =  lift2 min
+  max   =  lift2 max
 
 instance  Real a => Real (Behavior a)  where
   toRational = noOverloadId "toRational"
@@ -142,25 +156,25 @@ toRationalB = lift1 toRational
 instance Integral a => Enum (Behavior a)
 instance Integral a => Integral (Behavior a)  where
     quot      = lift2 quot
-    rem	      =	lift2 rem
-    div	      =	lift2 div
-    mod	      =	lift2 mod
+    rem       = lift2 rem
+    div       = lift2 div
+    mod       = lift2 mod
     quotRem x y  = pairBSplit (lift2 quotRem x y)
     divMod  x y  = pairBSplit (lift2 divMod  x y)
     toInteger = noOverloadId "toInteger"
     even      = noOverloadId "even"
-    odd	      =	noOverloadId "odd"
-    toInt     =	noOverloadId "toInt"
+    odd       = noOverloadId "odd"
+    toInt     = noOverloadId "toInt"
 
 
 toIntegerB :: Integral a => Behavior a -> Behavior Integer
-evenB, oddB :: Integral a => Behavior a -> Behavior Bool
+evenB, oddB :: Integral a => Behavior a -> BoolB
 toIntB      :: Integral a => Behavior a -> Behavior Int
 
 toIntegerB = lift1 toInteger
-evenB	   = lift1 even
-oddB	   = lift1 odd
-toIntB	   = lift1 toInt
+evenB      = lift1 even
+oddB       = lift1 odd
+toIntB     = lift1 toInt
 
 instance (Fractional a) => Fractional (Behavior a) where
   fromDouble   =  lift0 . fromDouble
@@ -194,13 +208,13 @@ instance (Floating a) => Floating (Behavior a) where
 
 instance  RealFrac a => RealFrac (Behavior a)  where
     properFraction = noOverloadId "properFraction"
-    truncate	   = noOverloadId "truncate"
-    round	   = noOverloadId "round"
-    ceiling	   = noOverloadId "ceiling"
-    floor	   = noOverloadId "floor"
+    truncate       = noOverloadId "truncate"
+    round          = noOverloadId "round"
+    ceiling        = noOverloadId "ceiling"
+    floor          = noOverloadId "floor"
 
 
-properFractionB	  :: (RealFrac a, Integral b) => Behavior a -> Behavior (b,a)
+properFractionB   :: (RealFrac a, Integral b) => Behavior a -> Behavior (b,a)
 truncateB, roundB :: (RealFrac a, Integral b) => Behavior a -> Behavior b
 ceilingB, floorB  :: (RealFrac a, Integral b) => Behavior a -> Behavior b
 
@@ -218,18 +232,18 @@ instance  RealFloat a => RealFloat (Behavior a)  where
 {- We could also add these.  Need type declarations.
 
 floatRadixB      = lift1 floatRadix
-floatDigitsB	 = lift1 floatDigits
-floatRangeB	 = pairBSplit . lift1 floatRange
-decodeFloatB	 = pairBSplit . lift1 decodeFloat
-encodeFloatB	 = lift2 encodeFloat
-exponentB	 = lift1 exponent
-significandB	 = lift1 significand
-scaleFloatB	 = lift2 scaleFloat
-isNaNB		 = lift1 isNaN
-isInfiniteB	 = lift1 isInfinite
+floatDigitsB     = lift1 floatDigits
+floatRangeB      = pairBSplit . lift1 floatRange
+decodeFloatB     = pairBSplit . lift1 decodeFloat
+encodeFloatB     = lift2 encodeFloat
+exponentB        = lift1 exponent
+significandB     = lift1 significand
+scaleFloatB      = lift2 scaleFloat
+isNaNB           = lift1 isNaN
+isInfiniteB      = lift1 isInfinite
 isDenormalizedB  = lift1 isDenormalized
 isNegativeZeroB  = lift1 isNegativeZero
-isIEEEB		 = lift1 isIEEE
+isIEEEB          = lift1 isIEEE
 
 -}
   
@@ -238,8 +252,8 @@ isIEEEB		 = lift1 isIEEE
 -- Various flavors of exponentiation
 infixr 8  ^*, ^^*
 
-(^*)	:: (Num a, Integral b) => Behavior a -> Behavior b -> Behavior a
-(^^*)	:: (Fractional a, Integral b) => Behavior a -> Behavior b -> Behavior a
+(^*)    :: (Num a, Integral b) => Behavior a -> Behavior b -> Behavior a
+(^^*)   :: (Fractional a, Integral b) => Behavior a -> Behavior b -> Behavior a
 
 (^*)  = lift2 (^)
 (^^*) = lift2 (^^)
@@ -260,25 +274,25 @@ infixr 2 ||*
      (<=) :: a -> a -> b
 -}
 
-(==*),(/=*) :: Eq a => Behavior a -> Behavior a -> Behavior Bool
+(==*),(/=*) :: Eq a => Behavior a -> Behavior a -> BoolB
 (==*) = lift2 (==)
 (/=*) = lift2 (/=)
 
-(<*),(<=*),(>=*),(>*) :: Ord a => Behavior a -> Behavior a -> Behavior Bool
+(<*),(<=*),(>=*),(>*) :: Ord a => Behavior a -> Behavior a -> BoolB
 (<*)  = lift2 (<)
 (<=*) = lift2 (<=)
 (>=*) = lift2 (>=)
 (>*)  = lift2 (>)
 
-cond :: Behavior Bool -> Behavior a -> Behavior a -> Behavior a
+cond :: BoolB -> Behavior a -> Behavior a -> Behavior a
 cond = lift3 (\ a b c -> if a then b else c)
 
-notB :: Behavior Bool -> Behavior Bool
+notB :: BoolB -> BoolB
 notB = lift1 (not)
 
-(&&*) :: Behavior Bool -> Behavior Bool -> Behavior Bool
+(&&*) :: BoolB -> BoolB -> BoolB
 (&&*) = lift2 (&&) 
-(||*) :: Behavior Bool -> Behavior Bool -> Behavior Bool
+(||*) :: BoolB -> BoolB -> BoolB
 (||*) = lift2 (||) 
 
 
@@ -308,7 +322,12 @@ showB = lift1 show
 
 -- Testing
 
-tstB b = b `ats` [0, 0.1 .. 3]
+b `ats` []      = []
+b `ats` (t:ts') = x : (b' `ats` ts')
+ where
+  (x,b') = b `at` t
+
+tstB b ts = b `ats` [0, 0.1 .. 3]
 
 b1 = time
 b2 = 5 + 3*time
