@@ -1,6 +1,6 @@
 -- Higher-level interaction
 --
--- Last modified Mon Sep 16 14:48:25 1996
+-- Last modified Tue Sep 17 15:09:17 1996
 
 module Interaction where
 
@@ -21,11 +21,16 @@ import Image (Image)
 import qualified Pick2Image
 
 lbp :: Time -> Event (Event ())
-lbp t0 = primLBP t0 +=> \ t _ -> (primLBR t -=> ())
+lbp t0 = primLBP t0 +=> \ t1 _ -> (primLBR t1 -=> ())
 
 rbp :: Time -> Event (Event ())
-rbp t0 = primRBP t0 +=> \ t _ -> (primRBR t -=> ())
+rbp t0 = primRBP t0 +=> \ t1 _ -> (primRBR t1 -=> ())
 
+
+keyPress :: Time -> Event (Char, Event ())
+keyPress t0 =
+  primKP t0 +=> \ t1 ch ->
+   (ch, (primKR `suchThat` (== ch)) t0 -=> ())
 
 -- Piecewise-constant mouse behavior 
 

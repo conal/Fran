@@ -1,6 +1,6 @@
 {- Primitive (single) user interaction - attempt #1 -}
 
--- Last modified Sat Sep 07 23:23:09 1996
+-- Last modified Tue Sep 17 14:48:44 1996
 module PrimInteract 
         (
          initUser,        -- :: IO ()

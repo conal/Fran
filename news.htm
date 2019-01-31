@@ -4,6 +4,12 @@
 <head>
 <meta http-equiv="Content-Type"
 content="text/html; charset=iso-8859-1">
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1">
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1">
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1">
 <meta name="GENERATOR" content="Microsoft FrontPage 2.0">
 <title>News on Recent RBMH Releases</title>
 </head>
@@ -14,29 +20,29 @@ content="text/html; charset=iso-8859-1">
 
 <p>&nbsp;</p>
 
-<h2>0.0 Sept 8, 1996</h2>
+<h2><a href="http:rbmh0.0.zip">0.0</a> Sept 8, 1996</h2>
 
 <ul>
     <li>First release </li>
 </ul>
 
-<h2>0.1 Sept 9, 1996</h2>
+<h2><a href="http:rbmh0.1.zip">0.1</a> Sept 9, 1996</h2>
 
 <ul>
     <li>Fixed inverse2 bug that messed up screen-to-world mapping </li>
     <li>Fixed RenderImage.draw to catch all errors and print
         &quot;Win32 drawing error&quot; instead of bombing. When
-        you stat seeing this message, you can kill the animation window. </li>
+        you start seeing this message, you can kill the animation window. </li>
     <li>Changed ImageBTest.smoothGrowShrink to scale by &quot;exp
-        (integral (changingRate t0) t0&quot; instead of &quot;1 +
-        integral (changingRate t0) t0&quot;. The result looks
-        better the new way and never does negative scaling. </li>
+        (integral (changingRate t0) t0&quot; instead of &quot;1 + integral
+        (changingRate t0) t0&quot;. The result looks better the
+        new way and never does negative scaling. </li>
     <li>Added a bunch of fun examples to ImageBTest. These
-        examples are eyes that look at the mouse and one that
-        chases it. See i12 to i16. </li>
+        examples are eyes that look at the mouse and one that chases
+        it. See i12 to i16. </li>
 </ul>
 
-<h2>0.2 Sept 16, 1996</h2>
+<h2><a href="http:rbmh0.2.zip">0.2</a> Sept 16, 1996</h2>
 
 <ul>
     <li>Added timeTransform to Behavior.hs. Warning: the
@@ -44,32 +50,62 @@ content="text/html; charset=iso-8859-1">
         stream does not go backwards across events. We cannot
         guarantee this property, so be careful! Before, we've
         said to use only monotically non-decreasing time transforms,
-        but non-monotonic ones are very useful at times, and
-        untilB is the only construct that has trouble with them.
-        (Even integration doesn't mind.) </li>
+        but non-monotonic ones are very useful at times, and untilB
+        is the only construct that has trouble with them. (Even integration
+        doesn't mind.) </li>
     <li>Changed ImageTest.lotus to take take the number of rings
         as an argument, rather than doing using many of them.
         Added example ImageBTest.i18 to show it off. Still pretty slow.
         :-(</li>
     <li>Major change to the representation of events.</li>
     <li>Added some neat examples of Sigbjorn's, involving time
-        transforms. See i19, i20, and i21 in ImageBTest.hs.
-        Unfortunately, time transformation works badly with external events,
-        and thus with the mouse position behavior, to i20 and i21 are quite jerky.</li>
+        transforms. See i19, i20, and i21 in ImageBTest.hs. Unfortunately,
+        time transformation works badly with external events, and
+        thus with the mouse position behavior, to i20 and i21 are quite jerky.</li>
     <li>Renamed constructors Vector2 and Point2 to Vector2XY and
         Point2XY.</li>
     <li>Re-implemented integral so that recursive systems (ODEs)
-        work efficiently! Try &quot;disp (i17 0)&quot; in ImageBTest,
-        and move the mouse around. The eyes are connected in a
-        chain of springs. Introduced the t0 argument to to avoid
-        a space leak problem. This change should be done
-        throughout ImageBTest.</li>
+        work efficiently! Try &quot;disp (i17 0)&quot; in ImageBTest, and
+        move the mouse around. The eyes are connected in a chain
+        of springs. Introduced the t0 argument to to avoid a
+        space leak problem. This change should be done throughout
+        ImageBTest.</li>
     <li>Removed determinant common-subexpression from inverse2.</li>
     <li>Renamed lerp2 to linearInterpolate2.</li>
     <li>Added RBMH module, which imports all the individual parts
         of RBMH, and reexports those appropriate for a casual
         user. (Thanks go to Alastair Reid for these last three
         items.)</li>
+</ul>
+
+<h2><a href="http:rbmh0.3.zip">0.3</a> Sept 17, 1996</h2>
+
+<ul>
+    <li>Added <strong>StaticTypes</strong> module, which just
+        packages up the static modeling types. Recommended use:
+        &quot;<strong>import qualified StaticTypes as S</strong>&quot;.
+        (As in <strong>ImageBTest.hs</strong>.)</li>
+    <li>Added <strong>predicate</strong> for events based on
+        boolean behaviors.</li>
+    <li>Added bouncing ball examples <strong>i23</strong> and <strong>i24</strong>
+        to <strong>ImageBTest.hs</strong>. For <strong>i24</strong>,
+        do a left-click to add a new ball. They disappear after
+        five seconds.</li>
+    <li>Switched all <strong>ImageBTest</strong> examples to be
+        functions of start time, to eliminate space leak (CAFs) and
+        to make them temporally composable.</li>
+    <li>Added keyboard event primitives <strong>primKP</strong>
+        and <strong>primKR</strong> in <strong>PrimInteract.hs</strong>,
+        plus a higher-level version <strong>keyPress</strong> in <strong>Interaction.hs</strong>.
+        Changed <strong>i8</strong> in <strong>ImageBTest</strong>
+        to use it.</li>
+    <li>Added <strong>allDemos</strong> to <strong>ImageBTest</strong>.
+        This new &quot;super demo&quot; combines all of the
+        others. run &quot;<strong>disp allDemos</strong>&quot; to
+        see them all, and press &lt;space&gt; to go on to the
+        next item.</li>
+    <li>Added lifted list formation and extraction: <strong>nilB,
+        consB, headB, tailB</strong>.</li>
 </ul>
 </body>
 </html>

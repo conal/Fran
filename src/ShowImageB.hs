@@ -1,7 +1,7 @@
 -- Experimental support for displaying image behaviors in an existing
 -- window.  Intended for use with the ActiveX Hugs control
 -- 
--- Last modified Sat Sep 14 16:55:44 1996
+-- Last modified Tue Sep 17 14:27:10 1996
 -- 
 -- Recycled bits from ShowImageB.hs.
 
@@ -176,6 +176,16 @@ makeTestWindow startMS hwndConsumer =
       | msg == wM_MOUSEMOVE =
         timeSinceMS startMS                 >>= \ t ->
         firePrimMouseEv t (posn lParam) >>
+	return 0
+
+      | msg == wM_KEYDOWN =
+        timeSinceMS startMS                 >>= \ t ->
+        firePrimKeyEv t (toEnum wParam) True >>
+        return 0
+
+      | msg == wM_KEYUP =
+        timeSinceMS startMS                 >>= \ t ->
+        firePrimKeyEv t (toEnum wParam) False >>
         return 0
 {-
       | msg == wM_SIZE =

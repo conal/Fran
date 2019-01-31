@@ -10,7 +10,7 @@ content="text/html; charset=iso-8859-1">
 
 <body>
 
-<h1 align="center"><b>RBMH Release 0.2</b> </h1>
+<h1 align="center"><b>RBMH Release 0.3</b> </h1>
 
 <h2 align="center">Reactive Behavior Modeling in Haskell </h2>
 
@@ -33,12 +33,13 @@ to another.</p>
 <h3>Directions</h3>
 
 <ol>
-    <li>Download <a href="http:rbmh.zip"><strong>rbmh.zip</strong></a></li>
+    <li>Download <a href="http:rbmh0.3.zip"><strong>rbmh0.3.zip</strong></a></li>
     <li>Unzip to create a directory tree called <strong>rbmh0</strong>,
         with subdirectories <strong>Media</strong> and <strong>src</strong>. </li>
     <li>Start up Hugs (tested with Yale Release 0), and <strong>:cd</strong>
-        to <strong>rbmh0\src</strong>. You'll end up in the module called <strong>ImageBTest</strong>,
-        which contains simple test cases. </li>
+        to <strong>rbmh0\src</strong>. You'll end up in the
+        module called <strong>ImageBTest</strong>, which contains
+        simple test cases. </li>
     <li>Type <strong>:p rbmh.prj</strong></li>
     <li>At the Hugs prompt, type <strong>disp &lt;name&gt;</strong>,
         where <strong>&lt;name&gt;</strong> is <strong>i1</strong>, <strong>i2</strong>,
@@ -54,21 +55,36 @@ to another.</p>
 
 <ul>
     <li>Represents alpha behaviors as <strong>[Time] -&gt;
-        [alpha]</strong>. This form allows incremental behavior evaluation
-        without implicit state, in particular for <strong>untilB</strong>
+        [alpha]</strong>. This form allows incremental behavior
+        evaluation without implicit state, in particular for <strong>untilB</strong>
         and <strong>integral</strong> behaviors. </li>
 </ul>
 
 <h3>Bugs</h3>
 
 <ul>
+    <li>Button-up and key-up events are missed if they happen too
+        soon after the down event. Be careful with <strong>i8,
+        i9, i10, i11</strong> in <strong>ImageBTest.</strong> If
+        an up-event goes unnoticed, do the <em>same</em> down
+        event again, but this time hold for a bit and release.</li>
     <li>Transformation doesn't work on all primitives. In
         particular: bitmaps, and text don't rotate, and text
         doesn't even scale. <strong>SetWorldTransform</strong>
         might be a general fix, but from the documentation, it
         doesn't appear to work under Win95. </li>
-    <li><strong>ImageBTest.iBlowStack</strong> blows the stack. </li>
+    <li><strong>ImageBTest.iBlowStack</strong> blows the stack.
+        In general, it seems that infinitely recursive image
+        behaviors blow the stack, even with bounding boxes. I
+        guess there's a subtlety about strictness that I don't
+        grok yet.</li>
     <li>Text doesn't center. </li>
+    <li>Examples <strong>i9</strong> and <strong>i10</strong>
+        don't hear the button release if you do it too soon after
+        the button press.</li>
+    <li>Switch all <strong>ImageBTest</strong> examples to be
+        functions of start time, to eliminate space leak (CAFs)
+        and to make them temporally composable.</li>
 </ul>
 
 <h3><a href="http:todo.htm">Future Work</a></h3>

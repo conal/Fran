@@ -1,6 +1,6 @@
 -- Text vectors
 --
--- Last modified Sat Sep 07 23:41:37 1996
+-- Last modified Mon Sep 16 21:11:14 1996
 
 module TextB where
 
@@ -10,8 +10,8 @@ import Behavior
 type TextB = Behavior T.TextT
 
 simpleText = lift1 T.simpleText
-bold       = lift1 T.bold
-italic     = lift1 T.italic
+boldT      = lift1 T.boldT
+italicT    = lift1 T.italicT
 
 -- No font behaviors for now
 

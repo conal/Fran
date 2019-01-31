@@ -4,6 +4,8 @@
 <head>
 <meta http-equiv="Content-Type"
 content="text/html; charset=iso-8859-1">
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1">
 <meta name="GENERATOR" content="Microsoft FrontPage 2.0">
 <title>RBMH Release To Do List</title>
 </head>
@@ -12,12 +14,29 @@ content="text/html; charset=iso-8859-1">
 
 <h1 align="center">RBMH Release To Do List</h1>
 
+<h3 align="center"><a
+href="http://www.research.microsoft.com/research/graphics/elliott/">Conal
+Elliott</a> </h3>
+
+<p align="center"><em>Last modified September 16, 1996 </em></p>
+
 <ul>
     <li>More interesting demos. </li>
-    <li>Restore interval analysis and <strong>predicate</strong>.</li>
-    <li>Use strictness annotations for vector, point, and
-        transform types. </li>
-    <li>Figure out why the <strong>lotus</strong> examples in <strong>ImageTest</strong>.hs
+    <li>Make demos self-documenting.</li>
+    <li>Experiment with ways to eliminate redundant sampling. I
+        suspect it is a significant expense. The initial approach
+        I have in mind is to change the representation of behaviors
+        to be simply lists. (Then <strong>lift3</strong>, for
+        instance, would be <strong>zipWith3</strong>.). Then the usual
+        caching property of lazy data structures should eliminate
+        redundancy. The top-level sampler would have to change to
+        &quot;resample&quot; image lists.</li>
+    <li>Restore interval analysis and re-implement <strong>predicate</strong>
+        to use it.</li>
+    <li>Restore <strong>when</strong> and image picking.</li>
+    <li>Use strictness annotations for <strong>Vector2</strong>, <strong>Point2</strong>,
+        and <strong>Transform2</strong> types. </li>
+    <li>Figure out why the <strong>lotus</strong> examples in <strong>ImageTest.hs</strong>
         are so slow. </li>
     <li>Figure out why <strong>iBlowStack</strong> blows the
         control stack.</li>
@@ -34,11 +53,11 @@ content="text/html; charset=iso-8859-1">
     <li>Add 3D. For performance, use Direct3D's retained mode. </li>
     <li>Define precise semantics for Image type and its
         operations, independent of representation/construction.
-        For instance, make sure that coloring and transformation work sensibly
-        to bitmap- and text-based images. </li>
+        For instance, make sure that coloring and transformation work
+        sensibly to bitmap- and text-based images. </li>
     <li>Short operator names for point/vector/scalar operations
-        instead of <strong>pointMinusPoint2</strong>, for instance. </li>
-    <li>Restore <strong>when</strong> and image picking.</li>
+        instead of <strong>pointMinusPoint2</strong>, for
+        instance. </li>
     <li>Re-introduce &quot;interactive images&quot;. </li>
     <li>Switch color animations to use HSL. </li>
     <li>Make modules selective about exports. I got lazy. </li>
@@ -53,10 +72,5 @@ content="text/html; charset=iso-8859-1">
     <li>Optimize bitmap drawing to use <strong>BitBlt</strong>
         where applicable. </li>
 </ul>
-
-<p><a
-href="http://www.research.microsoft.com/research/graphics/elliott/"><em>Conal
-Elliott</em></a><em> <br>
-Last modified September 16, 1996 </em></p>
 </body>
 </html>

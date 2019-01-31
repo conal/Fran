@@ -1,6 +1,6 @@
 -- Non-reactive behaviors
 -- 
--- Last modified Mon Sep 16 14:33:54 1996
+-- Last modified Tue Sep 17 15:16:13 1996
 
 module Behavior where
 
@@ -99,13 +99,9 @@ instance (Floating a, Ord a) => Floating (Behavior a) where
 
 -- Equality.  (Can't overload (==) because of result type.  Oh well.)
 
-infix  4 ==* 
-infix  4 <* 
-infix  4 <=* 
-infix  4 >=* 
-infix  4 >*
-infixr 3 ||*
-infixr 4 &&*
+infix  4 ==*, <*, <=* , >=*, >*
+infixr 3 &&*
+infixr 2 ||*
 
 {- What we want:
 
@@ -142,6 +138,12 @@ pairB = lift2 (\ x y -> (x,y))
 fstB  = lift1 fst
 sndB  = lift1 snd
 
+-- List formation and extraction
+
+nilB  = lift0 []
+consB = lift2 (:)
+headB = lift1 head
+tailB = lift1 tail
 
 -- Testing
 

@@ -1,17 +1,13 @@
 -- Simple test harness for static Image values and their display
 -- 
--- Last modified Tue Sep 10 11:52:22 1996
+-- Last modified Mon Sep 16 21:13:30 1996
 -- To try these out, run disp i{j} where j `elem` [1..] 
 
 module ImageTest where
 
-import Image
-import Text
-import Color
+import StaticTypes
+
 import ShowImage
-import Vector2
-import Point2
-import Transform2
 
 disp im = showImage im
 
@@ -82,10 +78,10 @@ lotus n m = uscale2 0.7 *% (withColor red all)
 
     rings 0 = emptyImage
     rings m = unitBBoxed2 $
-	      (rotate2 theta     *%
-	       uscale2 shrinkage *%
-	       rings (m-1))
-	      `over` ring
+              (rotate2 theta     *%
+               uscale2 shrinkage *%
+               rings (m-1))
+              `over` ring
 
     ring = foldl1 over
              (map (\ i -> rotate2 (2 * fromInt i * theta)

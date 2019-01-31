@@ -1,6 +1,6 @@
 -- Definition of `untilB`
 -- 
--- Last modified Wed Sep 11 14:16:12 1996
+-- Last modified Mon Sep 16 21:52:51 1996
 --
 -- Warning: the implementation of untilB assumes that the given time
 -- stream does not go backwards across events.  We cannot guarantee this
@@ -35,4 +35,10 @@ b `untilBB` e =
         Just (te,b') ->
           --trace ("occurrence: " ++ show te ++ " for time " ++ show t ++ " ") $
           b' `ats` ts
+
+
+
+-- Testing (use tstB)
+
+u1 = 0 `untilB` timeIs 1.5 -=> 1  :: Behavior Int
 

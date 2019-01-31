@@ -1,4 +1,4 @@
--- Last modified Mon Sep 16 15:05:41 1996 by 
+-- Last modified Mon Sep 16 17:27:56 1996 by conal
 
 -- To do: weed out some of these as possible
 
@@ -24,6 +24,7 @@ Text.hs
 Image.hs
 RenderImage.hs
 PickImage.hs
+StaticTypes.hs
 
 ShowImage.hs
 

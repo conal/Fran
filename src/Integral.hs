@@ -1,7 +1,7 @@
 -- Integration.  Handles systems of mutually recursive integral behaviors
 -- (ODEs).
 -- 
--- Last modified Sun Sep 15 20:15:02 1996
+-- Last modified Mon Sep 16 22:18:39 1996
 
 module Integral where
 
