@@ -1,104 +1,82 @@
-{- Colour - RGB & HSL spaces -}
+-- Simple color type.  To add: hsl view, and duller, brighter, ...
 
 module Color(
 	Color(..),
-	rgb, hsl, toRGB, toHSL,
-	interpolateColor, gray,
+	colorRGB, colorHSL,
+	colorRGBCoords, colorHSLCoords,
+	-- rgb, hsl,			-- old names, phase out
+	asColorRef,
+	interpolateColorRGB, interpolateColorHSL,
+	grey,
 	white, black, red, green, blue,
 	lightBlue, royalBlue, yellow, brown,
-	transformHSL, 
-	stronger, duller, darker, brighter, shade, 
+	transformHSL, stronger, duller, darker, brighter, shade
 	) where
 
 import BaseTypes
+import qualified Win32 (COLORREF, rgb)
 
-data Color 
- = RGB Fraction Fraction Fraction -- all in [0,1]
- | HSL 
-     RealVal  -- [0,360]
-     Fraction -- [0,1]
-     Fraction -- [0,1]
+-- Rep uses RGB
+data Color = ColorRGB Fraction Fraction Fraction -- all in [0,1]
    deriving (Eq, Show)
 
-rgb :: Fraction -> Fraction -> Fraction -> Color
-rgb = RGB
 
-hsl :: Fraction -> Fraction -> Fraction -> Color
-hsl = HSL
+colorRGBCoords :: Color -> (Fraction,Fraction,Fraction)
+colorRGBCoords (ColorRGB r g b) = (r,g,b)
 
--- From the PicBasics module shipped with Yale Hugs
+colorHSLCoords :: Color -> (RealVal,Fraction,Fraction)
+colorHSLCoords (ColorRGB r g b) =
+ rgb_to_hsl r g b
+
+colorRGB :: Fraction -> Fraction -> Fraction -> Color
+colorRGB = ColorRGB
+
+colorHSL :: Fraction -> Fraction -> Fraction -> Color
+colorHSL h s l = colorRGB r g b
+ where (r,g,b) = hsl_to_rgb h s l
+
+asColorRef :: Color -> Win32.COLORREF
+
+asColorRef (ColorRGB r g b) = Win32.rgb r' g' b'
+ where
+  r' = floor (255*r) `mod` 256
+  g' = floor (255*g) `mod` 256
+  b' = floor (255*b) `mod` 256
+
 -- Maybe move to AffineSpace class when we have type relations.
-interpolateColor :: Color -> Color -> RealVal -> Color
-interpolateColor (RGB r1 g1 b1) (RGB r2 g2 b2) t =
- RGB (f r1 r2) (f g1 g2) (f b1 b2)
+-- Note that suffix "RGB", meaning interpolation of RGB coordinates
+interpolateColorRGB :: Color -> Color -> RealVal -> Color
+interpolateColorRGB (ColorRGB r1 g1 b1) (ColorRGB r2 g2 b2) t =
+ colorRGB (f r1 r2) (f g1 g2) (f b1 b2)
  where
   f x y = t*x + t'*y
   t' = 1 - t
 
-gray :: Fraction -> Color
-gray g = RGB g g g
+interpolateColorHSL :: Color -> Color -> RealVal -> Color
+interpolateColorHSL col col' t =
+ colorHSL (f h h') (f s s') (f l l')
+ where
+  f x y = t*x + t'*y
+  t' = 1 - t
+  (h ,s ,l ) = colorHSLCoords col
+  (h',s',l') = colorHSLCoords col'
+
+grey :: Fraction -> Color
+grey g = ColorRGB g g g
+
 
 white, black, red, green, blue :: Color
 lightBlue, royalBlue, yellow, brown :: Color
-black = RGB 0 0 0
-white = RGB 1 1 1
-red   = RGB 1 0 0
-green = RGB 0 1 0
-blue  = RGB 0 0 1
-lightBlue = RGB 0 1 1
-royalBlue = RGB 0 0 0.5
-yellow    = RGB 1 1 0
-brown     = RGB 0.5 0 0
+black = grey 0
+white = grey 1
+red   = ColorRGB 1 0 0
+green = ColorRGB 0 1 0
+blue  = ColorRGB 0 0 1
+lightBlue = ColorRGB 0 1 1
+royalBlue = ColorRGB 0 0 0.5
+yellow    = ColorRGB 1 1 0
+brown     = ColorRGB 0.5 0 0
 
-clamp mi ma v = max mi (min ma v)
-
-transformHSL :: RealVal
-             -> Fraction
-	     -> Fraction
-	     -> Color
-	     -> Color
-transformHSL dh ds dl (HSL h s l) = 
-  HSL 
-   (clamp 0 360 (h+dh))
-   (clamp 0 1 (s+ds)) 
-   (clamp 0 1 (l+dl))
-transformHSL dh ds dl (RGB r g b) =
-  let (h,s,l) = rgb_to_hsl r g b in
-  HSL
-   (clamp 0 360 (h+dh))
-   (clamp 0 1 (s+ds)) 
-   (clamp 0 1 (l+dl))
-
-stronger :: Fraction -> Color -> Color
-stronger d = transformHSL 0 d d
-
-duller :: Fraction -> Color -> Color
-duller d = transformHSL 0 (-d) (-d)
-
-darker :: Fraction -> Color -> Color
-darker d = transformHSL 0 d 0
-
-brighter :: Fraction -> Color -> Color
-brighter d = transformHSL 0 (-d) 0
-
-shade :: Fraction -> Color -> Color
-shade d = transformHSL 0 1 (-d)
-
-toRGB :: Color -> Color
-toRGB c =
-  case c of
-   RGB _ _ _ -> c
-   HSL h s l ->
-    let (r,g,b) = hsl_to_rgb h s l in
-    RGB r g b
-
-toHSL :: Color  -> Color
-toHSL c =
- case c of
-  HSL _ _ _ -> c
-  RGB r g b ->
-   let (h,s,l) = rgb_to_hsl r g b in
-   HSL h s l
 
 
 {-
@@ -183,12 +161,30 @@ rgb_to_hsl r g b =
     (h,s,l)
 
 
+transformHSL :: RealVal -> Fraction -> Fraction
+	     -> Color -> Color
+
+transformHSL dh ds dl color = 
+  colorHSL
+   (clamp 0 360 (h+dh))
+   (clamp 0 1 (s+ds)) 
+   (clamp 0 1 (l+dl))
+  where
+   (h, s, l) = colorHSLCoords color
+   clamp mi ma v = mi `max` (ma `min` v)
 
 
+stronger :: Fraction -> Color -> Color
+stronger d = transformHSL 0 d d
 
+duller :: Fraction -> Color -> Color
+duller d = transformHSL 0 (-d) (-d)
 
+darker :: Fraction -> Color -> Color
+darker d = transformHSL 0 d 0
 
+brighter :: Fraction -> Color -> Color
+brighter d = transformHSL 0 (-d) 0
 
-
-
-
+shade :: Fraction -> Color -> Color
+shade d = transformHSL 0 1 (-d)

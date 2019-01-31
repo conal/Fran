@@ -1,124 +1,121 @@
 -- Higher-level interaction
 --
--- Last modified Tue Nov 05 14:48:16 1996
+-- Last modified Mon Jul 14 17:56:39 1997
 
 module Interaction where
 
-import IORef(Ref,newRef,getRef,setRef)
-import qualified PrimInteract as Prim
---import Interval
+import BaseTypes
 import Behavior
+import qualified StaticTypes as S
+import Vector2B
+--import qualified VSBehavior as VSB
+import Point2B
 import Event
-import Until
-import VectorSpace
-import Vector2
-import Vector2B (Vector2B)
-import Point2
-import Point2B (Point2B)
-import qualified Point2B (linearInterpolate2)
--- import Image (Image)
--- import Point2B
--- import qualified PickImage
+import User
+import Trace
+import Win32 (VKey)
+import Monad (when)
 
-lbp,rbp :: Time -> Event (Event ())
-lbp t0 = Prim.lbp t0 *=> lbr
-rbp t0 = Prim.rbp t0 *=> rbr
 
-lbr, rbr :: Time -> Event ()
+-- Time relative to user
 
-lbr t1 = Prim.lbr t1 -=> ()
-rbr t1 = Prim.rbr t1 -=> ()
+userTime :: User -> TimeB
+userTime user = timeSince (startTime user)
 
-keyPress :: Time -> Event (Char, Event ())
-keyPress t0 =
-  Prim.keyPress t0 +=> \ t1 ch ->
-   (ch, (Prim.keyRelease `suchThat` (== ch)) t0 -=> ())
+filterButton :: Bool -> Bool  ->  User -> Event ()
 
--- Piecewise-constant mouse behavior 
-
-mouse :: Time -> Point2B
-mouse t0 = mouse' t0 origin2
+filterButton wantLeft wantDown u = u `suchThat` f -=> ()
  where
-  mouse' t0 p =
-   lift0 p `untilB` (Prim.getEvent Prim.mousePos) t0 +=> mouse'
+  f (Button isLeft isDown _) = wantLeft == isLeft && wantDown == isDown
+  f _			     = False
 
 
+lbp, rbp, lbr, rbr :: User -> Event ()
 
-{- Piecewise-linear mouse behavior
+lbp = filterButton True  True
+rbp = filterButton False True
+lbr = filterButton True  False
+rbr = filterButton False False
 
--- This one should be better, but it's too jerky.
 
--- How long to wait before giving up on mouse motion
-mouseMotionTimeOut = 0.2 :: Time
+filterKey :: Bool -> User -> Event VKey
 
-mouse :: Time -> Point2B
-mouse t0 = mouse' t0 origin2 (t0-1) origin2
+filterKey wantDown u = u `filterE` f
  where
-  mouse' t0 p0 t1 p1 =
-   -- Follow a linear interpolation until we get another motion event.  If we
-   -- don't get one before long, pretend we saw the same position.
-   -- 
-   -- Efficiency bug: when the mouse is quiet, we keep spinning.  Fix by
-   -- adding an initial peaceful state.
-   Point2B.linearInterpolate2 (lift0 p0) (lift0 p1)
-                              ((time - lift0 t0) / lift0 (t1-t0)) `untilB`
-    (getEvent mousePos t1 .|. (timeIs (t1+0.2) -=> p1)) +=> mouse' t1 p1
+  f (Key isDown key)
+    | isDown == wantDown = Just key
+    | otherwise		 = Nothing
+  f _			 = Nothing
 
--}
 
-viewSize :: Time -> Vector2B
-viewSize t0 = viewSz' t0 initialSize
+keyPressAny, keyReleaseAny :: User -> Event VKey
+
+keyPressAny   = filterKey True
+keyReleaseAny = filterKey False
+
+keyPress, keyRelease :: VKey -> User -> Event ()
+
+keyPress   wantKey u = keyPressAny u   `suchThat` (== wantKey) -=> ()
+keyRelease wantKey u = keyReleaseAny u `suchThat` (== wantKey) -=> ()
+
+
+resize :: User -> Event S.Vector2
+resize u = u `filterE` f
  where
-  viewSz' t0 v =
-    lift0 v `untilB` Prim.getEvent Prim.viewSz t0 +=> viewSz'
-  -- Hack: we don't really know the initial size here.  This won't work
-  -- for ActiveX controls
-  initialSize = vector2XY 2 2
+  f (Resize size) = Just size
+  f _		  = Nothing
 
-fps :: Time -> Behavior Double
-fps t0 = fps' t0 0
+mouseMove :: User -> Event S.Point2
+mouseMove u = u `filterE` f
  where
-  fps' t0 count =
-    lift0 count `untilB` Prim.getEvent Prim.fps t0 +=> fps'
+  f (MouseMove pos) = --trace ("MouseMove " ++ show pos ++ "\n")$
+		      Just pos
+  f _		    = --trace "not mouse move\n"$
+		      Nothing
+
+updateDone :: User -> Event Time
+updateDone u = u `filterE` f
+ where
+  f (UpdateDone dur) = Just dur
+  f _		     = Nothing
+
+
+userTimeIs :: Time -> User -> Event ()
+
+userTimeIs dt u = timeIs (startTime u + dt)
 
 {-
-
-visible :: Behavior Image -> Point2B -> Behavior Bool
-visible img pointB = 
- Behavior (sample) (noI "visible")
+userTimeIs te u = withTimeE u `filterE` f
  where
-  sample t = PickImage.pick (img `at` t) (pointB `at` t)
-
-when :: (Time -> Event a) -> Behavior Bool -> Time -> Event a
-when evg predB t0 = 
- let
-  ev = evg t0
-  evv = unsafePerformIO (newRef ev)
-
-  evt t =
-     case occ (unsafePerformIO (getRef evv)) t of
-       Nothing -> Nothing
-       Just (tVal,x) ->
-         if predB `at` tVal then
-            Just (tVal,x)
-         else
-            unsafePerformIO (
-               setRef evv (evg tVal) >>
-               return (evt t))
- in
- mkEvt t0 (evt)
-
-moveable :: Behavior Image -> Time -> Behavior Image
-moveable img t0 =
-    img `untilB` picker img t0 ==> \ (offset, release) ->
-      let movingImage = translate (point2Vec offset) img in
-        movingImage `untilB`
-          (release `snapshot` movingImage) ==> snd ==> lift0 +=> flip (moveable)
-
-
-picker :: Behavior Image -> Time -> Event (Point2B, Event Point2)
-picker img t0 =
-  ((lbp `when` visible img (mouse t0)) t0 `snapshot` (mouse t0))
-    ==> \ (release, grabPos) -> (((mouse t0) - lift0 grabPos), release)
-
+  f (_, t1)  |  t1 > uStart+te = Just ()
+             |  otherwise      = Nothing
+  uStart = startTime u
 -}
+
+
+-- Piecewise-constant input behaviors.  Problem: the initial values are
+-- bogus.
+
+mouse :: User -> Point2B
+mouse u = loop (S.origin2, u)
+ where
+  loop :: (S.Point2, User) -> Point2B
+  loop (p, u) =
+   --trace ("mouse to " ++ show p ++ "\n") $
+   constantB p `untilB` (mouseMove u `afterE` u) ==> loop
+
+viewSize :: User -> Vector2B
+viewSize u = loop (S.vector2XY 2 2, u)
+ where
+  loop (size, u) =
+    -- Should be able to use `untilB` here, but I get
+    -- Behavior Vector2 is not an instance of class "GBehavior".  Why?
+    -- VSB.constantB size `VSB.UntilB` (resize u ==> loop)
+    constantB size `untilB` (resize u `afterE` u) ==> loop
+
+updatePeriod :: User -> Behavior Double
+updatePeriod u = loop (0.1, u)
+ where
+  loop (dur, u) =
+    --trace ("updatePeriod: " ++ show dur ++ " at " ++ show (startTime u) ++ "\n") $
+    constantB dur `untilB` (updateDone u `afterE` u) ==> loop

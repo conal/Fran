@@ -1,6 +1,6 @@
 -- Vector spaces
 -- 
--- Last modified Sun Nov 10 16:16:30 1996
+-- Last modified Wed Apr 16 07:29:48 1997
 -- 
 -- Doesn't work as well as we'd like.  Lacking type relations, we have to
 -- hardwire the scalar type, which means we can't use behaviors, so we
@@ -11,18 +11,13 @@
 
 module VectorSpace where
 
-import Force 
+import BaseTypes
 
 infixr 7 *^, ^/, `dot`
 infixl 6 ^+^, ^-^
 
--- Vector space type class.  Should really be a binary type relation,
--- rather than having Double hardwired.
-
-type Scalar = Double
-
 class VectorSpace v where
-  zeroVector         :: v
+  zeroVector  :: v
   (*^)        :: Scalar -> v -> v
   (^+^)       :: v -> v -> v
   dot         :: v -> v -> Scalar
@@ -38,7 +33,7 @@ v ^/ s = (1/s) *^ v
 
 
 negateVector :: VectorSpace v =>  v -> v
-negateVector v = -1 *^ v
+negateVector v = (-1) *^ v
 
 magnitudeSquared :: VectorSpace v =>  v -> Scalar
 magnitudeSquared v = v `dot` v
@@ -87,7 +82,7 @@ instance VectorSpace Float where
 
 instance  VectorSpace a => Num a  where
   (+)      = ^+^
-  negate v = -1 *^ v
+  negate v = (-1) *^ v
   -- (-) follows from negate and +
 
 -}

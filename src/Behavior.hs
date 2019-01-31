@@ -1,77 +1,148 @@
--- Non-reactive behaviors
+-- Non-reactive behaviors, represented as infinite "behavior trees" of
+-- sample values.  This version doesn't do interval analysis.
 -- 
--- Last modified Fri Nov 08 09:07:21 1996
--- 
+-- Last modified Tue Jul 15 12:28:38 1997
+--
 -- To do:
---   + Dynamic constant folding
+--
+--  + Re-examine the notion of start times for events.  The current
+--    implementation is bogus!
+--  + untilB: Try to shift work from sampling to construction.
+--  + This representation space leaks in Hugs, and I don't know why.  See
+--    notes in the test section.
+--  + Integration
+--  + Finish timeTransform.  See notes.
+--  + Make sampling do no cons'ing.  See note in "at" definition.
 
-module Behavior (
-        Time, Behavior, at, during,
-        lift0, lift1, lift2, lift3, lift4, liftLs,
-	BoolB, TimeB,
-        time, timeTransform,
-        (^*),  (^^*),
-        (==*), (<*), (<=*) , (>=*), (>*),
-        cond, notB, (&&*), (||*),
-        pairB, fstB, sndB, 
-        pairBSplit,
-        nilB, consB, headB, tailB,
-        showB,  
 
-        fromIntegerB,
-        toRationalB,
-        toIntegerB,
-        evenB,
-        oddB,
-        toIntB,
-        properFractionB,
-        truncateB,
-        roundB,
-        ceilingB,
-        floorB
-        ) where
+module Behavior where
 
 import BaseTypes
-import Fuzzy
-import VectorSpace
+import Event
+import Trace
 
 infixr 8  ^*, ^^*
-infix  4 ==*, <*, <=* , >=*, >*
-infixr 3 &&*
-infixr 2 ||*
+infix  4  ==*, <*, <=* , >=*, >*
+infixr 3  &&*
+infixr 2  ||*
+
+infixr 0  $*
 
 
--- A behavior maps a time to a value plus and another behavior:
 
-type Sampler a = Time -> (a, Behavior a)
-type ISampler a = TimeI -> (Fuzzy a, Behavior a)
+-- A btree (pronounced "bee tree", for "behavior tree") represents a
+-- behavior over an interval.  It has a midpoint value and two sub-btrees,
+-- with the interval and its start and end values being known from
+-- context.
 
-data Behavior a = Behavior (Sampler a) (ISampler a)
+data BTree a = BTree a (BTree a) (BTree a)
 
--- with the understanding that the resulting behavior be given times no
--- earlier than the one that produced it (a monotonicity property).
 
--- Simon PJ pointed out that this representation should deforest much more
--- easily than my previous representation as a function from time streams
--- to value streams, and should be nicely susceptible to lazy memoization.
+-- A behavior is represented by a single constant, or by a stack of
+-- btrees, each with a start time.
 
--- A behavior is sampled via the "at" and "during" functions:
+data Behavior a
+  = ConstantB a
+  | BStack [(Time, BTree a)]
+  | UntilB (Behavior a) (Event (Behavior a))
 
-at :: Behavior a -> Sampler a
 
-(Behavior f fi `at`) = f
+instance (Show a) => Show (Behavior a) where
+  showsPrec p (ConstantB x) = showString "ConstantB " . showsPrec 10 x
+  showsPrec p (BStack _)    = showString "<<BStack>>"
+  showsPrec p (UntilB b e)  = showParen (p > 1) $
+                              shows b . showString " `UntilB` " . shows e
 
-during :: Behavior a -> ISampler a
 
-(Behavior f fi `during`) = fi
+instance GBehavior (Behavior a) where
+  untilB          = UntilB              -- For now
+  b `afterTime` t = snd (b `at` t)
+
+  startTime (ConstantB _)       = minTime
+  startTime (BStack ((t0,_):_)) = t0
+  -- When does an UntilB start?
+  startTime (b `UntilB` e)      = startTime b -- `max` startTime e
+
+
+-- The abstract interface: sample a behavior with a time to get a new time
+-- and behavior.
+
+at :: Behavior a -> Time -> (a, Behavior a)
+
+b@(ConstantB x) `at` _ = (x, b)
+
+BStack stack `at` t = --trace ("Sampling BStack at " ++ show t ++ "\n") $
+                      sampleStack stack
+ where
+  sampleStack stack @((t0, BTree aMid left right) :
+              stack'@((t1, _) : _))
+{-
+    -- Time before info: should never happen.  Maybe change to "t <= t0", but
+    -- we occasionally need to sample at start time, as in integration and
+    -- spritification.
+    | t < t0     =  error $ "{Behavior} at: time too small. " ++
+                    show t ++ " < " ++ show t0
+-}
+    -- First btree irrelevant: skip over
+    | t > t1     =  --trace "s" $
+                    sampleStack stack'
+    -- First interval too long: sub-divide.  Idea: stash this remainder
+    -- list in the BTree to avoid re-creating it.  Ideally, sampling should
+    -- not cons.  (Might be okay as is.)  Take special care for machine
+    -- epsilon, especially with Hugs, whose "doubles" are really single
+    -- precision.  Only subdivide if real progress is made for both halves.
+
+    | dt > minStep && tMid - t0 < dt && t1 - tMid < dt =
+        (if (t < t0) then trace "{Behavior} at: time too small." else id)$
+        --trace ("d" {- ++ show (t0,t1,dt,tMid-t0) -}) $
+        --tMid `seq` 
+        sampleStack ((t0, left) : (tMid, right) : stack')
+    -- Close enough: return value and remainder.  Idea: stash this pair in
+    -- the BTree to avoid re-creating it.
+
+    | otherwise =  --trace ". " $
+                   (aMid, BStack stack)
+   where
+     dt   = t1 - t0
+     tMid = t0 + dt / 2
+
+  -- Min step size for sampling.  Experiment with this one.
+  minStep = 1.0e-4
+
+
+-- Simple implementation of UntilB.  Try to shift work from sampling to
+-- construction.
+
+(b `UntilB` e) `at` t =
+  --trace ("UntilB/at " ++ show t ++ " ") $
+  case mbOcc of
+    Nothing       -> --trace "non-occurrence\n" $
+                     (x, bNext `UntilB` eNext)
+    Just (te, b') -> --trace "occurrence\n" $
+                     b' `at` t
+ where
+  (mbOcc, eNext) = e `occ` t
+  (x,     bNext) = b `at`  t
+
 
 -- We define the usual assortment of behavior primitives and building
--- blocks.  "time" maps a time to itself, yielding itself as the
--- "new" behavior.
+-- blocks.
 
-time :: Behavior Time
+-- Our bstacks need start times, so no plain old "time"
 
-time = Behavior (\ t -> (t, time)) (\ iv -> (iv , time))
+timeSince :: Time -> Behavior Time
+
+timeSince t0 = BStack (trees t0 1)
+ where
+   trees t1 dt = -- t1 `seq` dt `seq`
+                 (t1, tree t1 dt) : trees (t1+dt) (2 * dt)
+
+   tree t1 dt = -- t1 `seq` dt `seq`
+                BTree (tMid-t0) (tree t1 halfDt) (tree tMid halfDt)
+    where
+      halfDt = dt / 2
+      tMid   = t1 + halfDt
+
 
 -- Time transformation is semantically equivalent to function composition.
 -- Upon sampling, the new behavior is constructed from the new behavior
@@ -79,91 +150,180 @@ time = Behavior (\ t -> (t, time)) (\ iv -> (iv , time))
 
 timeTransform :: Behavior a -> Behavior Time -> Behavior a
 
-b `timeTransform` tt = Behavior sample isample
- where
-  sample t = (bVal, b' `timeTransform` tt')
-   where
-    (ttVal, tt') = tt `at` t
-    (bVal , b' ) = b  `at` ttVal
-  isample iv = (bIv, b' `timeTransform` tt')
-   where
-    (ttIv, tt') = tt `during` iv
-    (bIv,  b' ) = b  `during` ttIv
+timeTransform b@(ConstantB _) _ = b
+
+timeTransform b (ConstantB t) = ConstantB (fst (b `at` t))
+
+-- How to implement the non-constant case?  In particular, what's the
+-- start time?  Maybe the time transform's start time, but what if the
+-- pre-transformed behavior doesn't start at the time transform's
+-- transformed start time?  Other than this possible gotcha, this function
+-- is not hard to implement, I think, assuming monotonically increasing
+-- time transform.
+
+timeTransform b tt = 
+  error "{Behavior} timeTransform: not implemented, sorry"
 
 
--- Lifting is not quite as simple as before, but is still reasonable.
+-- The basics for non-reactivity.  These guys are S and K !!
+
+constantB :: a -> Behavior a
+($*) :: Behavior (a -> b) -> Behavior a -> Behavior b
+
+
+-- Lifting.  All derived from constantB and ($*) !!
+
 
 lift0 :: a -> Behavior a
 lift1 :: (a -> b) ->
-         (Fuzzy a -> Fuzzy b) ->
          Behavior a -> Behavior b
 lift2 :: (a -> b -> c) ->
-         (Fuzzy a -> Fuzzy b -> Fuzzy c) ->
          Behavior a -> Behavior b -> Behavior c
 lift3 :: (a -> b -> c -> d) ->
-         (Fuzzy a -> Fuzzy b -> Fuzzy c -> Fuzzy d) ->
          Behavior a -> Behavior b -> Behavior c -> Behavior d
 lift4 :: (a -> b -> c -> d -> e) -> 
-         (Fuzzy a -> Fuzzy b -> Fuzzy c -> Fuzzy d -> Fuzzy e) -> 
          Behavior a -> Behavior b -> Behavior c -> Behavior d -> Behavior e
 
--- Zero-ary lifting ignores the given time, and gives back the same
--- value/behavior pair:
+-- etc
 
-lift0 x = b
-  where
-    b     = Behavior (\ t -> vPair) (\ iv -> iPair)
-    vPair = (x, b)
-    iPair = (singleI x, b)
 
--- For n>0, n-ary lifting samples the component behaviors applies the
--- unlifted function to the resulting values, and applies the lifted
--- function to the resulting behaviors.
+-- lift0, i.e., K
 
-lift1 f fi b = Behavior sample isample
-  where sample t = (f x, lift1 f fi b')
-          where (x, b') = b `at` t
-        isample iv = (fi xi, lift1 f fi b')
-          where (xi, b') = b `during` iv
+constantB = ConstantB
 
-lift2 f fi b1 b2 = Behavior sample isample
-  where sample t = (f x1 x2, lift2 f fi b1' b2')
-          where (x1, b1') = b1 `at` t
-                (x2, b2') = b2 `at` t
-        isample iv = (fi xi1 xi2, lift2 f fi b1' b2')
-          where (xi1, b1') = b1 `during` iv
-                (xi2, b2') = b2 `during` iv
+-- lift2 ($), i.e., S
 
-lift3 f fi b1 b2 b3 = Behavior sample isample
-  where sample t = (f x1 x2 x3, lift3 f fi b1' b2' b3')
-          where (x1, b1') = b1 `at` t
-                (x2, b2') = b2 `at` t
-                (x3, b3') = b3 `at` t
-        isample iv = (fi xi1 xi2 xi3, lift3 f fi b1' b2' b3')
-          where (xi1, b1') = b1 `during` iv
-                (xi2, b2') = b2 `during` iv
-                (xi3, b3') = b3 `during` iv
+(ConstantB f) $* (ConstantB x) = ConstantB (f x)
 
-lift4 f fi b1 b2 b3 b4 = Behavior sample isample
-  where sample t = (f x1 x2 x3 x4, lift4 f fi b1' b2' b3' b4')
-          where (x1, b1') = b1 `at` t
-                (x2, b2') = b2 `at` t
-                (x3, b3') = b3 `at` t
-                (x4, b4') = b4 `at` t
-        isample iv = (fi xi1 xi2 xi3 xi4, lift4 f fi b1' b2' b3' b4')
-          where (xi1, b1') = b1 `during` iv
-                (xi2, b2') = b2 `during` iv
-                (xi3, b3') = b3 `during` iv
-                (xi4, b4') = b4 `during` iv
+-- Use this optimization with the explicit definition lift1 below (not in
+-- terms of ($*), and then optimize here.  I think it will then kick in
+-- for behaviors like 3+b.  Think about how to do b+3 efficiently.
 
--- and so on.
+ConstantB f $* b = lift1 f b
 
-liftLs :: [Behavior a] -> Behavior [a]
-liftLs bs = Behavior sample (noI "liftLS")
-  where
-    sample t = (xs, liftLs bs')
-      where (xs, bs') = unzip (map (`at` t) bs)
+-- fb $* ConstantB x =  ???
 
+-- Move UntilB inside of $*
+
+(fb `UntilB` e) $* xb = 
+  (fb $* xb) `untilB` (e `afterE` xb) ==> \ (fb',xb') -> fb' $* xb'
+
+fb $* (xb `UntilB` e) = 
+  (fb $* xb) `untilB` (e `afterE` fb) ==> \ (xb',fb') -> fb' $* xb'
+
+
+-- Other cases
+
+fb $* xb = BStack (stacks tStart fb xb 1)
+ where
+   tStart = startTime fb `max` startTime xb
+
+   stacks tStart fb xb dt =
+     -- I think we have to force these so they cannot build up into huge
+     -- postponed computations.  Experiment with and without the `seq`s.
+     -- Try with all, none, just tNext, and just fb&xb.
+     --tNext `seq` fb `seq` xb `seq`
+     (tStart, tree tStart fb xb dt) :
+     stacks tNext (fb `afterTime` tNext) (xb `afterTime` tNext) (2 * dt)
+    where
+      tNext = tStart + dt
+
+   tree tStart fb xb dt =
+     --tMid `seq` fb `seq` xb `seq`       -- see previous comment
+     BTree (fMid xMid)
+           (tree tStart fb  xb  halfDt)
+           (tree tMid   fb' xb' halfDt)
+    where
+      halfDt      = dt / 2
+      tMid        = tStart + halfDt
+      (fMid, fb') = fb `at` tMid
+      (xMid, xb') = xb `at` tMid
+
+
+lift0                        = constantB      {-
+lift1 f b1                   = lift0 f $* b1   -}
+lift2 f b1 b2                = lift1 f b1 $* b2
+lift3 f b1 b2 b3             = lift2 f b1 b2 $* b3
+lift4 f b1 b2 b3 b4          = lift3 f b1 b2 b3 $* b4
+lift5 f b1 b2 b3 b4 b5       = lift4 f b1 b2 b3 b4 $* b5
+lift6 f b1 b2 b3 b4 b5 b6    = lift5 f b1 b2 b3 b4 b5 $* b6
+lift7 f b1 b2 b3 b4 b5 b6 b7 = lift6 f b1 b2 b3 b4 b5 b6 $* b7
+
+
+-- Alternate definition of lift1.  See comments above.  Test sometime to
+-- see if it helps.
+
+lift1 f (ConstantB x1) = ConstantB (f x1)
+
+-- Mimic the structure of stack1
+
+lift1 f (BStack stack1) = BStack (map appStack stack1)
+ where
+   appStack (tStart, tree) = (tStart, liftBTree tree)
+
+   liftBTree (BTree aMid left right) =
+      BTree (f aMid) (liftBTree left) (liftBTree right)
+
+-- Move UntilB inside of lift1
+
+lift1 f (b `UntilB` e) = lift1 f b `untilB` e ==> lift1 f
+
+
+{- 
+
+-- This version makes a bstack, and so does the work at construction time,
+-- rather than sampling.  Not good, however, for behaviors that are
+-- sometimes constant, since it forces construction of hugs bstacks with
+-- lots of the same values.
+
+untilBB :: Behavior a -> Event (Behavior a) -> Behavior a
+
+-- WORKING HERE
+
+b `untilBB` e  = BStack (stacks tStart b e 1)
+ where
+   tStart = startTime b `max` startTime e
+
+   stacks tStart b e dt =
+      -- Maybe force computation of tStart, b, e here
+      (tStart, tree tStart b e dt) :
+      stacks tNext (b `afterTimeB` tNext) (e `afterTimeE` tNext) (2 * dt)
+    where
+      tNext = tStart + dt
+
+   tree tStart b e dt =
+     case mbOcc of
+       Nothing    -> bStackify tStart b dt
+       otherwise  -> ???
+    where
+      mbOcc      = fst (e `occ` (tStart+dt))
+      (x, bNext) = b `at`  t
+
+-}
+
+
+accumB :: GBehavior bv => (bv -> b -> bv) -> bv -> Event b -> bv
+
+accumB f soFar e =
+  soFar `untilB` (withNextE e `afterE` soFar) ==> \ ((x,e'),soFar') ->
+  accumB f (f soFar' x) e'
+
+stepper :: a -> Event a -> Behavior a
+
+-- stepper x0 e = constantB x0 `untilB` repeatE (e ==> constantB)
+
+stepper x0 e = switcher (constantB x0) (e ==> constantB)
+
+switcher :: GBehavior bv => bv -> Event bv -> bv
+
+switcher b0 e  =  b0 `untilB` repeatE e
+
+
+-- repeatE :: Event (Behavior a) -> Event (Behavior a)
+
+repeatE :: GBehavior bv => Event bv -> Event bv
+
+repeatE e = withNextE e ==> \ (b', e') -> b' `untilB` repeatE e'
 
 
 -- End of primitives
@@ -172,6 +332,9 @@ liftLs bs = Behavior sample (noI "liftLS")
 
 type BoolB = Behavior Bool
 type TimeB = Behavior Time
+type RealB = Behavior RealVal
+type IntB = Behavior Int
+type StringB = Behavior String
 
 -- Now we define a bazillion liftings.  The naming policy is to use the
 -- same name as the unlifted function if overloaded and the types permit.
@@ -192,17 +355,15 @@ noOverloadBId = noOverloadB "B"
 noOverloadBOp = noOverloadB "*"
 
 
-instance (Show a) => Show (Behavior a)
-
 -- Needed because Num derives from Eq and Show.  Similarly below.
 instance  (Eq a) => Eq (Behavior a)  where
   (==) = noOverloadBOp "=="
   (/=) = noOverloadBOp "/="
 
-(==*),(/=*) :: (Ord a, Eq a) => Behavior a -> Behavior a -> BoolB
+(==*),(/=*) :: Eq a => Behavior a -> Behavior a -> BoolB
 
-(==*) = lift2 (==) (==#)
-(/=*) = lift2 (/=) (/=#)
+(==*) = lift2 (==)
+(/=*) = lift2 (/=)
 
 
 instance  Ord a => Ord (Behavior a)  where
@@ -210,44 +371,47 @@ instance  Ord a => Ord (Behavior a)  where
   (<=)  =  noOverloadBOp "<="
   (>)   =  noOverloadBOp ">"
   (>=)  =  noOverloadBOp ">="
-  min   =  lift2 min min
-  max   =  lift2 max max
+  min   =  lift2 min
+  max   =  lift2 max
 
 (<*),(<=*),(>=*),(>*) :: Ord a => Behavior a -> Behavior a -> BoolB
 
-(<*)  = lift2 (<)  (<#)
-(<=*) = lift2 (<=) (<=#)
-(>=*) = lift2 (>=) (>=#)
-(>*)  = lift2 (>)  (>#)
+(<*)  = lift2 (<)
+(<=*) = lift2 (<=)
+(>=*) = lift2 (>=)
+(>*)  = lift2 (>)
 
 
-instance  (Ord a, Num a) => Num (Behavior a)  where
-  (+)          =  lift2 (+) (+)
-  (*)          =  lift2 (*) (*)
-  negate       =  lift1 negate negate
-  abs          =  lift1 abs abs
-  fromInteger  =  lift0 . fromInteger
-  fromInt      =  lift0 . fromInt
+instance  Num a => Num (Behavior a)  where
+  (+)          =  lift2 (+)
+  (*)          =  lift2 (*)
+  negate       =  lift1 negate
+  abs          =  lift1 abs
+  fromInteger  =  constantB . fromInteger
+  fromInt      =  constantB . fromInt
 
 fromIntegerB :: Num a => Behavior Integer -> Behavior a
-fromIntegerB = lift1 fromInteger fromIntegerI
+fromIntegerB = lift1 fromInteger
+
+fromIntB :: Num a => Behavior Int -> Behavior a
+fromIntB = lift1 fromInt
 
 
 instance  Real a => Real (Behavior a)  where
   toRational = noOverloadBId "toRational"
 
 toRationalB ::  Real a => Behavior a -> Behavior Rational
-toRationalB = lift1 toRational toRationalI
+toRationalB = lift1 toRational
 
 
 instance Enum a => Enum (Behavior a)
 instance (Integral a) => Integral (Behavior a) where
-    quot      = lift2 quot quot
-    rem       = lift2 rem rem
-    div       = lift2 div div
-    mod       = lift2 mod mod
-    quotRem x y  = pairBSplit (lift2 quotRem quotRemI x y)
-    divMod  x y  = pairBSplit (lift2 divMod  divModI  x y)
+    quot      = lift2 quot
+    rem       = lift2 rem
+    div       = lift2 div
+    mod       = lift2 mod
+    quotRem x y  = pairBSplit (lift2 quotRem x y)
+    divMod  x y  = pairBSplit (lift2 divMod  x y)
     toInteger = noOverloadBId "toInteger"
     even      = noOverloadBId "even"
     odd       = noOverloadBId "odd"
@@ -255,38 +419,38 @@ instance (Integral a) => Integral (Behavior a) where
 
 toIntegerB :: Integral a => Behavior a -> Behavior Integer
 evenB, oddB :: Integral a => Behavior a -> BoolB
-toIntB      :: Integral a => Behavior a -> Behavior Int
+toIntB      :: Integral a => Behavior a -> IntB
 
-toIntegerB = lift1 toInteger toIntegerI
-evenB      = lift1 even evenI
-oddB       = lift1 odd oddI
-toIntB     = lift1 toInt toIntI
+toIntegerB = lift1 toInteger
+evenB      = lift1 even
+oddB       = lift1 odd
+toIntB     = lift1 toInt
 
-instance (Ord a, Fractional a) => Fractional (Behavior a) where
-  fromDouble   =  lift0 . fromDouble
-  fromRational =  lift0 . fromRational
-  (/)          =  lift2 (/) (/)
+instance Fractional a => Fractional (Behavior a) where
+  fromDouble   =  constantB . fromDouble
+  fromRational =  constantB . fromRational
+  (/)          =  lift2 (/)
 
-instance (Ord a, Floating a) => Floating (Behavior a) where
-  sin  =  lift1 sin sin
-  cos  =  lift1 cos cos
-  tan  =  lift1 tan tan
-  asin =  lift1 asin asin
-  acos =  lift1 acos acos
-  atan =  lift1 atan atan
-  sinh =  lift1 sinh sinh
-  cosh =  lift1 cosh cosh
-  tanh =  lift1 tanh tanh
-  asinh =  lift1 asinh asinh
-  acosh =  lift1 acosh acosh
-  atanh =  lift1 atanh atanh
+instance Floating a => Floating (Behavior a) where
+  sin  =  lift1 sin
+  cos  =  lift1 cos
+  tan  =  lift1 tan
+  asin =  lift1 asin
+  acos =  lift1 acos
+  atan =  lift1 atan
+  sinh =  lift1 sinh
+  cosh =  lift1 cosh
+  tanh =  lift1 tanh
+  asinh =  lift1 asinh
+  acosh =  lift1 acosh
+  atanh =  lift1 atanh
 
-  pi   =  lift0 pi
-  exp  =  lift1 exp exp
-  log  =  lift1 log log
-  sqrt =  lift1 sqrt sqrt
-  (**) =  lift2 (**) (**)
-  logBase = lift2 logBase logBase
+  pi   =  constantB pi
+  exp  =  lift1 exp
+  log  =  lift1 log
+  sqrt =  lift1 sqrt
+  (**) =  lift2 (**)
+  logBase = lift2 logBase
 
 
 -- The types are too general here.  For all (Integral b), we need to
@@ -303,11 +467,12 @@ properFractionB   :: (RealFrac a, Integral b) => Behavior a -> Behavior (b,a)
 truncateB, roundB :: (RealFrac a, Integral b) => Behavior a -> Behavior b
 ceilingB, floorB  :: (RealFrac a, Integral b) => Behavior a -> Behavior b
 
-properFractionB = lift1 properFraction properFractionI
-truncateB = lift1 truncate truncateI
-roundB    = lift1 round roundI
-ceilingB  = lift1 ceiling ceilingI
-floorB    = lift1 floor floorI
+properFractionB = lift1 properFraction
+truncateB = lift1 truncate
+roundB    = lift1 round
+ceilingB  = lift1 ceiling
+floorB    = lift1 floor
+
 
 {-
 instance  RealFloat a => RealFloat (Behavior a)  where
@@ -316,80 +481,134 @@ instance  RealFloat a => RealFloat (Behavior a)  where
 
 {- We could also add these.  Need type declarations.
 
-floatRadixB      = lift1 floatRadix floatRadixI
-floatDigitsB     = lift1 floatDigits floatDigitsI
-floatRangeB      = pairBSplit . lift1 floatRange floatRangeI
-decodeFloatB     = pairBSplit . lift1 decodeFloat decodeFloatI
-encodeFloatB     = lift2 encodeFloat encodeFloatI
-exponentB        = lift1 exponent exponentI
-significandB     = lift1 significand significandI
-scaleFloatB      = lift2 scaleFloat scaleFloatI
-isNaNB           = lift1 isNaN isNaNI
-isInfiniteB      = lift1 isInfinite isInfiniteI
-isDenormalizedB  = lift1 isDenormalized isDenormalizedI
-isNegativeZeroB  = lift1 isNegativeZero isNegativeZeroI
-isIEEEB          = lift1 isIEEE isIEEEI
+floatRadixB      = lift1 floatRadix
+floatDigitsB     = lift1 floatDigits
+floatRangeB      = pairBSplit . lift1 floatRange
+decodeFloatB     = pairBSplit . lift1 decodeFloat
+encodeFloatB     = lift2 encodeFloat
+exponentB        = lift1 exponent
+significandB     = lift1 significand
+scaleFloatB      = lift2 scaleFloat
+isNaNB           = lift1 isNaN
+isInfiniteB      = lift1 isInfinite
+isDenormalizedB  = lift1 isDenormalized
+isNegativeZeroB  = lift1 isNegativeZero
+isIEEEB          = lift1 isIEEE
 
 -}
   
 -- Non-overloadable numeric functions
 
 -- Various flavors of exponentiation
-(^*)    :: (Ord a, Num a, Integral b) =>
-	     Behavior a -> Behavior b -> Behavior a
-(^^*)   :: (Ord a, Fractional a, Integral b) =>
-	     Behavior a -> Behavior b -> Behavior a
+(^*)    :: (Num a, Integral b) =>
+             Behavior a -> Behavior b -> Behavior a
+(^^*)   :: (Fractional a, Integral b) =>
+             Behavior a -> Behavior b -> Behavior a
 
-(^*)  = lift2 (^) (^)
-(^^*) = lift2 (^^) (^^)
+(^*)  = lift2 (^)
+(^^*) = lift2 (^^)
 
 
 
-cond :: Ord a => BoolB -> Behavior a -> Behavior a -> Behavior a
+cond :: BoolB -> Behavior a -> Behavior a -> Behavior a
 cond = lift3 (\ a b c -> if a then b else c)
-             (\ ai bi ci -> bi `mergeI` ci)
 
 notB :: BoolB -> BoolB
-notB = lift1 (not) (notI)
+notB = lift1 (not)
 
 (&&*) :: BoolB -> BoolB -> BoolB
-(&&*) = lift2 (&&) (&&#) 
+(&&*) = lift2 (&&) 
 (||*) :: BoolB -> BoolB -> BoolB
-(||*) = lift2 (||) (||#)
+(||*) = lift2 (||)
 
 -- Pair formation and extraction
 
-pairB = lift2 pair pairI
-fstB  = lift1 fst fstI
-sndB  = lift1 snd sndI
+type PairB a b = Behavior (a,b)
 
-pairBSplit :: Behavior (a,b) -> (Behavior a, Behavior b)
+pairB :: Behavior a -> Behavior b -> PairB a b 
+fstB  :: PairB a b -> Behavior a
+sndB  :: PairB a b -> Behavior b
+
+pairB = lift2 pair
+fstB  = lift1 fst
+sndB  = lift1 snd
+
+pairBSplit :: PairB a b -> (Behavior a, Behavior b)
 
 pairBSplit b = (fstB b, sndB b)
 
 -- List formation and extraction
 
-nilB  = lift0 []
-consB = lift2 (:) (noI ":")
-headB = lift1 head (noI "head")
-tailB = lift1 tail (noI "tail")
+nilB  :: Behavior [a]
+consB :: Behavior a -> Behavior [a] -> Behavior [a]
+headB :: Behavior [a] -> Behavior a
+tailB :: Behavior [a] -> Behavior [a]
+
+nilB  = constantB []
+consB = lift2 (:)
+headB = lift1 head
+tailB = lift1 tail
 
 -- Other
 
 showB :: (Show a) => Behavior a -> Behavior String
 
-showB = lift1 show (noI "show")
+showB = lift1 show
+
+-- How to implement behavior tracing?
+
+-- traceB :: Show a => String -> Behavior a -> Behavior a
 
 
--- Testing
+------ Testing
+
+-- This representation space leaks, at least with the tests below, and I
+-- don't know why.
+
+ats :: Behavior a -> [Time] -> [a]
 
 b `ats` []      = []
 b `ats` (t:ts') = x : (b' `ats` ts')
  where
   (x,b') = b `at` t
 
-tstB b ts = b `ats` [0, 0.1 .. 3]
+-- Make our test behaviors be functions of start time, just to avoid space
+-- leaky CAFs.  With a 1Mb heap, using 300 instead of 3 below and trying
+-- "tstB b1" eventually crashes Hugs, by overflowing the stack in the Hugs
+-- implementation.  With b2, Hugs eventually runs out
+-- of heap, although the GC messages are not strictly decreasing !?!
 
-b1 = time
-b2 = 5 + 3*time
-b3 = sin time
+tstB f = f 0 `ats` [0.0, 0.1 .. 3]
+
+-- Just get the nth member.  "tstNth b0 3000" leads to "Control stack
+-- overflow".  The usual trick of adding an end enumeration value (1.0e8)
+-- didn't help.  (Oddly, "[0 .. ] !! 1000000" doesn't bomb the heap or
+-- evaluation stack when I just tried.  Why not?)
+
+tstNth f n = (f 0 `ats` [0.1, 0.2 ..]) !! n
+
+-- To confirm that we do no redundant behavior sampling
+sinTB = lift1 sinT
+ where sinT x = trace ("(sinT " ++ show x ++ ") ") $ sin x
+
+
+b0 t0 = constantB 0
+b1 t0 = timeSince t0
+b2 t0 = 5 + 3 * b1 t0
+b3 t0 = sin (b1 t0)
+b4 t0 = b + b where b = b3 t0
+
+-- Reactivity.  (This one looks like it switches at 1.0 instead of just
+-- after.  The cause is accumulation errors in [0.1, 0.2 .. 3], as
+-- revealed by "map (\t -> (t, compare t 1)) [0.1, 0.2 .. 3]".)
+
+b5 t0 = timeSince t0 `untilB` timeIs (t0+1) -=> 0
+
+b6 t0 = 10 * b5 t0
+
+b7 t0 = b5 t0 * 10
+
+b8 t0 = b * b  where  b = b5 t0
+
+-- Initial transition, as in integral.  Wasn't working previously.
+b9 t0 = constantB "before" `untilB` timeIs t0 -=> constantB "after"

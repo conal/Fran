@@ -1,10 +1,10 @@
 -- Behavior-level vector spaces
 -- 
--- Last modified Sun Nov 10 16:15:46 1996
+-- Last modified Wed Jul 09 09:06:11 1997
 
 module VectorSpaceB where
 
-import Fuzzy
+import BaseTypes
 import Behavior
 import qualified VectorSpace as VS
 
@@ -18,29 +18,29 @@ import qualified VectorSpace as VS
 -- infixl 6 ^+^, ^-^
 
 zeroVector :: VS.VectorSpace v => Behavior v
-zeroVector  = lift0 VS.zeroVector
+zeroVector  = constantB VS.zeroVector
 
-(*^) :: VS.VectorSpace v => Behavior VS.Scalar
+(*^) :: VS.VectorSpace v => Behavior Scalar
                   -> Behavior v -> Behavior v
-(*^) = lift2 (VS.*^) (noI "(*^)")
+(*^) = lift2 (VS.*^)
 
 (^/) :: VS.VectorSpace v => Behavior v ->
-           Behavior VS.Scalar -> Behavior v
-(^/) = lift2 (VS.^/) (noI "(^/)")
+           Behavior Scalar -> Behavior v
+(^/) = lift2 (VS.^/)
 
 (^+^),(^-^) :: VS.VectorSpace v => Behavior v
                   -> Behavior v -> Behavior v
-(^+^) = lift2 (VS.^+^) (noI "(^+^)")
-(^-^) = lift2 (VS.^-^) (noI "(^-^)")
+(^+^) = lift2 (VS.^+^)
+(^-^) = lift2 (VS.^-^)
 
 dot :: VS.VectorSpace v => Behavior v
-                  -> Behavior v -> Behavior VS.Scalar
-dot = lift2 VS.dot (noI "dot")
+                  -> Behavior v -> Behavior Scalar
+dot = lift2 VS.dot
 
 magnitude, magnitudeSquared
-   :: VS.VectorSpace v => Behavior v -> Behavior VS.Scalar
-magnitudeSquared = lift1 VS.magnitudeSquared (noI "magnitudeSquared")
-magnitude        = lift1 VS.magnitude (noI "magnitude")
+   :: VS.VectorSpace v => Behavior v -> Behavior Scalar
+magnitudeSquared = lift1 VS.magnitudeSquared
+magnitude        = lift1 VS.magnitude
 
 normalize :: VS.VectorSpace v => Behavior v -> Behavior v
-normalize = lift1 VS.normalize (noI "normalize")
+normalize = lift1 VS.normalize

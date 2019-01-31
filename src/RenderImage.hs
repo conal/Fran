@@ -1,145 +1,78 @@
--- Converting Picture values into graphical output (Win32 GDI).
---
--- Last modified Sun Nov 10 16:19:06 1996
+-- Various routines to create and draw into surfaces.  Adapted from
+-- ..\RenderImage.hs
 
-module RenderImage (draw) where
+module RenderImage where
 
-import qualified Win32
-import Image
+import BaseTypes
 import Point2
 import Color
 import Transform2
 import Vector2
 import qualified Font
 import Text
+import Win32 hiding (readFile, writeFile)
+import IOExtensions (unsafePerformIO)
+import HSpriteLib
 
+-- text, angle, optional color, stretch
 
--- If the x or y pixel separation is below minPixelDrawSize, don't draw.
--- To do: cull off-window bboxed images.
+renderText :: TextT -> RealVal -> Color -> RealVal  -> HDDSurface
+renderText (TextT (Font.Font fam bold italic) str) angle color stretch =
+ -- HSurfaces are immutable, and there are no visible side-effects.
+ unsafePerformIO $
+ createFont fontWidth 0
+	    escapement			-- escapement
+	    escapement                  -- orientation
+	    weight
+	    italic False False    -- italic, underline, strikeout
+	    aNSI_CHARSET
+	    oUT_DEFAULT_PRECIS
+	    cLIP_DEFAULT_PRECIS
+	    dEFAULT_QUALITY
+	    dEFAULT_PITCH
+	    gdiFam                         >>= \ hf ->
 
-minPixelDrawSize = 1 :: Int
+ -- First figure out what size to make the new surface.
 
--- To do: use bounding boxes more pervasively.  Define a function easyBBox
--- :: Image -> Maybe (Point2, Point2) that picks off the easy cases:
--- Circle, Square, Bitmap, Bezier, Text, and BBoxed2.
+ (withScratchHDC $ \scratchHDC ->
+   selectFont scratchHDC hf	>>
+   getTextExtentPoint32 scratchHDC str)    >>= \ horizSize->
 
--- Lots of the Win32 stuff down below has been snarfed from the Yale Hugs
--- implementation of Pictures.
-
-draw :: Win32.HDC -> Image -> IO ()
-draw hdc im =
- -- we want transparent Text backgrounds
- Win32.setBkMode hdc Win32.tRANSPARENT >>
- Win32.getStockPen Win32.wHITE_PEN     >>= \ pen ->
- Win32.selectPen hdc pen               >>
- draw' identity2 False im `catch` (\ e -> putStrLn "Win32 drawing error")
-                  
- where
-  f :: Transform2 -> Point2 -> Win32.POINT
-  f tr pt = case tr *% pt of Point2XY x y -> (round x, round y)
-
-  draw' tr hasColor im =
-   case im of
-     EmptyImage  -> return ()
-     Circle ->
-        drawCircle hdc tr
-     Square ->
-       Win32.polygon hdc (map (f tr) squarePoints)
-     Bitmap size bmap ->
-       drawBitmap hdc
-         (f tr (point2XY (-halfWidth) (-halfHeight)))
-         (f tr (point2XY   halfWidth    halfHeight ))
-         bmap
-         where
-           (width,height) = vector2XYCoords size
-           halfWidth  = width  / 2
-           halfHeight = height / 2
-     Line p1 p2 ->
-        Win32.polyline hdc points
-        where points = map (f tr) [p1,p2]
-     Polyline pts ->
-        Win32.polyline hdc (map (f tr) pts)
-     Polygon pts ->
-        Win32.polygon hdc (map (f tr) pts)
-     Bezier p1 p2 p3 p4 ->
-        Win32.polyBezier hdc (map (f tr) [p1,p2,p3,p4])
-     RenderedText str ->
-        drawText hdc tr str
-     WithColor c im ->
-        if hasColor then
-          draw' tr hasColor im
-        else
-          drawWithColor hdc (toRGB c) (draw' tr True im)
-     Over p q ->     
-        -- draw p over q
-        draw' tr hasColor q >> 
-        draw' tr hasColor p
-     TransformedImage tr' p ->
-        draw' (tr `compose2` tr') hasColor p
-     BBoxed2 p1 p2 im ->
-       --putStrLn ("bboxed: maxPixelDist = " ++ show maxPixelDist) >>
-       if maxPixelDist < minPixelDrawSize then
-         return ()
-       else
-         draw' tr hasColor im
-       where
-         (x1,y1) = f tr p1
-         (x2,y2) = f tr p2
-         maxPixelDist = abs (x1-x2) `max` abs (y1-y2)
-
--- Windows NT supports the function "PlgBlt" which maps a bitmap to
--- a parallelogram.  This isn't supported on Windows'95 so instead
--- we scale the bitmap so that its bottom-left and top-right are
--- in the right place.
--- To do: optimize to use BitBlt where appropriate.
--- (This looks kinda ugly but works ok if there's been no rotation.)
--- drawBitmap :: Win32.HDC -> POINT -> POINT -> HBITMAP -> IO ()
-drawBitmap hdc (x0,y0) (x1,y1) bitmap =
-  Win32.createCompatibleDC (Just hdc)    >>= \ memdc ->
-  Win32.selectBitmap memdc bitmap        >>
-  Win32.getBitmapInfo bitmap             >>= \ (_,width,height,_,_,_) ->
-{- Sadly, not available:
-  Win32.plgBlt hdc p1 p2 p3 memdc 0 0 width height Nothing 0 0 >>
+ -- Sadly, getTextExtentPoint32 seems to ignore escapement and
+ -- orientation, so we have to adjust.
+ let ((surfWidth, surfHeight), (dulx,duly)) = rotateSize horizSize angle in
+ (withNewHDDSurfaceHDC surfWidth surfHeight backColorREF $ \hdc ->
+   selectFont hdc hf                   >>
+   setBkColor hdc backColorREF	       >>
+   setTextColor hdc (asColorRef color) >>
+   -- setTextAlign hdc tA_TOP	       >>
+   setTextAlign hdc (tA_TOP `orb` tA_LEFT)    >>
+   -- setTextAlign hdc tA_CENTER	       >>
+   -- setTextAlign hdc (tA_BOTTOM `orb` tA_LEFT)	       >>
+   textOut hdc dulx (- duly) str) >>= \hSurface ->
+ deleteFont hf                             >>
+{-
+ putStrLn (--"renderText: str " ++ show str ++
+	   --", color " ++ show color ++
+	   --", stretch " ++ show stretch ++
+	   ", angle " ++ show angle ++
+	   --", fontWidth " ++ show fontWidth ++
+	   ", horizSize " ++ show horizSize ++
+	   ", surfSize " ++ show (surfWidth,surfHeight) ++
+	   ", dul " ++ show (dulx,duly) ++
+	   -- ", esc " ++ show escapement
+	   "" ) >>
 -}
-  Win32.stretchBlt hdc x0 y1 (x1-x0) (y0-y1)
-                   memdc 0 0 width height Win32.sRCCOPY >>
-  Win32.deleteDC memdc
-
-
-drawText :: Win32.HDC -> Transform2 -> TextT -> IO ()
-drawText hdc xf (TextT (Font.Font fam bold italic) str) =
- -- no need to get current font before setting new one, since the font is
- -- set locally for each use of Text
- -- putStrLn ("drawing text at " ++ show (x,y) ++ ". width==" ++ show width ++ ", escapement==" ++ show escapement) >>
- Win32.createFont width 0
-                  escapement
-                  0                   -- orientation
-                  weight
-                  italic False False    -- italic, underline, strikeout
-                  Win32.aNSI_CHARSET
-                  Win32.oUT_DEFAULT_PRECIS
-                  Win32.cLIP_DEFAULT_PRECIS
-                  Win32.dEFAULT_QUALITY
-                  Win32.dEFAULT_PITCH
-                  gdiFam                   >>= \hf ->
- Win32.selectFont hdc hf                   >>= \ old ->
- -- This next guy is already done in showImageB.hs, but is ineffective
- -- there.  Why?
- Win32.setTextAlign hdc Win32.tA_CENTER    >>
- Win32.textOut hdc (round x0) (round y0) str  >>
- Win32.selectFont hdc old                  >>
- Win32.deleteFont hf                       >>
- return ()
+ return hSurface
  where
-  (x0,y0) = point2XYCoords p0
-  (stretch,angle) = vector2PolarCoords (p1 .-. p0)
-  p0     = xf *% origin2
-  p1     = xf *% (point2XY 1 0)
-  -- The 10 is empirically derived.
-  width  = round (stretch / 5)
-  escapement = round (-angle * 1800/pi)
-  weight  | bold      = Win32.fW_BOLD
-          | otherwise = Win32.fW_NORMAL
+  backColor | color /= black =  black
+	    | otherwise      =  white
+  backColorREF = asColorRef backColor
+  -- The "20" was empirically determined
+  fontWidth  = round (20 * stretch)
+  escapement = round (angle * 1800/pi)	-- hundredths of a degree
+  weight  | bold      = fW_BOLD
+          | otherwise = fW_NORMAL
   gdiFam =
    case fam of
      Font.System     -> "System" -- this is going to break ..
@@ -149,58 +82,56 @@ drawText hdc xf (TextT (Font.Font fam bold italic) str) =
      Font.Symbol     -> "Symbol"
 
 
-drawWithColor hdc (RGB r g b) m =
-   -- Sets brush, pen, and text colors.  Oops -- The Win32 "createPen"
-   -- function has not Haskell interface.  When it does, restore this code.
-   Win32.createSolidBrush c        >>= \ brush ->
-   Win32.selectBrush hdc brush     >>= \ oldBrush ->
-   --Win32.createPen(pS_SOLID, 2, c) >>= \ pen ->
-   --Win32.selectPen hdc pen       >>= \ oldPen ->
-   Win32.setTextColor hdc c        >>= \ oldTC ->
-   m                               >>
-   Win32.setTextColor hdc oldTC    >>
-   --Win32.selectPen hdc oldPen      >>
-   --Win32.deletePen pen             >>
-   Win32.selectBrush hdc oldBrush  >>
-   Win32.deleteBrush brush         >>
-   return ()
- where
-  c  = Win32.rgb r' g' b'
-  r' = floor (255*r) `mod` 256
-  g' = floor (255*g) `mod` 256
-  b' = floor (255*b) `mod` 256
+-- Gives new size, and the position of the upper left w.r.t the upper left
+-- of the new box.
+rotateSize :: (Int, Int) -> Radians -> ((Int, Int), (Int, Int))
 
-
-drawCircle hdc xf =
-  case f (Point2XY (-circleRadius) (-circleRadius)) of { (x0,y0) ->
-  case f (Point2XY   circleRadius    circleRadius ) of { (x1,y1) ->
-  case f (Point2XY (-circleRadius)   circleRadius ) of { (x2,y2) ->
+rotateSize (width, height) rotAngle =
+  -- Think of the bounding box as centered at the origin.  Rotate the
+  -- upper right and lower right points, and see which stick out further
+  -- horizontally and vertically.
   let
-    rw = x1 - x0
-    rh = y1 - y0
+      w2 = fromInt width / 2			-- half width and height
+      h2 = fromInt height / 2
+      ur = point2XY w2 h2		-- upper right and lower right
+      lr = point2XY w2 (-h2)
+      xf = rotate2 rotAngle
+      (urx',ury') = point2XYCoords(xf *% ur) -- x,y of rotated versions
+      (lrx',lry') = point2XYCoords(xf *% lr)
+      -- Two cases: new width&height determined by ur&lr or by lr&ur
+      (w2',h2')  |  abs urx' > abs lrx'  =  (abs urx', abs lry')
+		 |  otherwise		 =  (abs lrx', abs ury')
+      size' = (round (w2' * 2), round (h2' * 2))
+      -- ul' is (-lrx, -lry), and new box's upper left is (-w2',h2')
+      dul = (round (-lrx' - (- w2')), round (-lry' - h2'))
   in
-  if -- True ||
-     (rw == rh                  -- circle
-      || (x2 == x0 && y2 == y1) -- unrotated ellipse
-      || (x2 == x1 && y2 == y0) -- ellipse rotated 90 degrees
-      )
-  then
-    Win32.ellipse hdc x0 y0 x1 y1
-  else 
-    slowEllipse hdc (compose2 xf (scale2 circleRadius {- h -} ))
-  }}}
-  where
-    f :: Point2 -> Win32.POINT
-    f pt = case xf *% pt of Point2XY x y -> (round x, round y)
+      (size', dul)
+	
 
--- slowEllipse hdc _ = error "slowEllipse"
-slowEllipse hdc (X a b c d e f) =
-  Win32.transformedEllipse hdc a' b' c' d' e' f'
-  where a' = fromDouble a
-        b' = fromDouble b
-        c' = fromDouble c
-        d' = fromDouble d
-        e' = fromDouble e
-        f' = fromDouble f
 
+-- More convenient interfaces.  Put these somewhere else
+
+withDDrawHDC :: HDDSurface -> (HDC -> IO a) -> IO a
+
+withDDrawHDC ddSurf f =
+ do hdc <- getDDrawHDC ddSurf
+    res <- f hdc
+    releaseDDrawHDC ddSurf hdc
+    return res
+
+withScratchHDC :: (HDC -> IO a) -> IO a
+
+withScratchHDC f =
+ do scratchSurf <- get_g_pScratchSurf
+    withDDrawHDC scratchSurf f
+
+withNewHDDSurfaceHDC :: Int -> Int -> COLORREF
+		     -> (HDC -> IO ()) -> IO HDDSurface
+
+withNewHDDSurfaceHDC width height colRef f =
+ do surf <- newPlainDDrawSurface width height colRef
+    -- Clear the surface first, since we're going to draw
+    clearDDSurface surf colRef
+    withDDrawHDC surf f
+    return surf
 

@@ -1,6 +1,6 @@
 -- Some basic types
 --
--- Last modified Thu Nov 07 13:58:55 1996
+-- Last modified Wed Jul 09 14:44:12 1997
 
 module BaseTypes where
 
@@ -11,5 +11,18 @@ type Fraction = RealVal  -- 0 to 1 (inclusive)
 
 type Time  = Double
 
--- For interval and behavior lifting
+-- Time that stands for -infinity.  Use for {Behavior}startTime  ###
+minTime :: Time
+minTime = - 1.0e30
+
+-- For scaling polynomials and vectors.  We should really be using binary
+-- type relations, rather than having Double hardwired.
+
+type Scalar = Double
+
+fromScalar :: Fractional a => Scalar -> a
+
+fromScalar = fromDouble
+
+-- For lifting and sections
 pair x y = (x,y)

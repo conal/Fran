@@ -1,31 +1,35 @@
 -- Color behaviors
 --
--- Last modified Thu Nov 07 14:34:11 1996
+-- Last modified Wed Jul 09 08:50:07 1997
 
 module ColorB where
 
 import qualified Color as C
-import Fuzzy
 import Behavior
 
 type ColorB = Behavior C.Color
 
-hsl              = lift3 C.hsl (noI "hsl")
-rgb              = lift3 C.rgb (noI "rgb")
-gray             = lift1 C.gray (noI "gray")
-interpolateColor = lift3 C.interpolateColor (noI "interpolateColor")
-stronger         = lift2 C.stronger (noI "stronger")
-duller           = lift2 C.duller (noI "duller")
-darker           = lift2 C.darker (noI "darker")
-brighter         = lift2 C.brighter (noI "brighter")
-shade            = lift2 C.shade (noI "shade")
+colorHSL              = lift3 C.colorHSL
+colorRGB              = lift3 C.colorRGB
+colorHSLCoords        = lift1 C.colorHSLCoords
+colorRGBCoords        = lift1 C.colorRGBCoords
+grey		      = lift1 C.grey
+asColorRef	      = lift1 C.asColorRef
+interpolateColorRGB   = lift3 C.interpolateColorRGB
+interpolateColorHSL   = lift3 C.interpolateColorHSL
+stronger	      = lift2 C.stronger
+duller		      = lift2 C.duller
+darker		      = lift2 C.darker
+brighter	      = lift2 C.brighter
+shade		      = lift2 C.shade
 
-white     = lift0 C.white
-black     = lift0 C.black
-red       = lift0 C.red
-green     = lift0 C.green
-blue      = lift0 C.blue
-lightBlue = lift0 C.lightBlue
-royalBlue = lift0 C.royalBlue
-yellow    = lift0 C.yellow
-brown     = lift0 C.brown
+white     = constantB C.white
+black     = constantB C.black
+red       = constantB C.red
+green     = constantB C.green
+blue      = constantB C.blue
+lightBlue = constantB C.lightBlue
+royalBlue = constantB C.royalBlue
+yellow    = constantB C.yellow
+brown     = constantB C.brown
+

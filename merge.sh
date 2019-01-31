@@ -1,7 +1,7 @@
 
-unzip ../rbmh0.$1.zip 
-cp -rp rbmh/* .
+unzip ../Fran1.$1.zip 
+cp -rp Fran1/* .
 chmod -R u+w .
-rm -rf rbmh/
+rm -rf Fran1/
 git add .
-git commit -m "RBMH 0.$1"
+git commit -m "Fran 1.$1"

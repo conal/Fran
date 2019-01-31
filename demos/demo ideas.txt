@@ -1,0 +1,84 @@
+                           Ideas for Fran Demos
+
+             Last modified Thu Jul 03 14:53:44 1997 by conal
+
+
+There are two main purposes for choosing good demos.  First, they will
+help to convey to people (DxM team, graphics folks, language folks, ...)
+why they would be interested in using Haskell and Fran or adopting some of
+the the semantic and implementation ideas.  Second, they will focus our
+limited resources.
+
+
+The demo ideas:
+
+  - Something emphasizing multi-lingual integration.  Make a Windows
+    application that uses Haskell/Fran for just *part* of its work.  Jim K
+    suggested a simple editor, say for curves or animations.  The general
+    idea would be to do the UI and application structure with VB, but
+    media and animation stuff with Fran.  I guess I can use a VB
+    PictureBox and manually forward raw UI events (click, move, etc) to
+    Fran.  Or maybe handle all raw UI in VB, turning them into higher
+    level animation events, such as, grabControlPoint.
+
+  - Author new agents for MS Agent.
+
+  - Room with lots of balls that can come and go dynamically.  Challenges:
+    dynamic configurations (try ListB), mutually reactive behaviors.
+
+  - Fifteen puzzle.  See src\NewBehavior\fifteen.hs
+
+  - Asteroids: enemies, multi-player, multi-level, top scores list.
+
+  - Multi-view editing, starting with color widgets.  The Brown U guys
+    couldn't figure out how to do it with DA, and think constraints may be
+    necessary.  [Challenges: simulate multi-directional constraints;
+    spatially modular interaction.]
+
+  - Dogz & Catz (http://www.pfmagic.com).  Give each a variety of
+    behaviors (eating, sleeping, exploration) in addition to their
+    interactions, to illustrate compositional construction of complex
+    multi-phase behavior.  Users can provide food, play, bedding,
+    transportation, and open & close doors.
+
+  - Maze-wandering game, including treasures, keys and autonomous
+    monsters.  Modern UI.  Save & restore game.
+
+  - Persona-based UI.
+
+  - Springs-and-balls assembly kit.  Users may add or remove pieces,
+    change masses and stiffnesses, and activate/deactivate visualization of
+    force, acceleration, velocity vectors, or spring displacements.
+
+  - Fish tank simulation with prey and predators.  New
+    inhabitants may be added at any time, via GUI.  Abilities:
+
+    + Vision, and some form of discrimination about what is seen, such as
+      distance and species.
+
+    + Hunger, and knowledge of prey/predator.
+
+    + Turning and propulsion (motivated by hunger, vision, and prey/predator
+      knowledge).
+
+    + Eating & being eaten
+
+    + Maybe strength and max speed
+
+    Ideas illustrated: "Environment" querying, dynamic set of inhabitants,
+    combining several impulses; modern GUI (how?).
+
+    Thoughts on construction:
+
+    + Define an Inhabitant interface, with a few sample implementations.
+      (Maybe "inhabitant generator" vs "inhabitant" -- see below.)
+
+    + Make the environment be an assembly of reactive behaviors and events.
+      Pass the environment, suitably transformed, to each inhabitant
+      generator, and pass the resulting inhabitant back to environment
+      construction.  (Note the mutual recursion inherent in interaction.)
+
+
+  - Something with well-factored (hierarchical and parametric) state
+    machines, since this is a big concern of Dan's. 
+

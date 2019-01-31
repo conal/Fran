@@ -1,0 +1,109 @@
+                               To Do Items
+
+                  Last modified Fri Jul 18 08:14:27 1997
+
+
+- Use scanlE, not scanrE.
+
+- Something is fishy with the external event queue.  In {Spritify}disp, I
+  insert an updateDone event for tNow + updatePeriodGoal, but after that
+  events can get inserted that will have an earlier time.  Test case:
+  "disp donut8" in Spritify.hs, and give the display window focus, and
+  wave the mouse around in it.  I think the right solution is to sample
+  for now, but give future times to the sprite engine.  This choice
+  reflects a deliberate introduction of latency.
+
+- Mouse motion tracking wedges.  (Same bug as previous, I think.)
+
+- Consider user event accumulation: can the afterE's or afterTime's pile
+  up unevaluated if they're not examined?  I'm guessing that this is
+  happening, because franimations that don't care about user input aren't
+  tripping over the event timing problem mentioned above.
+
+- Fix memory management of DD surfaces.  The Release done in
+  SimpleSprite::SetSurface is probably wrong, since a surface can now be
+  shared, thanks to dynamic constant folding.
+
+- wiggle and start time.  I guess make it be a function of a user, and use
+  "userTime u".  Doesn't feel right, however, since it's logically
+  independent of users.  Alternative: go back to using polynomials, and
+  have no start time.
+
+- Other places marked with "###"
+
+- Support time transformation on ImageB, SoundB and GeometryB (as a GBehavior
+  method).
+
+- In BStack's `at` implementation, use the middle value when the middle
+  time is close to the sample time, rather than when the interval is small
+  enough.  Would, however, need the t>=t0 assumption.
+
+- Re-org the behavior/event modules a bit, renaming "Event.hs" to
+  "EventPart1.hs" and "BehaviorEvent.hs" to "Event.hs", importing and
+  re-exporting all of EventPart1.  Then most modules can just import
+  Event.hs.
+
+- Setting of surfaces and of transforms happens too soon.  Should happen
+  at t', not t, but there's no interface for it.
+
+- Is the "==" case in occ necessary?  Mouse motion loops without it.
+
+- Push dynamic reactive constant folding all the way to display.
+
+- Amend bitmapDDSurface et al in HSpriteLib.ss as in UtilsB.
+
+- Transformable3 for points and vectors
+
+
+- startTime on Event is problematic.  There is no way of knowing, since we
+  know only a lower bound for the first occurrence time.
+
+- Use malloc pointers for DirectX objects: surfaces, sound buffers, frame
+  hierarchies.
+
+- Rework sprite trees to be more like ImageB type in some ways:
+
+  + binary overlay;
+
+  + UntilI sprite tree, with event time (initially infinite) and new
+    sprite tree, optimized away on traversal when past;
+
+  + empty sprite tree.
+
+- Similarly, rework sprite engine simple behaviors, generalizing to
+  piecewise-simple with subdivision, and adding an untilB.
+
+- How to keep representation optimized?  Eliminate untilB after events.
+  Also over/empty and mix/silence.  Have the traverser take a
+  pointer-pointer argument saying where to store the optimized form if it
+  changes.  This is like returning the rep but with the continuation
+  argument saying where to store it.  Some cascading simplifications will
+  probably take more than one pass, which is fine.  How to notice cases
+  like over/empty?  I guess with hardwired methods like IsEmptyImage and
+  IsSilence.  At the Haskell level, I'd probably put these optimizations
+  into the ImageB and SoundB constructors, which seems very efficient.
+
+  My current SpriteTree representation handles these optimizations
+  quite naturally.  A good reason to stick with it.
+
+- Add sound, embedded in image behaviors.  Add to sprite engine first.
+  Note that we'll probably want to have a sound untilB in the sprite
+  engine, so that we can set up changes in advance and execute them
+  accurately.
+
+- Continue with Asteroids game.
+
+- Use worldToScreen and screenToWorld more, in particular for flipbooks.
+
+- Maybe change page number argument interpretation with a scale factor.
+  Or, better yet, use time transformation.
+
+- Logical <--> screen coordinate conversion.
+
+- Unify SimpleImage and FlipImage somehow to eliminate redundancy.
+
+- Rotation.
+
+- Transforms.  How to fit them in?  Perhaps as a native Transform2B type
+  that maintains factorization.  Supporting untilB seems tricky, at least
+  for transformation composition.  Maybe not entirely general at first.

@@ -1,301 +1,181 @@
--- Experimental support for displaying image behaviors in an existing
--- window.  Intended for use with the ActiveX Hugs control
--- 
--- Last modified Sun Nov 10 17:56:17 1996
--- 
--- Recycled bits from ShowImageB.hs.
+-- Test the sprite engine from Haskell
 
-module ShowImageB
-        (
-        draw,   -- :: ImageB.Image -> WindowPainter
-        disp   -- :: ImageB.Image -> IO ()
-        ) where
+module ShowImageB (
+  updatePeriodGoal,
+  showSpriteTree,
+  initialWindowSize
+  ) where
 
--- This module contains a whole lot of Win32 calls, and normally I
--- wouldn't import Win32 qualified.  I did, however, so that all of the
--- foreign library dependencies can be determined simply by grepping for
--- the qualifiers (like "Win32.").
-
-import qualified Win32
-
-import IORef(Ref,newRef,getRef,setRef)
-import IOExtensions(unsafeInterleaveIO)
-
-import Behavior
+import HSpriteLib
+import BaseTypes
+import Transform2
 import Vector2
 import Point2
-import ImageB (ImageB)
-import Image
-import Transform2
-
-import qualified RenderImage as Render
-import Utils (andOnError)
-import PrimInteract
-import Postpone
-
-
--- Something that repeatedly paints into a window.  Expected to use
--- "postpone"-based pseudo-concurrency.
-
-type WindowPainter = Win32.HWND -> IO ()
-
-timeSinceMS :: Win32.MilliSeconds -> IO Time
-
-timeSinceMS startMS =
-  Win32.timeGetTime                        >>= \ ms ->
-  return (fromIntegral (ms - startMS) / 1000.0)
+import qualified Win32
+import IORef
+import Monad (when)
+import Channel (Channel, putChan)
+import User
+import ImageB (bitmapPixelsPerLength, screenPixelsPerLength)
+import IOExtensions( garbageCollect )
 
 
--- For testing
+-- Window stuff
 
-disp :: ImageB -> IO ()
+-- Make a window and route user events
 
-disp imb =
-  Win32.timeGetTime >>= \ startMS ->
-  makeTestWindow startMS $ draw startMS imb
-
-draw :: Win32.MilliSeconds -> ImageB -> WindowPainter
-
-draw startMS imb hwnd = loop imb
-  where
-    loop imb =
-      getTime              >>= \ t ->
-      let (im,imb') = imb `at` t in
-        drawOne t im >> postpone (loop imb')
-
-    getTime = timeSinceMS startMS
-
-    drawOne t im = 
-       -- putStrLn ("draw sample time = " ++ show t) >>
-       (Win32.invalidateRect (Just hwnd) Nothing eraseBackground >>
-        Win32.paintWith hwnd (\hdc lpps ->
-          windowSize hwnd >>= \ (w',h') ->
-          let 
-            im' = worldToScreen w' h' *% im
-          in
-          if doubleBuffered then
-            -- (sof) By trial and error, I discovered that you
-            -- should create a bitmap compatible with the window
-            -- you're going to draw on.  If it is merely compatible
-            -- with the buffer dc (which is, in turn, compatible
-            -- with the window), you get a monochrome bitmap.
-            withDC (Just hwnd) (\ windc ->
-              withCompatibleDC (Just windc) (\ buffer ->
-                withCompatibleBitmap hdc w' h' (\ bitmap ->
-                  selectBitmapIn buffer bitmap (
-                    --putStrLn (show im)    >>
-                    Win32.bitBlt buffer 0 0 w' h' buffer 0 0 Win32.bLACKNESS >>
-                    -- debugMessage "Calling Render.draw" >>
-                    Render.draw buffer im'  >>
-                    Win32.bitBlt hdc 0 0 w' h' buffer 0 0 Win32.sRCCOPY
-                  )
-                )
-              )
-            )
-          else
-            Render.draw hdc im'))
+makeWindow :: (Win32.HWND -> IO ())	-- create
+	   -> IO ()			-- resize
+	   -> IO ()			-- update
+	   -> IO ()			-- close
+	   -> SpriteTime		-- update goal interval
+	   -> UserChannel		-- receives user events
+	   -> IO ()
 
 
-{-
--- Pixels per length unit, horizontal and vertical
-screenSizeToVector2 :: (Int,Int) -> Vector2
+makeWindow createIO resizeIO updateIO closeIO
+	   updateInterval userChan =
+  let 
+      send userEvent = do
+        -- Get time now.  Bogus, since the event really happened before
+	-- now.  On the other hand, saying now works well with the
+	-- updateDone events generated in Spritify, which are said to be
+	-- later but inserted earlier.
+        t <- currentSpriteTime
+        --putStrLn ("User event " ++ show (t, userEvent))
+        --putStr ("ue " ++ show t ++ " ")
+        putChan userChan (t, Just userEvent)
 
-screenSizeToVector2 (w,h) =
-  vector2XY (fromInt w / screenPixelsPerLengthHorizontal)
-            (fromInt h / screenPixelsPerLengthVertical)
--}
+      -- Map lParam mouse point to a Point2
+      posn hwnd lParam =
+	do (winWidth,winHeight) <- windowSize hwnd
+	   -- putStrLn ("posn " ++ show (w',h'))
+	   ( return $
+	     let -- Turn window coords into logical coords.
+		 -- First compute coords relative to the upper left
+		 (yRelWinUL,xRelWinUL)  = lParam `divMod` 65536
+		 -- subtract position of window center relative to UL, to get
+		 -- coords relative to window center
+		 xRelWinCenter = xRelWinUL - winWidth `div` 2
+		 yRelWinCenter = yRelWinUL - winHeight `div` 2
+	     in
+		 -- Throw in scaling, recalling that window positive == down
+		 point2XY (fromInt xRelWinCenter / screenPixelsPerLength)
+			  (fromInt yRelWinCenter / -screenPixelsPerLength) )
 
-vector2ToScreenSize :: Vector2 -> (Int,Int)
+      fireButtonEvent hwnd lParam isLeft isDown =
+	do p <- posn hwnd lParam
+	   --putStrLn ("Button " ++ show (isLeft,isDown) ++ " at pos " ++ show p)
+	   send (Button isLeft isDown p)
+	   return 0
 
-vector2ToScreenSize v =
-  ( round (dx * screenPixelsPerLengthHorizontal) ,
-    round (dy * screenPixelsPerLengthVertical  ) )
-  where
-    (dx,dy) = vector2XYCoords v
+      fireKeyEvent wParam isDown =
+	do --putStrLn ("fireKeyEvent " ++ show (wParam, char, isDown, t))
+	   send (Key isDown (Win32.VKey wParam))
+	   return 0
 
--- Note that these number do not have to correspond with
--- bitmapPixelsPerLengthHorizontal and bitmapPixelsPerLengthVertical.  If
--- they do, however, the scalings will cancel out.
-screenPixelsPerLengthHorizontal = 200 :: Double
-screenPixelsPerLengthVertical   = 200 :: Double
+      wndProc2 hwnd msg wParam lParam
 
-worldToScreen, screenToWorld :: Int -> Int -> Transform2
+	| msg == Win32.wM_DESTROY =
+	  do Win32.set_hugsQuitFlag True
+	     send Quit
+	     return 0
 
-worldToScreen | presentation = worldToScreenStretchy
-              | otherwise    = worldToScreenNonStretchy
+	| msg == Win32.wM_LBUTTONDOWN || msg == Win32.wM_LBUTTONDBLCLK =
+	  fireButtonEvent hwnd lParam True True
 
-worldToScreenNonStretchy w' h' =
-  translate2 (vector2XY (fromInt w' / 2) (fromInt h' / 2)) `compose2`
-  scale2 (vector2XY    screenPixelsPerLengthHorizontal
-                    (- screenPixelsPerLengthVertical  ))
+	| msg == Win32.wM_LBUTTONUP =
+	  fireButtonEvent hwnd lParam True False
 
--- Presentation version.  Origin-centered, and show -1.2 to 1.2 in shorter
--- dimension.
+	| msg == Win32.wM_RBUTTONDOWN || msg == Win32.wM_RBUTTONDBLCLK =
+	  fireButtonEvent hwnd lParam False True
 
-worldToScreenStretchy w' h' =
-  translate2 (vector2XY halfW halfH) `compose2`
-  scale2     (vector2XY m     (-m) )
-  where
-   halfW = fromInt w' / 2
-   halfH = fromInt h' / 2
-   m     = (halfH `min` halfW)/1.2
+	| msg == Win32.wM_RBUTTONUP =
+	  fireButtonEvent hwnd lParam False False
 
+	| msg == Win32.wM_MOUSEMOVE =
+	  do p <- posn hwnd lParam
+	     send (MouseMove p)
+	     return 0
 
-screenToWorld w' h' = inverse2 (worldToScreen w' h')
+	| msg == Win32.wM_KEYDOWN =
+	  fireKeyEvent wParam True
 
+	| msg == Win32.wM_KEYUP =
+	  fireKeyEvent wParam False
 
--- Testing
+	| msg == Win32.wM_SIZE =
+	  do (x,y) <- map point2XYCoords (posn hwnd lParam)
+	     -- putStrLn "Resized"
+	     -- (x,y) is the lower-right corner, so we must flip y
+	     -- and double both coordinates to get the width and height
+	     send (Resize (vector2XY (2*x) (-2*y)))
+	     resizeIO
+	     return 0
 
-makeTestWindow :: Win32.MilliSeconds -> (Win32.HWND -> IO ()) -> IO ()
+	-- Timer.  Do the sprite tree updates.
+	| msg == Win32.wM_TIMER =
+	  do -- putStrLn "WM_TIMER"
+	     -- putStrLn "Timer: sending UserNoOp"
+	     -- send UserNoOp		-- filler
+	     -- putStrLn "Timer: doing updateIO"
+	     updateIO
+	     return 0
 
--- The hwndConsumer is presumed to postpone most of its work.
+	| msg == Win32.wM_CLOSE =
+	  do -- putStrLn "WM_CLOSE"
+	     closeIO
+	     return 0
 
-makeTestWindow startMS hwndConsumer =
-  let demoClass = Win32.mkClassName "RBMH Test Window" in
-  Win32.loadIcon   Nothing Win32.iDI_APPLICATION >>= \ icon ->
-  Win32.loadCursor Nothing Win32.iDC_ARROW       >>= \ cursor ->
-  Win32.getStockBrush Win32.bLACK_BRUSH          >>= \ blackBrush ->
-  Win32.getModuleHandle Nothing            >>= \ mainInstance ->
-  Win32.registerClass (
-        (Win32.orbs [Win32.cS_HREDRAW,
-               Win32.cS_VREDRAW]), -- redraw if window size Changes
-        mainInstance,
-        (Just icon),
-        (Just cursor),
-        (Just blackBrush),
-        Nothing,
-        demoClass)                >>
+	| otherwise
+	= Win32.defWindowProc (Just hwnd) msg wParam lParam
 
-  --newRef (0,0)                  >>= \ szVar ->
-  newRef 0                        >>= \ drawTimeVar ->
-  let
-    -- Map lParam mouse point to a Point2
-    posn hwnd lParam =
-      windowSize hwnd            >>= \(w',h') ->
-      return $
-      let (y,x) = lParam `divMod` 65536 in
-        screenToWorld w' h' *% (point2XY (fromInt x) (fromInt y))
+      demoClass = Win32.mkClassName "Fran 3D"
 
-    fireButtonEvent hwnd lParam isLeft isDown =
-        timeSinceMS startMS         >>= \ t ->
-        posn hwnd lParam            >>= \ p ->
-        -- putStrLn ("Button " ++ show (isLeft,isDown) ++ " at time " ++ show t) >>
-        fire button t (p,isLeft,isDown) >>
-        return 0
+  in do
+	icon <- Win32.loadIcon   Nothing Win32.iDI_APPLICATION
+	cursor <- Win32.loadCursor Nothing Win32.iDC_ARROW
+	blackBrush <- Win32.getStockBrush Win32.bLACK_BRUSH
+	mainInstance <- Win32.getModuleHandle Nothing
+	Win32.registerClass (
+	      Win32.emptyb, -- no extra redraw on resize
+	      mainInstance,
+	      (Just icon),
+	      (Just cursor),
+	      (Just blackBrush),
+	      Nothing,
+	      demoClass)
 
-    wndProc2 hwnd msg wParam lParam
-      | msg == Win32.wM_TIMER
-      = activateOne                 >>  -- draw a frame
-        -- Recalculate frame rate.
-        timeSinceMS startMS         >>= \ t ->
-        getRef drawTimeVar          >>= \ prevT ->
-        setRef drawTimeVar t        >>
-        fire fps t (if t==prevT then 0 else (1 / (t - prevT))) >>
-        return 0
+	-- putStrLn "In makeWindow"
+	w <- makeWindowNormal demoClass mainInstance wndProc2
+	createIO w
 
-      | msg == Win32.wM_DESTROY
-      = Win32.set_hugsQuitFlag True     >>
-        return 0
+	-- Set the millisecond timer.
+	Win32.setWinTimer w 1 (round (1000 * updateInterval))
+	-- putStrLn ("Update rate set for " ++ show updateInterval ++ " ms")
 
-      | msg == Win32.wM_PAINT
-      = -- putStrLn "wM_PAINT" >>
-        -- I think this is here to clear the clip list
-        Win32.paintWith hwnd (\ _ _ ->
-        return 0)
+	Win32.showWindow w Win32.sW_SHOWNORMAL
+	-- In Win95, this bringWindowToTop doesn't.
+	Win32.bringWindowToTop w
+	-- Strangely, if I don't print something before invoking
+	-- ddraw functions, Hugs bombs on the AST notebook.  (12/6/96)
+	putStrLn ""
+	-- There should be a send Resize here
+	Win32.eventLoop w
+	(Win32.unregisterClass demoClass mainInstance `catch` \_ -> return ())
 
-      | msg == Win32.wM_LBUTTONDOWN || msg == Win32.wM_LBUTTONDBLCLK
-      = fireButtonEvent hwnd lParam True True
-
-      | msg == Win32.wM_LBUTTONUP =
-        fireButtonEvent hwnd lParam True False
-
-      | msg == Win32.wM_RBUTTONDOWN || msg == Win32.wM_RBUTTONDBLCLK =
-        fireButtonEvent hwnd lParam False True
-
-      | msg == Win32.wM_RBUTTONUP =
-        fireButtonEvent hwnd lParam False False
-
-      | msg == Win32.wM_MOUSEMOVE =
-        timeSinceMS startMS                 >>= \ t ->
-        posn hwnd lParam                    >>= \ p ->
-        fire mousePos t p                   >>
-        return 0
-
-      | msg == Win32.wM_KEYDOWN =
-        timeSinceMS startMS                 >>= \ t ->
-        fire key t (toEnum wParam,True)     >>
-        return 0
-
-      | msg == Win32.wM_KEYUP =
-        timeSinceMS startMS                 >>= \ t ->
-        fire key t (toEnum wParam,False)    >>
-        return 0 
-
-      | msg == Win32.wM_SIZE =
-        timeSinceMS startMS                 >>= \ t ->
-{-
-        windowSize hwnd                     >>= \ (px, py) ->
-        let 
-            (x,y) = point2XYCoords (
-                     screenToWorld px py
-                       *% (point2XY (fromInt px) (fromInt py)))
-        in
--}
-        -- (posn hwnd lParam >>= return . point2XYCoords) >>= \ (x,y) ->
-        map point2XYCoords (posn hwnd lParam)  >>= \ (x,y) ->
-        -- (x,y) is the lower-right corner, so we must flip y and double
-        -- both coordinates to get the width and height
-        fire viewSz t (vector2XY (2*x) (-2*y)) >>
-        return 0
-
-      | otherwise
-      = Win32.defWindowProc (Just hwnd) msg wParam lParam
-  in
-   makeWindow demoClass mainInstance wndProc2  >>= \ w ->
-
-  initProcTable                                >>
-  initUser >>
-  -- Set the millisecond timer
-  Win32.setWinTimer w 1 (round (1000/targetFPS)) >>= \ timer ->
-  Win32.showWindow w Win32.sW_SHOWNORMAL         >>
-  Win32.bringWindowToTop w                       >>
-  hwndConsumer w                                 >>
-  -- This doesn't work.  It's a little too big, and flipped.
-  -- Win32.sendMessage w Win32.wM_SIZE width height >>
-  Win32.eventLoop w                        >>
-  Win32.unregisterClass demoClass mainInstance `catch` \_ -> return () >>
-  return ()
-
--- Make a window.  If we need the window to stay on top, do so.
-
-
-makeWindow | presentation = makeWindowPresent
-           | otherwise    = makeWindowNormal
-
-makeWindowPresent demoClass mainInstance wndProc2 =
- Win32.createWindowEx Win32.wS_EX_TOPMOST
-               demoClass
-               "RBMH Image Animation"
-               Win32.wS_OVERLAPPEDWINDOW
-               -- Nothing    Nothing    -- x y
-               (Just (1024-width)) (Just (-17))
-               (Just width) (Just height)
-               Nothing               -- parent
-               Nothing               -- menu
-               mainInstance
-               wndProc2
 
 makeWindowNormal demoClass mainInstance wndProc2 =
  Win32.createWindow demoClass
-              "RBMH Image Animation"
+              "Fran 3D"
               Win32.wS_OVERLAPPEDWINDOW
-              Nothing    Nothing    -- x y
-              (Just width) (Just height)
+              -- Nothing    Nothing    -- x y
+              (Just 300) (Just 26)
+              (Just initialWindowSize) (Just initialWindowSize)
               Nothing               -- parent
               Nothing               -- menu
               mainInstance
               wndProc2
-
 
 
 -- Get the width and height of a window's client area, in pixels.
@@ -308,52 +188,143 @@ windowSize hwnd =
 
 
 
-----------------------------------------------------------------
--- Common imperative programming idioms
-----------------------------------------------------------------
+-- Misc
 
--- ToDo: factor these out into a utility module
+updateRefStrict :: Eval a => Ref a -> (a -> a) -> IO ()
 
-
--- Note use of "andOnError" to guarantee that the cleanup code gets executed!
-
--- ToDo: better names for "with" and "bracketWith"
-
-with :: IO a -> (a -> IO ()) -> (a -> IO ()) -> IO ()
-with allocate deallocate use =
-  allocate     >>= \ x ->
-  use x        
-  `andOnError`
-  deallocate x
-
-bracketWith :: IO a -> (a -> IO b) -> IO () -> IO ()
-bracketWith setup cleanup doSomething =
-  setup             >>= \ prevState ->
-  doSomething       
-  `andOnError`
-  cleanup prevState >>
-  return ()
-
-----------------------------------------------------------------
+updateRefStrict ref f =
+  getRef ref >>= \ val ->
+  -- Force evaluation of val, so computations don't pile up
+  val `seq`
+  setRef ref (f val)
 
 
-withDC :: Maybe Win32.HWND -> (Win32.HDC -> IO ()) -> IO ()
-withDC mhwnd = 
-  with (Win32.getDC mhwnd) (Win32.releaseDC mhwnd)
+updatePeriodGoal :: SpriteTime
+updatePeriodGoal = 0.1
 
-withCompatibleDC :: Maybe Win32.HDC -> (Win32.HDC -> IO ()) -> IO ()
-withCompatibleDC mhdc = 
-  with (Win32.createCompatibleDC mhdc) Win32.deleteDC
+-- Show a sprite tree
 
-withCompatibleBitmap ::
-  Win32.HDC -> Int -> Int -> (Win32.HBITMAP -> IO ()) -> IO ()
-withCompatibleBitmap hdc w h = 
-  with (Win32.createCompatibleBitmap hdc w h) Win32.deleteBitmap
+showSpriteTree :: HSpriteTree -> IO () -> UserChannel -> SpriteTime -> IO ()
+
+showSpriteTree spriteTree updateIO userChan t0 =
+ do spriteEngineVar <- newRef (error "dDrawEnvVar not set")
+    updateCountVar  <- newRef (0::Int)
+    frameCountRef   <- newRef 0
+    windowVar	    <- newRef (error "windowVar not set")
+    
+    makeWindow
+       -- Create IO
+       (\ w ->
+	 do setRef windowVar w
+	    eng <- newSpriteEngine w spriteTree
+	    setRef spriteEngineVar eng)
+       -- Resize IO.  Recreates the back buffer and clippers.
+       (do eng <- getRef spriteEngineVar
+	   onResizeSpriteEngine eng)
+       -- Update IO
+       (do -- garbageCollect
+           updateIO
+	   updateRefStrict updateCountVar (+1))
+       -- Close IO
+       (do eng <- getRef spriteEngineVar
+	   count <- deleteSpriteEngine eng
+	   setRef frameCountRef count
+	   win <- getRef windowVar
+	   Win32.destroyWindow win)
+       -- update interval in seconds
+       updatePeriodGoal
+       userChan
+
+    -- Clean up
+    deleteSpriteTree spriteTree
+    -- Show performance stats
+    updateCount <- getRef updateCountVar
+    frameCount  <- getRef frameCountRef
+    showStats t0 frameCount updateCount
+    return ()
 
 
-selectBitmapIn :: Win32.HDC -> Win32.HBITMAP -> IO () -> IO ()
-selectBitmapIn hdc hbmp = 
-  bracketWith (Win32.selectBitmap hdc hbmp) (Win32.selectBitmap hdc)
+-- To do: get frame count
+
+showStats :: SpriteTime -> Int -> Int -> IO ()
+
+showStats t0 frameCount updateCount =
+ do t1 <- currentSpriteTime
+    let dt = t1 - t0 in
+      do -- putStrLn (show dt ++ " seconds")
+	 putStrLn ""
+         putStrLn (show dt ++ " seconds elapsed")
+	 putStrLn (show frameCount ++ " frames == " ++
+		   show (fromInt frameCount / dt) ++ " fps, " ++
+                   show (round (1000 * dt / fromInt frameCount)) ++
+                   " MS average")
+	 putStrLn (show updateCount ++ " updates == " ++
+		   show (fromInt updateCount / dt) ++ " ups, " ++
+                   show (round (1000 * dt / fromInt updateCount)) ++
+                   " MS average")
+
+
+
+-- Testing.  Superceded by Spritify.hs
+
+type STGen = Time -> SpriteTreeChain -> IO SpriteTreeChain
+
+-- Ignores user input
+
+disp :: STGen -> IO ()
+
+disp stGen =
+  do t0 <- currentSpriteTime
+     (ignoredUser, userChan) <- newUser t0
+     spriteTree <- stGen t0 emptySpriteTreeChain
+     showSpriteTree spriteTree (return ()) userChan t0
+
+------- Test cases --------
+
+
+-- donutBmp = "c:\\Dxsdk\\sdk\\samples\\donuts\\donuts.bmp"
+donutBmp = "..\\..\\Media\\donuts.bmp"
+
+donutSurface :: HDDSurface
+donutSurface = bitmapDDSurface donutBmp
+
+donutFlipBook :: HFlipBook
+donutFlipBook = flipBook donutSurface 64 64 0 0 5 6
+
+
+donut :: Double -> Double -> Double -> Double -> STGen
+
+donut velX velY scaleRate frameRate t0 rest =
+  newFlipSprite donutFlipBook 0 0  1 1  0 rest     >>= \ flying ->
+  setGoalPosition (toSprite flying) velX' velY' (t0+1)  >>
+  setGoalScale (toSprite flying) scale' scale' (t0+1)  >>
+  setGoalPage flying frameRate (t0+1)   >>
+  return (toSpriteTree flying)
+  where
+   velX' = velX
+   velY' = velY
+   scale' = 1 + scaleRate
+
+donut1, donut2, donut3, twoDonuts, threeDonuts :: STGen
+
+donut1 = donut 0.40 0.35 0.0  50
+donut2 = donut 0.50 0.45 0.2  70
+donut3 = donut 0.45 0.40 0.5 100
+
+-- [donut1, donut2, ...]
+-- Could elide "rest" by using .>>=
+twoDonuts t0 rest =
+  donut2 t0 rest >>=
+  donut1 t0
+
+-- [donut3, [donut1, donut2], ...]
+threeDonuts t0 rest =
+  twoDonuts t0 emptySpriteTreeChain >>= \ two ->
+  map toSpriteTree (newSpriteGroup two rest)  >>= \ group ->
+  donut3 t0 group
+
+noDonuts t0 rest = return rest
+
 
 
 
@@ -361,41 +332,4 @@ selectBitmapIn hdc hbmp =
 -- Program parameters
 ----------------------------------------------------------------
 
--- Doing a (probably PowerPoint) presentation.  Make the window stay on
--- top, but in a corner.  Also, resizing the window scales the animation.
-presentation = False
-
--- do we want to use double buffering?
-doubleBuffered = True
-
--- We can choose whether or not the background gets erased for us.
--- The animation examples tend to be displayed on a large
--- background square so there's no need for the OS to do it too
--- (and we get less flicker).
--- The disadvantage is that if you expand the window to be larger than
--- the animation area, you see trailing at the edges.
-eraseBackground = False
-
--- we can force an immediate update in response to the wM_TIMER call.
-forceUpdate = False
-
--- Background
--- backColor = Win32.wHITENESS
-backColor = Win32.bLACKNESS
-
--- Pixel size of window on startup.  Big enough to show -1 to 1 in
--- continuous units in X and Y, plus a bit.  Give more vertical space for
--- title bar.
-width, height :: Int
-(width, height) = vector2ToScreenSize (vector2XY 2.1 2.3)
-
--- Frames per second target
-targetFPS = 40 :: Float
-
---- Testing
-
-
--- import ImageBTest
-
-
--- To test, try "disp i{j}", where j `elem` [1..]
+initialWindowSize = 300 :: Int
