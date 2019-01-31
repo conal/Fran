@@ -1,6 +1,6 @@
 -- Vector spaces
 -- 
--- Last modified Thu Oct 03 13:38:23 1996
+-- Last modified Tue Oct 29 17:30:01 1996
 -- 
 -- Doesn't work as well as we'd like.  Lacking type relations, we have to
 -- hardwire the scalar type, which means we can't use behaviors, so we
@@ -10,6 +10,8 @@
 -- and make Point2 and Behavior Point2 be instances.
 
 module VectorSpace where
+
+import Force 
 
 infixr 7 `scaleVector`, `dot`
 infixl 6 `addVector`
@@ -24,7 +26,7 @@ class VectorSpace v where
   scaleVector        :: Scalar -> v -> v
   addVector          :: v -> v -> v
   dot                :: v -> v -> Scalar
-  force		     :: v -> v
+
 
 -- negateVector :: VectorSpace v =>  v -> v
 -- negateVector v = -1 `scaleVector` v
@@ -61,14 +63,12 @@ instance  VectorSpace Double  where
   scaleVector    =  (*)
   addVector      =  (+)
   dot            =  (*)
-  force 	 =  id
 
 instance VectorSpace Float where
   zeroVector          =  0.0
   d  `scaleVector` f  =  (fromDouble d) * f
   addVector           =  (+)
   a `dot` b           =  fromRealFrac (a * b)
-  force		      =  id
 
 
 {- We'd like to use +, -, and negate on vector spaces.  As above, we

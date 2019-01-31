@@ -1,6 +1,6 @@
 -- Simple test harness for Image behaviors
 -- 
--- Last modified Fri Oct 25 10:29:42 1996
+-- Last modified Mon Oct 28 14:57:54 1996
 -- 
 -- To have a go, run "disp i{j}" where j `elem` [1..].
 -- Or run "disp allDemos" to see them all, and press <space> to go on to the
@@ -32,34 +32,30 @@ dispFps imF = disp (\t0 -> fpsImage t0 `over` imF t0)
 
 -- An image of the fps behavior
 fpsImage :: Time -> ImageB
-fpsImage = showIm yellow . fps
+fpsImage = withColor yellow . showIm . fps
 
-demos =   [ i0,  i1,  i2,  i3,  i4,  i5,  i6,  i7,  i8,  i9,
-           i10, i11, i12, i13, i14, i15, i16, i17, i18, i19,
-           i20, i21, i22, i23, i24, i25, i26, i27, i28, i29,
-           i30, i31, i32, i33, {-i34, i35,-} i36, i37 ]
--- Doesn't work.  Why??  (Try just "disp i1 >> disp i2".)
-dispAll' = sequence (map disp demos)
+demos =   [ iStart,
+            i1,  i2,  i3,  i4,  i5,  i6,  i7,  i8,  i9, 
+                i12, i13, i14, i15, i16, i17, i18, i19, i20,
+           i21, i22, i23, i24, i25,      i27, i28,      i30,
+           i31, i32, i33,          i36, i37,
+            iEnd ]
 
+-- Sequential demo combinator
 seqImF :: (Time -> ImageB) -> (Time -> ImageB) -> (Time -> ImageB)
 
 (imF `seqImF` imF') t0 =
   imF t0 `untilB` (keyPress `suchThat` (\(ch,_) -> ch == ' ')) t0 *=> imF'
 
-allDemos =
-  foldr seqImF
-        (\t0 ->
-         translate2 (vector2Polar 0.5 time) *%
-         withColor yellow
-           (renderedText (simpleText (lift0 "That's all folks!"))))
-        demos
+allDemos  =  foldr1 seqImF demos
 
-i0 t0 = translate2 (vector2XY (-1) 0) *%
-        withColor green
-           (renderedText (simpleText (lift0 "Press <space> for next demo")))
+
+iStart t0 =
+  withColor green (stringIm "Press <space> for next demo")
+
 
 i1 t0 = withColor red $
-        uscale2 (0.75 + 0.25 * cos (5*time)) *%
+        uscale2 (wiggleRange 0.5 1)  *%
         circle 
 
 i2 t0 = translate2 (vector2Polar 0.7 time) *%
@@ -96,46 +92,32 @@ i4 t0 =
        uscale2 0.5                              *%
        circle]
 
+-- Cycles colors upon left clicks.
 
 i5 t0 =
-  translate2 (vector2XY (sin time / 5) 0) *%
-        renderedText (simpleText (lift0 "Click me"))
+    translate2 (vector2XY (sin time / 5) 0) *% stringIm "Click me"
   `over`
-     withColor (col red green blue t0) (i1 t0)
+     withColor (cycle3 red green blue t0) (i1 t0)
  where
-  col c1 c2 c3 t0 =
-   c1 `untilB` lbp t0 *=> col c2 c3 c1
-
-
-i5' t0 =
-  moveHorizontal (wiggle / 5) (
-    renderedText (simpleText (lift0 "Click me")) )
-  `over`
-  withColor (col (gray wiggle) (rgb wiggle 0.2 0.4) yellow t0) (i1 t0)
- where
-  col c1 c2 c3 t0 =
-   c1 `untilB` lbp t0 *=> col c2 c3 c1
-
+  cycle3 c1 c2 c3 t0 =
+   c1 `untilB` lbp t0 *=> cycle3 c2 c3 c1
 
 -- spinning ellipse
 i6 t0 = withColor green $ rotate2 (3*time) *% ellipse (vector2XY 1 0.5)
 
 -- Follow the mouse
-
-i7 t0 = translate2 (mouse t0 `pointMinusPoint2` origin2) *%
+i7 t0 = translate2 (mouse t0 .-. origin2) *%
         uscale2 0.2 *%
         withColor yellow circle
 
--- i8 t0 = withColor red (renderedText (simpleText (lift0 "nothing here")))
-
-i8 t0 = withColor green $ renderedText (simpleText (strB t0))
+-- Shows non-space keys while pressed
+i8 t0 = withColor green $ stringBIm (strB t0)
         where
           strB t0 = waiting    `untilB` keyPress t0 ==> \ (ch, release) ->
                     lift0 [ch] `untilB` release     *=> strB
           waiting = lift0 "press a key"
                   
   
-
 -- For the next three, shrink/grow while left/right button down
 
 smoothGrowShrink anim t0 =
@@ -152,9 +134,11 @@ smoothGrowShrink anim t0 =
 
 i9 t0 = smoothGrowShrink (withColor red $ uscale2 0.5 *% circle) t0
 
-i10 t0 = smoothGrowShrink (lift0 ImageTest.i17) t0
+-- Infinite recursive images.  Too slow.
 
-i11 t0 = smoothGrowShrink (lift0 ImageTest.i18) t0
+-- i10 t0 = smoothGrowShrink (lift0 ImageTest.i17) t0
+
+-- i11 t0 = smoothGrowShrink (lift0 ImageTest.i18) t0
 
 -- This one gives a control stack overflow.  Why??
 iBlowStack t0 =
@@ -212,19 +196,18 @@ i15 t0 = wigglyWatchers 5 t0
 -- Being followed
 
 
--- To do: eliminate the seed/random stuff, as it's not really helpful here.
 chasingWatcher t0 =
   follower
   where
-    seed1 = unsafePerformIO timeGetTime
+    seed1 = round t0
     seed2 = seed1 + 2543
     x: y: _ =  randomDoubles seed1 seed2
     follower =
       mouseWatcher (translate2 eyePos `compose2` uscale2 0.3) t0
       where
-       eyePos = startPos `pointPlusVector2` integral eyeVel t0
+       eyePos = startPos .+^ integral eyeVel t0
        eyeVel = integral eyeAcc t0
-       eyeAcc = (mouse 0 `pointMinusPoint2` eyePos) `addVector`
+       eyeAcc = (mouse 0 .-. eyePos) `addVector`
                 (dragFactor `scaleVector` eyeVel)
        dragFactor = -1
        -- x,y are in [0,1]
@@ -234,43 +217,13 @@ chasingWatcher t0 =
 
 i16 t0 = chasingWatcher t0
 
-{-
-
-chasingWatchers n =
-  foldl1 over (zipWith follower (take n (randomDoubles seed1 seed2))
-                                (take n (randomDoubles seed2 seed1)))
-  where
-  seed1 = unsafePerformIO timeGetTime
-  seed2 = seed1 + 2543
-  follower x y =
-      mouseWatcher (translate2 eyePos `compose2` uscale2 0.3) t0
-      where
-       eyePos = startPos `pointPlusVector2` integral eyeVel 0
-       eyeVel = integral eyeAcc 0
-       eyeAcc = (mouse 0 `pointMinusPoint2` eyePos) `addVector`
-                (dragFactor `scaleVector` eyeVel)
-       dragFactor = -1
-       -- x,y are in [0,1]
-       startPos =  uscale2 1.5 *%
-                   translate2 (vector2XY (-0.5) (-0.5)) *%
-                   point2XY (lift0 x) (lift0 y)
-
--- Oops: all the watchers converge, so n>1 is not very interesting. :-(  I
--- guess they'd have to also avoid each other somehow.  Or: have a chain
--- of them, in which the first one follows the mouse and the later ones
--- follow their predecessor, as in chasingWatchers' below
--}
-
-
--- To do: eliminate the unsafe seed stuff, and use t0 instead.
-
 chasingWatchers' n t0 =
   chasers n
           (zipWith startPos (randomDoubles seed1 seed2)
                             (randomDoubles seed2 seed1))
           (mouse t0)
   where
-    seed1 = unsafePerformIO timeGetTime
+    seed1 = round t0
     seed2 = seed1 + 2543
 
     startPos x y = -- x,y are in [0,1]. Transform to [-1.5,1.5]
@@ -284,24 +237,26 @@ chasingWatchers' n t0 =
       mouseWatcher (translate2 eyePos `compose2` uscale2 0.3) t0
         `over` chasers (n-1) startPts' eyePos
       where
-       eyePos = startPt `pointPlusVector2` integral eyeVel t0
+       eyePos = startPt .+^ integral eyeVel t0
        eyeVel = integral eyeAcc t0
-       eyeAcc = (followPt `pointMinusPoint2` eyePos) `addVector`
+       eyeAcc = (followPt .-. eyePos) `addVector`
                 (dragFactor `scaleVector` eyeVel)
        dragFactor = -1
 
--- Use "i17 0"
-
+-- A group chase.
 i17 t0 = chasingWatchers' 3 t0
 
 
+-- Pretty picture
 i18 t0 = rotate2 (time/5) *% lift0 (ImageTest.lotus 8 4)
 
--- Accumulate snapshots of a simple animation.
+-- Accumulate snapshots of a simple animation, upon left click
 
-i19 t0 = anim `over` stepping t0 emptyImage
+i19 t0 = moveXY (wiggle/5) 0 (withColor yellow (stringIm "Click me"))
+          `over` anim
+          `over` stepping t0 emptyImage
          where
-           anim = withColor (hsl (180 * sin time) 0.5 0.5) (i2 t0)
+           anim = withColor (hsl (180 * wiggle) 0.5 0.5) (i2 t0)
 
            stepping t0 im0 =
              im0 `untilB`
@@ -322,31 +277,28 @@ motion_tracker spc motion trail =
 -- Turn a string into a list of simple text images.
 
 stringTrail str =
- map (\ c -> withColor yellow $ renderedText (simpleText (lift0 [c]))) str
+ map (\ c -> withColor yellow (stringIm [c])) str
 
 i20 t0 = motion_tracker 0.1 m1 (stringTrail "Time Transformation")
  where
   m1 = (uscale2 0.9 *% vector2XY (cos (3*time)) (sin (5*time)))
         `timeTransform` (time/3)
 
--- Time transformation of the mouse doesn't work well.  Come up with a
--- better representation for external events.
 
 mouse_tracker t0 =
-  motion_tracker 0.3 (mouse t0 `pointMinusPoint2` origin2)
+  motion_tracker 0.1 (mouse t0 .-. origin2)
 
-i21 t0 = mouse_tracker t0 (stringTrail "RBMH")
+i21 t0 = mouse_tracker t0 (stringTrail "TIME FLOWS")
 
-i22 t0 = mouse_tracker t0 (take 13 (repeat (uscale2 0.1 *% circle)))
-
-
+i22 t0 =
+ mouse_tracker t0
+  [uscale2 0.1 *% withColor (hsl (lift0 h) 0.5 0.5) circle |
+   h <- [0, 360 / 5 .. 359] ]
 
 
 -- Bouncing ball examples.
 
 -- 1D bounce path
-
--- Old version.  Avoid self-reactivity
 
 bounce1 minVal maxVal x0 dx0 ddx t0 = path
   where
@@ -397,6 +349,7 @@ bounce1' minVal maxVal x0 dx0 ddx t0 = x
 
         collide = predicate (x <=* lift0 minVal &&* dx <=* 0 ||*
                              x >=* lift0 maxVal &&* dx >=* 0) t0
+
 
 -- 2D bounce path
 
@@ -609,6 +562,7 @@ viewStretch bitmapFilename t0 =
   case S.importBitmap bitmapFilename of
       S.EmptyImage -> emptyImage
       im@(S.Bitmap size _) ->
+        moveXY 0 (-wHeight/3) (stringIm "Resize the window") `over`
         scale2 (vector2XY (wWidth / lift0 iWidth)
                           (wHeight / lift0 iHeight))
          *% lift0 im
@@ -682,3 +636,8 @@ iTst10 t0 = withColor red (scale2 x *% circle)
   x = integral dx t0 `untilB` predicate (x>=*1) t0 `snapshot` x ==> lift0 . snd
   dx = 0.1 :: Behavior RealVal
 
+
+iEnd t0 =
+  translate2 (vector2Polar 0.5 time) *%
+  withColor red (
+   stringIm "That's all folks!")

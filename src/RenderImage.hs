@@ -1,6 +1,6 @@
 -- Converting Picture values into graphical output (Win32 GDI).
 --
--- Last modified Thu Sep 19 12:02:00 1996
+-- Last modified Mon Oct 28 17:56:30 1996
 
 module RenderImage (draw) where
 
@@ -64,9 +64,7 @@ draw hdc im =
      Bezier p1 p2 p3 p4 ->
         Win32.polyBezier hdc (map (f tr) [p1,p2,p3,p4])
      RenderedText str ->
-        drawText hdc a b str
-          where
-            (a,b) = f tr origin2
+        drawText hdc tr str
      WithColor c im ->
         if hasColor then
           draw' tr hasColor im
@@ -104,18 +102,52 @@ drawBitmap hdc (x0,y0) (x1,y1) bitmap =
   Win32.plgBlt hdc p1 p2 p3 memdc 0 0 width height Nothing 0 0 >>
 -}
   Win32.stretchBlt hdc x0 y1 (x1-x0) (y0-y1)
-		   memdc 0 0 width height Win32.sRCCOPY >>
+                   memdc 0 0 width height Win32.sRCCOPY >>
   Win32.deleteDC memdc
 
 
-drawText :: Win32.HDC -> Int -> Int -> TextT -> IO ()
-drawText hdc x y (TextT fam str) =
-  -- no need to get current font before setting new one, since the font is
-  -- set locally for each use of Text
--- setFont hdc fam 1 1       >>
- -- putStrLn ("drawing text " ++ str ++ " at " ++ show (x,y)) >>
- Win32.textOut hdc x y str >>
+drawText :: Win32.HDC -> Transform2 -> TextT -> IO ()
+drawText hdc xf (TextT (Font.Font fam bold italic) str) =
+ -- no need to get current font before setting new one, since the font is
+ -- set locally for each use of Text
+ -- putStrLn ("drawing text at " ++ show (x,y) ++ ". width==" ++ show width ++ ", escapement==" ++ show escapement) >>
+ Win32.createFont width height
+                  escapement
+                  0                   -- orientation
+                  weight
+                  italic False False    -- italic, underline, strikeout
+                  Win32.aNSI_CHARSET
+                  Win32.oUT_DEFAULT_PRECIS
+                  Win32.cLIP_DEFAULT_PRECIS
+                  Win32.dEFAULT_QUALITY
+                  Win32.dEFAULT_PITCH
+                  gdiFam >>= \hf ->
+ Win32.selectFont hdc hf                   >>= \ old ->
+ -- This next guy is already done in showImageB.hs, but is ineffective
+ -- there.  Why?
+ Win32.setTextAlign hdc Win32.tA_CENTER    >>
+ Win32.textOut hdc (round x0) (round y0) str  >>
+ Win32.selectFont hdc old                  >>
+ Win32.deleteFont hf                       >>
  return ()
+ where
+  (x0,y0) = point2XYCoords p0
+  (stretch,angle) = vector2PolarCoords (p1 `pointMinusPoint2` p0)
+  p0     = xf *% origin2
+  p1     = xf *% (point2XY 1 0)
+  -- This 20x12 is a guess.  Do the right thing.
+  width  = round (20 * stretch / pixelsPerLengthHorizontal)
+  height = round (12 * stretch / pixelsPerLengthVertical)
+  escapement = round (-angle * 1800/pi)
+  weight = if bold then 700 else 0
+  gdiFam =
+   case fam of
+     Font.System     -> "System" -- this is going to break ..
+     Font.TimesRoman -> "Times New Roman"
+     Font.Courier    -> "Courier New"
+     Font.Arial      -> "Arial"
+     Font.Symbol     -> "Symbol"
+
 
 {- Need support in Win32.hs beyond Yale0 to do this.
 drawText :: Win32.HDC -> Int -> Int -> TextT -> IO ()
@@ -124,12 +156,12 @@ drawText hdc x y (TextT (Font.Font fam bold ital) str) =
   -- set locally for each use of Text
  Win32.ezCreateFont hdc fam' 150 0 0 False >>= \ hf ->
  Win32.selectFont hdc hf                   >>= \ old ->
- Win32.textOut hdc x y str		   >>
- Win32.selectFont hdc old		   >>
- Win32.deleteFont hf			   >>
+ Win32.textOut hdc x y str                 >>
+ Win32.selectFont hdc old                  >>
+ Win32.deleteFont hf                       >>
  return ()
  where
-  fam' =
+  gdiFam =
    (case fam of
      Font.System     -> "System" -- this is going to break ..
      Font.TimesRoman -> "Times New Roman"
@@ -150,7 +182,7 @@ drawWithColor hdc (RGB r g b) m =
    --Win32.selectPen hdc pen       >>= \ oldPen ->
    Win32.setTextColor hdc c        >>= \ oldTC ->
    m                               >>
-   Win32.setTextColor hdc oldTC	   >>
+   Win32.setTextColor hdc oldTC    >>
    --Win32.selectPen hdc oldPen      >>
    --Win32.deletePen pen             >>
    Win32.selectBrush hdc oldBrush  >>
@@ -189,10 +221,10 @@ drawCircle hdc xf =
 slowEllipse hdc (X a b c d e f) =
   Win32.transformedEllipse hdc a' b' c' d' e' f'
   where a' = fromDouble a
-	b' = fromDouble b
-	c' = fromDouble c
-	d' = fromDouble d
-	e' = fromDouble e
-	f' = fromDouble f
+        b' = fromDouble b
+        c' = fromDouble c
+        d' = fromDouble d
+        e' = fromDouble e
+        f' = fromDouble f
 
 

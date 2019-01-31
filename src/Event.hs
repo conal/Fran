@@ -1,6 +1,6 @@
 -- The "event algebra".
 -- 
--- Last modified Fri Oct 25 10:08:02 1996
+-- Last modified Tue Oct 29 17:49:11 1996
 
 
 module Event where
@@ -8,14 +8,15 @@ module Event where
 import Behavior (Time, Behavior, at)
 import Prelude hiding (MutVar, newVar,readVar,writeVar)
 import MutVar
+import Force
 
 infixl 9 `snapshot`
 
-infixl 2 +=>
-infixl 2 ==>
-infixl 2 -=>
-infixl 2 *=>
-infixl 1 .|.
+infixl 3 +=>
+infixl 3 ==>
+infixl 3 -=>
+infixl 3 *=>
+infixl 2 .|.
 
 infixl 1 +>>=   -- generalization of >>=
 
@@ -111,16 +112,19 @@ neverEvent = Event (\ t -> NonOcc neverEvent)
 -- The event "e `snapshot` b" occurs at the time te when e occurs.  Its
 -- value is e's value together with a snapshot of b at te.
 
-snapshot :: Event a -> Behavior b -> Event (a,b)
+snapshot :: (Forceable b) => Event a -> Behavior b -> Event (a,b)
 
 ev `snapshot` b =
   Event $ \ t ->
   case  ev `occ` t  of
     Occ te x   ->  Occ te (x,y)
                      where (y, _) = b `at` te
-    NonOcc ev' ->  NonOcc (ev' `snapshot` b')
+
+    -- We force the evaluation of y below to aviod a problem with snapshot of the mouse.
+    NonOcc ev' ->  force y `seq` 
+		   NonOcc (ev' `snapshot` b')		     
                      -- move b along
-                     where (_, b') = b `at` t
+                     where (y, b') = b `at` t
 
 
 -- Earliest event time
@@ -142,19 +146,19 @@ cacheEvent ev = cachedEv
      case cacheVal of
        -- Already occurred
        Left pair@(te, _) ->
-	 return (if  t <= te then Nothing else Just pair)
+         return (if  t <= te then Nothing else Just pair)
        -- Not yet occurred
        Right (lowerBound, ev') ->
-	 if t <= lowerBound then
-	   return Nothing
-	 else
-	   case  ev' `occ` t  of
-	     Occ te x    ->
-	       writeVar cacheVar (Left (te, x)) >>
-	       return (Just (te,x))
-	     NonOcc ev'' ->
-	       writeVar cacheVar (Right (t,  ev'')) >>
-	       return Nothing ) )
+         if t <= lowerBound then
+           return Nothing
+         else
+           case  ev' `occ` t  of
+             Occ te x    ->
+               writeVar cacheVar (Left (te, x)) >>
+               return (Just (te,x))
+             NonOcc ev'' ->
+               writeVar cacheVar (Right (t,  ev'')) >>
+               return Nothing ) )
 
 
 
@@ -280,9 +284,9 @@ whenEv evg condB t0 = tryEv (evg t0) condB
 predicate condB t0 = Event sample
  where
   sample t = if t <= t0 then NonOcc event
-	     else if condVal then Occ t ()
-	     else NonOcc (predicate condB' t)
-	     where
-	       (condVal, condB') = condB `at` t
+             else if condVal then Occ t ()
+             else NonOcc (predicate condB' t)
+             where
+               (condVal, condB') = condB `at` t
 
 -}

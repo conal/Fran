@@ -1,6 +1,6 @@
 {- Definition of 2d static Image type -}
 
--- Last modified Wed Oct 23 22:44:58 1996
+-- Last modified Sat Oct 26 22:51:52 1996
 
 -- To do: be selective about exports
 
@@ -87,8 +87,8 @@ squarePoints = map (\ i -> point2Polar 1 (pi/4 + i * pi/2)) [0 .. 4]
 circleRadius = 1 :: RealVal
 
 -- Pixels per length unit, horizontal and vertical
-pixelsPerLengthHorizontal = 100 :: Double
-pixelsPerLengthVertical   = 100 :: Double
+pixelsPerLengthHorizontal = 200 :: Double
+pixelsPerLengthVertical   = 200 :: Double
 
 screenSizeToVector2 :: (Int,Int) -> Vector2
 

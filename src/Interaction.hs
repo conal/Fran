@@ -1,6 +1,6 @@
 -- Higher-level interaction
 --
--- Last modified Tue Oct 15 10:11:39 1996
+-- Last modified Sun Oct 27 23:23:00 1996
 
 module Interaction where
 
@@ -20,12 +20,14 @@ import qualified Point2B (linearInterpolate2)
 -- import Point2B
 -- import qualified Pick2Image
 
-lbp :: Time -> Event (Event ())
-lbp t0 = primLBP t0 *=> \ t1 -> primLBR t1 -=> ()
+lbp,rbp :: Time -> Event (Event ())
+lbp t0 = primLBP t0 *=> lbr
+rbp t0 = primRBP t0 *=> rbr
 
-rbp :: Time -> Event (Event ())
-rbp t0 = primRBP t0 *=> \ t1 -> primRBR t1 -=> ()
+lbr, rbr :: Time -> Event ()
 
+lbr t1 = primLBR t1 -=> ()
+rbr t1 = primRBR t1 -=> ()
 
 keyPress :: Time -> Event (Char, Event ())
 keyPress t0 =
@@ -59,7 +61,7 @@ mouse t0 = mouse' t0 origin2 (t0-1) origin2
    -- Efficiency bug: when the mouse is quiet, we keep spinning.  Fix by
    -- adding an initial peaceful state.
    Point2B.linearInterpolate2 (lift0 p0) (lift0 p1)
-			      ((time - lift0 t0) / lift0 (t1-t0)) `untilB`
+                              ((time - lift0 t0) / lift0 (t1-t0)) `untilB`
     (primMousePos t1 .|. (timeIs (t1+0.2) -=> p1)) +=> mouse' t1 p1
 
 -}

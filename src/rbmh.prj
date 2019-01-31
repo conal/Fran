@@ -1,4 +1,4 @@
--- Last modified Thu Oct 24 13:15:03 1996 by conal
+-- Last modified Thu Oct 31 14:14:50 1996 by conal
 
 -- To do: weed out some of these as possible
 
@@ -11,6 +11,7 @@ PicLib/Bitmap.hs
 Lib/Random.hs
 ../Lib/MutVar.hs
 
+Force.hs
 BaseTypes.hs
 
 -- non-Behavior modelling types
@@ -65,4 +66,4 @@ RBMH.hs
 UtilsB.hs
 
 ImageBTest.hs
-
+Samples.hs

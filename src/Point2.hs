@@ -1,6 +1,6 @@
 -- RBMH 2d point abstraction.
 --
--- Last modified Mon Sep 16 14:48:25 1996
+-- Last modified Tue Oct 29 17:40:36 1996
 --
 -- When Haskell has type relations (multi-parameter type classes), move most
 -- of stuff to an AffineSpace type relation.
@@ -30,6 +30,7 @@ import Prelude
 import BaseTypes
 import VectorSpace
 import Vector2
+import Force
 
 -- Set binding strength to that of + and -.
 infix 4 `pointPlusVector2`, `pointMinusVector2`, `pointMinusPoint2`
@@ -75,3 +76,11 @@ distance2 a b = sqrt (distance2Squared a b)
 linearInterpolate2 :: Point2 -> Point2 -> RealVal -> Point2
 linearInterpolate2 p1 p2 frac =
   p1 `pointPlusVector2` (frac `scaleVector` (p2 `pointMinusPoint2` p1))
+
+instance Forceable Point2 where
+  force p@(Point2XY x y) = force x `seq` force y `seq` p
+
+
+
+
+

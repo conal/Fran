@@ -1,6 +1,6 @@
 -- Text type
 --
--- Last modified Mon Sep 16 21:10:37 1996
+-- Last modified Mon Oct 28 16:52:51 1996
 
 module Text where
 
@@ -9,7 +9,7 @@ import qualified Font
 data TextT = TextT Font.Font String deriving Text
 
 simpleText :: String -> TextT
-simpleText str = TextT Font.system str
+simpleText str = TextT Font.timesRoman str
 
 boldT       :: TextT -> TextT
 boldT (TextT f t) = TextT (Font.bold f) t

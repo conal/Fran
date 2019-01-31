@@ -1,6 +1,6 @@
 {- RBMH 2D (static) Vectors
 
- Last modified Fri Oct 11 14:55:31 1996
+ Last modified Tue Oct 29 17:30:47 1996
 -}
 module Vector2 
         (
@@ -17,6 +17,7 @@ module Vector2
 
 import BaseTypes
 import VectorSpace
+import Force
 
 data Vector2 = Vector2XY Double Double   deriving (Eq,Text)
 
@@ -48,10 +49,14 @@ instance  VectorSpace Vector2  where
     Vector2XY (dx1+dx2) (dy1+dy2)
 
   (Vector2XY dx1 dy1) `dot` (Vector2XY dx2 dy2)  =  dx1*dx2 + dy1*dy2
-  force v@(Vector2XY x y) = force x `seq` force y `seq` v
 
 instance  Num Vector2  where
   (+)      = addVector
   negate v = -1 `scaleVector` v
   -- (-) follows from negate and +
   fromInteger = error "Can't interpret integers as Vector2"
+
+instance Forceable Vector2 where
+  force v@(Vector2XY x y) = force x `seq` force y `seq` v
+
+

@@ -1,7 +1,7 @@
 -- Integration.  Handles systems of mutually recursive integral behaviors
 -- (ODEs).
 -- 
--- Last modified Fri Oct 25 16:19:30 1996
+-- Last modified Tue Oct 29 17:16:08 1996
 
 module Integral where
 
@@ -9,8 +9,9 @@ import VectorSpace
 import Behavior
 import Event
 import Until
+import Force
 
-integral :: VectorSpace v => Behavior v -> Time -> Behavior v
+integral :: (Forceable v, VectorSpace v) => Behavior v -> Time -> Behavior v
 
 -- Piecewise-linear Euler's method.  Step forward from the starting time,
 -- taking regular steps, keeping an accumulator of the integral so far.  A

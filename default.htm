@@ -10,7 +10,7 @@ content="text/html; charset=iso-8859-1">
 
 <body>
 
-<h1 align="center"><b>RBMH Release 0.7</b> </h1>
+<h1 align="center"><b>RBMH Release 0.8</b> </h1>
 
 <h2 align="center">Reactive Behavior Modeling in Haskell </h2>
 
@@ -19,8 +19,8 @@ href="http://www.research.microsoft.com/research/graphics/elliott/">Conal
 Elliott</a></h2>
 
 <p align="center">&nbsp; <em>Last modified <!--webbot
-bot="TimeStamp" startspan s-type="EDITED" s-format="%B %d, %Y" -->October 25, 1996<!--webbot
-bot="TimeStamp" i-checksum="31577" endspan --></em></p>
+bot="TimeStamp" startspan s-type="EDITED" s-format="%B %d, %Y" -->October 31, 1996<!--webbot
+bot="TimeStamp" i-checksum="31570" endspan --></em></p>
 
 <p>RBMH is a Haskell library (or &quot;embedded language&quot;)
 for simple 2D animation. It runs on <a
@@ -35,7 +35,7 @@ one version to another.</p>
 <h3>Directions</h3>
 
 <ol>
-    <li>Download <a href="http:rbmh0.6.zip"><strong>rbmh0.7.zip</strong></a></li>
+    <li>Download <a href="http:rbmh0.8.zip"><strong>rbmh0.8.zip</strong></a></li>
     <li>Unzip to create a directory tree called <strong>rbmh</strong>,
         with subdirectories <strong>Lib</strong>, <strong>Media</strong> and <strong>src</strong>. </li>
     <li>Start up Hugs (tested with Yale Release 0), and <strong>:cd</strong>
@@ -43,12 +43,11 @@ one version to another.</p>
         called <strong>ImageBTest</strong>, which contains simple
         test cases. </li>
     <li>Type <strong>:p rbmh.prj</strong></li>
-    <li>At the Hugs prompt, type <strong>disp &lt;name&gt;</strong>,
-        where <strong>&lt;name&gt;</strong> is <strong>i1</strong>, <strong>i2</strong>,
-        etc, as defined in <strong>ImageBTest.hs</strong>. Or you can
-        just type <strong>disp allDemos</strong>. In the latter case,
-        press the space key to go from one demo to the next.
-        There are very sparse comments in the source. </li>
+    <li>At the Hugs prompt (should be in module <strong>Samples</strong>),
+        type <strong>disp allAnims</strong>. Press space,
+        &quot;n&quot;, or right-arrow to advance to the next
+        animation, and &quot;p&quot; or left-arrow to back up to
+        previous one.</li>
     <li>Try examples of your own. If you send me ones you've
         built, I'll consider them for inclusion (with credit to
         you) in future releases. </li>
@@ -68,16 +67,17 @@ one version to another.</p>
 
 <ul>
     <li>Currently there is a space leak with recursive integrals
-        (ODEs), so don't let <strong>i16</strong> and,
-        especially, <strong>i17</strong>, run very long. If you
-        see the update rate decreasing dramatically, move on to
-        the next example before you blow Hugs's heap. Also, <strong>i23</strong>
+        (ODEs), so don't let <strong>i16</strong> and, especially, <strong>i17</strong>,
+        run very long. If you see the update rate decreasing dramatically, move
+        on to the next example before you blow Hugs's heap. Also, <strong>i23</strong>
         seems to exhibit a slow space leak.</li>
     <li>Button-up and key-up events are missed if they happen too
         soon after the down event. Be careful with <strong>i8,
         i9, i10, i11</strong> in <strong>ImageBTest.</strong> If
         an up-event goes unnoticed, do the <em>same</em> down
-        event again, but this time hold for a bit and release.</li>
+        event again, but this time hold for a bit and release. I think
+        the problem is the coarse resolution of the <strong>timeGetTime</strong>
+        function.</li>
     <li>Transformation doesn't work on all primitives. In
         particular: bitmaps, and text don't rotate, and text
         doesn't even scale. <strong>SetWorldTransform</strong>
@@ -110,8 +110,8 @@ one version to another.</p>
     <li>Greg Schechter, Ricky Yeung, Salim AbiEzzi, and I
         collaborated at Sun Microsystems on <a
         href="http://www.research.microsoft.com/research/graphics/elliott/tbag/index.htm">TBAG</a>,
-        a system for constraint-based, semi-declarative modeling
-        of 3D animation. Some of the RBMH ideas were initially
+        a system for constraint-based, semi-declarative modeling of
+        3D animation. Some of the RBMH ideas were initially
         explored there.</li>
     <li><a
         href="http://www.research.microsoft.com/research/graphics/knoblock/">Todd
@@ -149,6 +149,8 @@ one version to another.</p>
     <li><a href="http://www.dcs.gla.ac.uk/~wadler/">Philip Wadler</a>
         had provided interesting and insightful feedback on the
         semantics of behaviors and events.</li>
+    <li><a href="http://www.pixelmonkey.com/">Pixel Monkey</a>
+        provided some images from their sampler.</li>
 </ul>
 
 <h3>Contact</h3>
