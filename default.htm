@@ -10,7 +10,7 @@ content="text/html; charset=iso-8859-1">
 
 <body>
 
-<h1 align="center"><b>RBMH Release 0.5</b> </h1>
+<h1 align="center"><b>RBMH Release 0.6</b> </h1>
 
 <h2 align="center">Reactive Behavior Modeling in Haskell </h2>
 
@@ -19,8 +19,8 @@ href="http://www.research.microsoft.com/research/graphics/elliott/">Conal
 Elliott</a></h2>
 
 <p align="center">&nbsp; <em>Last modified <!--webbot
-bot="TimeStamp" startspan s-type="EDITED" s-format="%B %d, %Y" -->October 08, 1996<!--webbot
-bot="TimeStamp" i-checksum="31581" endspan --></em></p>
+bot="TimeStamp" startspan s-type="EDITED" s-format="%B %d, %Y" -->October 25, 1996<!--webbot
+bot="TimeStamp" i-checksum="31577" endspan --></em></p>
 
 <p>RBMH is now ready for a test drive. It includes support for
 simple 2D animation as a Haskell library, and should run on <a
@@ -35,7 +35,7 @@ one version to another.</p>
 <h3>Directions</h3>
 
 <ol>
-    <li>Download <a href="http:rbmh0.5.zip"><strong>rbmh0.5.zip</strong></a></li>
+    <li>Download <a href="http:rbmh0.6.zip"><strong>rbmh0.6.zip</strong></a></li>
     <li>Unzip to create a directory tree called <strong>rbmh</strong>,
         with subdirectories <strong>Lib</strong>, <strong>Media</strong> and <strong>src</strong>. </li>
     <li>Start up Hugs (tested with Yale Release 0), and <strong>:cd</strong>
@@ -46,9 +46,9 @@ one version to another.</p>
     <li>At the Hugs prompt, type <strong>disp &lt;name&gt;</strong>,
         where <strong>&lt;name&gt;</strong> is <strong>i1</strong>, <strong>i2</strong>,
         etc, as defined in <strong>ImageBTest.hs</strong>. Or you can
-        just type <strong>disp allDemos</strong>. In the latter
-        case, press the space key to go from one demo to the
-        next. There are very sparse comments in the source. </li>
+        just type <strong>disp allDemos</strong>. In the latter case,
+        press the space key to go from one demo to the next.
+        There are very sparse comments in the source. </li>
     <li>Try examples of your own. If you send me ones you've
         built, I'll consider them for inclusion (with credit to
         you) in future releases. </li>
@@ -57,6 +57,11 @@ one version to another.</p>
 <h3>Notes</h3>
 
 <ul>
+    <li>Currently there is a space leak with recursive integrals
+        (ODEs), so don't let <strong>i16</strong> and, especially, <strong>i17</strong>,
+        run very long. If you see the update rate decreasing dramatically, move
+        on to the next example before you blow Hugs's heap. Also, <strong>i23</strong>
+        seems to exhibit a slow space leak.</li>
     <li>Represents alpha behaviors as <strong>[Time] -&gt;
         [alpha]</strong>. This form allows incremental behavior
         evaluation without implicit state, in particular for <strong>untilB</strong>
@@ -108,8 +113,8 @@ one version to another.</p>
         explored there.</li>
     <li><a
         href="http://www.research.microsoft.com/research/graphics/knoblock/">Todd
-        Knoblock</a> helped to refine the basic ideas of
-        behaviors and events.</li>
+        Knoblock</a> and Jim Kajiya helped to explore the basic
+        ideas of behaviors and events.</li>
     <li><a href="http://www.dcs.gla.ac.uk/~sof">Sigbjorn Finne</a>
         helped a lot with the implementation during his summer
         '96 internship.</li>

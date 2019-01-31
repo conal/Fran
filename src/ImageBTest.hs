@@ -1,6 +1,6 @@
 -- Simple test harness for Image behaviors
 -- 
--- Last modified Tue Oct 08 14:19:32 1996
+-- Last modified Fri Oct 25 10:29:42 1996
 -- 
 -- To have a go, run "disp i{j}" where j `elem` [1..].
 -- Or run "disp allDemos" to see them all, and press <space> to go on to the
@@ -17,6 +17,7 @@ module ImageBTest where
 import RBMH
 import qualified StaticTypes as S
 import qualified ImageTest
+import UtilsB
 
 import Random
 import Win32 (timeGetTime)
@@ -29,59 +30,57 @@ disp imF = ShowImageB.disp (imF 0)
 
 dispFps imF = disp (\t0 -> fpsImage t0 `over` imF t0)
 
--- Put these next two defs elsewhere:
-
 -- An image of the fps behavior
-fpsImage = withColor yellow . renderedText . simpleText . showB . fps
+fpsImage :: Time -> ImageB
+fpsImage = showIm yellow . fps
 
 demos =   [ i0,  i1,  i2,  i3,  i4,  i5,  i6,  i7,  i8,  i9,
-	   i10, i11, i12, i13, i14, i15, i16, i17, i18, i19,
-	   i20, i21, i22, i23, i24, i25, i26, i27, i28, i29,
-	   i30, i31, i32, i33, i34, i35, i36, i37 ]
+           i10, i11, i12, i13, i14, i15, i16, i17, i18, i19,
+           i20, i21, i22, i23, i24, i25, i26, i27, i28, i29,
+           i30, i31, i32, i33, {-i34, i35,-} i36, i37 ]
 -- Doesn't work.  Why??  (Try just "disp i1 >> disp i2".)
 dispAll' = sequence (map disp demos)
 
 seqImF :: (Time -> ImageB) -> (Time -> ImageB) -> (Time -> ImageB)
 
 (imF `seqImF` imF') t0 =
-  imF t0 `untilB` (keyPress `suchThat` (\(ch,_) -> ch == ' ')) t0
-		    +=> \ t1 _ -> imF' t1
+  imF t0 `untilB` (keyPress `suchThat` (\(ch,_) -> ch == ' ')) t0 *=> imF'
 
 allDemos =
   foldr seqImF
-	(\t0 ->
-	 translate2 (vector2Polar 0.5 time) *%
-	 withColor yellow
-	   (renderedText (simpleText (lift0 "That's all folks!"))))
-	demos
+        (\t0 ->
+         translate2 (vector2Polar 0.5 time) *%
+         withColor yellow
+           (renderedText (simpleText (lift0 "That's all folks!"))))
+        demos
 
 i0 t0 = translate2 (vector2XY (-1) 0) *%
-	withColor green
-	   (renderedText (simpleText (lift0 "Press <space> for next demo")))
+        withColor green
+           (renderedText (simpleText (lift0 "Press <space> for next demo")))
 
 i1 t0 = withColor red $
-	uscale2 (0.75 + 0.25 * cos (5*time)) *%
-	circle 
+        uscale2 (0.75 + 0.25 * cos (5*time)) *%
+        circle 
 
 i2 t0 = translate2 (vector2Polar 0.7 time) *%
-	uscale2 0.1 *%
-	i1 t0
+        uscale2 0.1 *%
+        i1 t0
 
 i3 t0 = translate2 (vector2Polar (time'/15) (sqr time')) *%
-	 uscale2 0.1 *%
-	 withColor red circle
+         uscale2 0.1 *%
+         withColor red circle
       `over`
-	 withColor (rgb (abs (cos time)) (abs (sin (2*time))) 0.5) (i1 t0)
+         withColor (rgb (abs (cos time)) (abs (sin (2*time))) 0.5) (i1 t0)
         where
-	  sqr x = x*x
-	  time' = time - lift0 t0
+          sqr x = x*x
+          time' = time - lift0 t0
 
 i4 t0 =
    foldl1 over
       [withColor royalBlue                     $
        translate2 (vector2XY 0.50 0)           *%
        rotate2 (pi * sin time)                 *%
-       importBitmap "..\\Media\\Xguy.bmp",
+       importBitmap "../Media/Xguy.bmp",
 
        withColor yellow                        $
        translate2 (vector2Polar 0.6 time)      *%
@@ -102,10 +101,20 @@ i5 t0 =
   translate2 (vector2XY (sin time / 5) 0) *%
         renderedText (simpleText (lift0 "Click me"))
   `over`
-     withColor (i5' red blue t0) (i1 t0)
+     withColor (col red green blue t0) (i1 t0)
  where
-  i5' c1 c2 t0 =
-   c1 `untilB` lbp t0 +=> \ t1 _ -> i5' c2 c1 t1
+  col c1 c2 c3 t0 =
+   c1 `untilB` lbp t0 *=> col c2 c3 c1
+
+
+i5' t0 =
+  moveHorizontal (wiggle / 5) (
+    renderedText (simpleText (lift0 "Click me")) )
+  `over`
+  withColor (col (gray wiggle) (rgb wiggle 0.2 0.4) yellow t0) (i1 t0)
+ where
+  col c1 c2 c3 t0 =
+   c1 `untilB` lbp t0 *=> col c2 c3 c1
 
 
 -- spinning ellipse
@@ -114,17 +123,17 @@ i6 t0 = withColor green $ rotate2 (3*time) *% ellipse (vector2XY 1 0.5)
 -- Follow the mouse
 
 i7 t0 = translate2 (mouse t0 `pointMinusPoint2` origin2) *%
-	uscale2 0.2 *%
-	withColor yellow circle
+        uscale2 0.2 *%
+        withColor yellow circle
 
 -- i8 t0 = withColor red (renderedText (simpleText (lift0 "nothing here")))
 
 i8 t0 = withColor green $ renderedText (simpleText (strB t0))
-	where
-	  strB t0 = waiting    `untilB` keyPress t0 ==> \ (ch, release) ->
-		    lift0 [ch] `untilB` release     *=> strB
-	  waiting = lift0 "press a key"
-		  
+        where
+          strB t0 = waiting    `untilB` keyPress t0 ==> \ (ch, release) ->
+                    lift0 [ch] `untilB` release     *=> strB
+          waiting = lift0 "press a key"
+                  
   
 
 -- For the next three, shrink/grow while left/right button down
@@ -134,7 +143,7 @@ smoothGrowShrink anim t0 =
   where
     changingRate t0 =
       0 `untilB` setRate t0 ==> \ (rate, stop) ->
-        lift0 rate `untilB` stop +=> \ t1 _ -> changingRate t1
+        lift0 rate `untilB` stop *=> changingRate
     -- Occurs when a button is pressed, yielding the new rate and
     -- a stop event.
     setRate t0 =
@@ -175,15 +184,15 @@ mouseWatcher xf t0 =
 i12 t0 = mouseWatcher (translate2 (vector2XY 0.4 0.2)) t0
 
 i13 t0 = mouseWatcher (translate2 (vector2Polar 0.3 time) `compose2`
-		      scale2 (1 + 0.2 * sin time)) t0
+                      scale2 (1 + 0.2 * sin time)) t0
 
 -- Group watch
 
 i14 t0 = foldl1 over (map watcher [0::Radians, 2*pi/5 .. 2*pi-0.01])
-	 where
-	   watcher angle =
-	     mouseWatcher (translate2 (vector2Polar 0.7 (lift0 angle))
-			   `compose2` uscale2 0.5) t0
+         where
+           watcher angle =
+             mouseWatcher (translate2 (vector2Polar 0.7 (lift0 angle))
+                           `compose2` uscale2 0.5) t0
 
 
 -- Wiggly group watch
@@ -202,6 +211,8 @@ i15 t0 = wigglyWatchers 5 t0
 
 -- Being followed
 
+
+-- To do: eliminate the seed/random stuff, as it's not really helpful here.
 chasingWatcher t0 =
   follower
   where
@@ -251,6 +262,8 @@ chasingWatchers n =
 -}
 
 
+-- To do: eliminate the unsafe seed stuff, and use t0 instead.
+
 chasingWatchers' n t0 =
   chasers n
           (zipWith startPos (randomDoubles seed1 seed2)
@@ -279,7 +292,7 @@ chasingWatchers' n t0 =
 
 -- Use "i17 0"
 
-i17 t0 = chasingWatchers' 4 t0
+i17 t0 = chasingWatchers' 3 t0
 
 
 i18 t0 = rotate2 (time/5) *% lift0 (ImageTest.lotus 8 4)
@@ -287,13 +300,13 @@ i18 t0 = rotate2 (time/5) *% lift0 (ImageTest.lotus 8 4)
 -- Accumulate snapshots of a simple animation.
 
 i19 t0 = anim `over` stepping t0 emptyImage
-	 where
-	   anim = withColor (hsl (180 * sin time) 0.5 0.5) (i2 t0)
+         where
+           anim = withColor (hsl (180 * sin time) 0.5 0.5) (i2 t0)
 
-	   stepping t0 im0 =
-	     im0 `untilB`
-	       (lbp t0 `snapshot` anim) ==> snd ==> lift0 ==> (`over` im0)
-		+=> stepping
+           stepping t0 im0 =
+             im0 `untilB`
+               (lbp t0 `snapshot` anim) ==> snd ==> lift0 ==> (`over` im0)
+                +=> stepping
 
 -- Trailing motion
 
@@ -333,9 +346,12 @@ i22 t0 = mouse_tracker t0 (take 13 (repeat (uscale2 0.1 *% circle)))
 
 -- 1D bounce path
 
-bounce1 minVal maxVal x0 dx0 ddx t0 =
-  start t0 (x0,dx0)
+-- Old version.  Avoid self-reactivity
+
+bounce1 minVal maxVal x0 dx0 ddx t0 = path
   where
+    path = start t0 (x0,dx0)
+
     start t0 (x0,dx0) =
       x `untilB` bounce +=> start
 
@@ -351,6 +367,36 @@ bounce1 minVal maxVal x0 dx0 ddx t0 =
 
         collide = predicate (x <=* lift0 minVal &&* dx<=*0 ||*
                              x >=* lift0 maxVal &&* dx>=*0) t0
+
+-- New and improved version!  But this one wedges :-(
+
+-- Here's a major problem with this sort of definition: startVel refers to
+-- x in progress.  Because x is built from an integral with an earlier
+-- start time, each application of startVel has to start sampling x from
+-- scratch.  A space leak also results, because of hanging onto x.  Use of
+-- dx has the same problem, but can be replaced by dxSegment.  The
+-- definition of bounce1 above avoids the problem by restarting both
+-- integrations at each bounce.
+--
+-- What to do about this problem?  It feels tied up with the issue of
+-- interaction among time frames (and the annoying explicit start tiems).
+-- Maybe a time frames solution would also solve the space-time leak
+-- problem.
+
+bounce1' minVal maxVal x0 dx0 ddx t0 = x
+  where
+    x  = lift0 x0 + integral dx t0
+    dx = startVel t0 dx0
+
+    startVel t0 dx0  =  dxSegment `untilB` rebound +=> startVel
+      where
+        dxSegment = lift0 dx0 + integral (lift0 ddx) t0
+
+        -- Collision event with new velocity
+        rebound = collide `snapshot` dx ==> snd ==> (-0.8 *)
+
+        collide = predicate (x <=* lift0 minVal &&* dx <=* 0 ||*
+                             x >=* lift0 maxVal &&* dx >=* 0) t0
 
 -- 2D bounce path
 
@@ -373,9 +419,9 @@ bounceFrame =
 
 bouncyBall t0 =
   translate2 (bounce2 (S.point2XY (-1+radius) (-1+radius))
-		      (S.point2XY ( 1-radius) ( 1-radius))
-		      S.origin2 (S.vector2XY 4.0 2.0)
-		      (S.vector2XY 0 (-1.8)) t0) *%
+                      (S.point2XY ( 1-radius) ( 1-radius))
+                      S.origin2 (S.vector2XY 4.0 2.0)
+                      (S.vector2XY 0 (-1.8)) t0) *%
   uscale2 (lift0 radius) *% withColor green circle
   where radius = 0.1
 
@@ -386,7 +432,7 @@ lotsOfBounces t0 =
   balls t0 `over` bounceFrame
   where
     balls t0 =
-      emptyImage `untilB` lbp t0 +=> \ tBP _ ->
+      emptyImage `untilB` lbp t0 *=> \ tBP ->
       balls tBP `over` (bouncyBall tBP `untilB`
                           timeIs (tBP+5) -=> emptyImage)
 
@@ -403,8 +449,8 @@ kaleido f =
   (rotate2 (pi*sin slowTime)) *% (
   noverlay
      (zipWith (withColor)
-	      colours
-	      (map (\ x -> (rotate2 x) *% i) rads)))
+              colours
+              (map (\ x -> (rotate2 x) *% i) rads)))
   where
    colours = cycle [red,blue,green,yellow,lightBlue]
    rads    = map (lift0) [0,pi/4..2*pi]
@@ -440,11 +486,11 @@ i27 t0 =
      colours
      (foldl1
          (over)
-	 (map i (chunksOf 5 [0,pi/18..2*pi])))
+         (map i (chunksOf 5 [0,pi/18..2*pi])))
   where
    colours = stronger (abs (sin time)) black
    i ls    = polygon  (map (\ t -> translateT (negate t) 
-					      pt) ls)
+                                              pt) ls)
    pt      = point2XY (sin (2*time)) (cos (2*time))
    idx ls  = lift1 (\ idx -> ls!!(round idx))
 
@@ -459,8 +505,8 @@ i28 t0 =
   where
    i =
     (triangle (point2XY 0.5 (-0.5)) 
-	      (point2XY (-0.5) (-0.5)) 
-	      (point2XY 0 0.5))
+              (point2XY (-0.5) (-0.5)) 
+              (point2XY 0 0.5))
 
 i29 t0 = 
  let
@@ -475,18 +521,18 @@ i30 t0 =
   p1 = (point2XY (-1/3) (cos time))
   p2 = (point2XY ( 1/3) (sin time))
   i = bezier 
-	(point2XY (-1) 0)
-	p1
-	p2
-	(point2XY 1 0)
+        (point2XY (-1) 0)
+        p1
+        p2
+        (point2XY 1 0)
 
 i31 t0 = i
  where
   i = polygon [
-	(point2XY (-sin time) (integral (cos time) t0)),
-	(point2XY (-1/3) (cos time)),
-	(point2XY (1/3) (sin time)),
-	(point2XY (sin (pi-time)) 0)]
+        (point2XY (-sin time) (integral (cos time) t0)),
+        (point2XY (-1/3) (cos time)),
+        (point2XY (1/3) (sin time)),
+        (point2XY (sin (pi-time)) 0)]
 
 i32 t0 = 
  (translate2 p1 *% (uscale2 0.05 *% withColor red  circle)) `over`
@@ -511,8 +557,10 @@ i33 t0 =
    time'   = 0.2*time
    ls =
     map (\ x -> point2XY (abs (0.5*cos ((sin time')*x+x*time'/pi)))
-			 (sin ((sin (x*time'))+0.4*time')))
+                         (sin ((sin (x*time'))+0.4*time')))
         (map (lift0) rads)
+
+{- Out for now because they rely on an old representation.
 
 i34 t0 = withColor red (lift1 (S.polygon) (Behavior (\ _ -> ls)))
  where 
@@ -521,13 +569,15 @@ i34 t0 = withColor red (lift1 (S.polygon) (Behavior (\ _ -> ls)))
 i35 t0 = withColor red (lift1 (S.polygon) (Behavior (\ _ -> ls)))
  where 
   ls     = koch (map (S.point2Polar 1) [0,2*pi/3..2*pi+0.1])
-	
+        
 koch :: [S.Point2] -> [[S.Point2]]
 koch ls =
  let
   ls' = map2 (koch1) ls
  in
  ls'++koch (last ls')
+
+-}
 
 map2 :: (a -> a -> [a]) -> [a] -> [[a]]
 map2 f (x:y:ls) = map (f x y ++) (ls : map2 f (y:ls))
@@ -547,9 +597,9 @@ i36 t0 =
    pt2 = point2XY (sin time) (cos time)
   in
   bezier (mouse t0) 
-	 (translateT (-pi/2) pt2)
-	 pt1
-	 (translateT (3*pi/2) pt2)
+         (translateT (-pi/2) pt2)
+         pt1
+         (translateT (3*pi/2) pt2)
 
 -- Based on a similar function by Gary Shu Ling
 
@@ -560,23 +610,75 @@ viewStretch bitmapFilename t0 =
       S.EmptyImage -> emptyImage
       im@(S.Bitmap size _) ->
         scale2 (vector2XY (wWidth / lift0 iWidth)
-			  (wHeight / lift0 iHeight))
-	 *% lift0 im
-	where
-	  (wWidth, wHeight) = pairBSplit (vector2XYCoords (viewSize t0))
-	  (iWidth, iHeight) = S.vector2XYCoords size
+                          (wHeight / lift0 iHeight))
+         *% lift0 im
+        where
+          (wWidth, wHeight) = pairBSplit (vector2XYCoords (viewSize t0))
+          (iWidth, iHeight) = S.vector2XYCoords size
 
 
-i37 = viewStretch "..\\Media\\frog.bmp"
+i37 = viewStretch "../Media/frog.bmp"
 
+
+-- This one shows the view size
 
 iViewSize =
   (translate2 (vector2XY (-0.9) 0) *%) . withColor yellow .
   renderedText . simpleText . showB . viewSize
 
 
-iBlowStack2 t0 =
-  translate2 (vector2XY (integral 0 t0) 0) *% circle 
-  `timeTransform` (time*440)
+-- This one used to blow the stack because of a space leak due to
+-- postponed evaluation.  Now the frame generation time increases
+-- exponentially, because integration isn't keeping up with real time.
 
+iIntegralStack t0 =
+  (translate2 (vector2XY (integral 0.001 0) 0) *% circle )
+  `timeTransform` ((time-t0)*1000)
+
+-- Recursive integral.
+
+iRecIntegral t0 = scale2 size *% withColor red circle
+ where
+  -- Set up a damped spring
+  size = 0.2 + integral rate t0  :: Behavior RealVal
+  rate = integral accel t0
+  accel = 2 * (0.5 - size) + (-0.3 * rate)
+
+
+-- A "self reactive" behavior.
+
+iRecReact t0 = withColor red (scale2 x *% circle)
+ where
+  x = time - t0 `untilB` predicate (x >=* 1) 0 -=> 1
+
+
+-- Works fine
+
+iTst5 t0 = withColor red (scale2 x *% circle)
+ where
+  x = time - lift0 t0 `untilB` timeIs (t0 + 1) `snapshot` time -=> 1
+
+iTst6 t0 = withColor red (scale2 x *% circle)
+ where
+  x = time - lift0 t0 `untilB` timeIs (t0 + 1) `snapshot` x -=> 1
+
+iTst7 t0 = withColor red (scale2 x *% circle)
+ where
+  x = integral dx t0 `untilB` timeIs (t0 + 5) `snapshot` x -=> 1
+  dx = 0.2 :: Behavior RealVal
+
+iTst8 t0 = withColor red (scale2 x *% circle)
+ where
+  x = integral dx t0 `untilB` timeIs (t0 + 10) `snapshot` x ==> lift0 . snd
+  dx = 0.1 :: Behavior RealVal
+
+iTst9 t0 = withColor red (scale2 x *% circle)
+ where
+  x = integral dx t0 `untilB` predicate (x>=*1) t0 `snapshot` x -=> 1
+  dx = 0.1 :: Behavior RealVal
+
+iTst10 t0 = withColor red (scale2 x *% circle)
+ where
+  x = integral dx t0 `untilB` predicate (x>=*1) t0 `snapshot` x ==> lift0 . snd
+  dx = 0.1 :: Behavior RealVal
 

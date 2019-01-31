@@ -152,7 +152,7 @@ snapshot :: Event a -> Behavior b -> Event (a,b)
 
         loop :: [EventOcc a] -> [b] -> [EventOcc (a,b)]
 
-        loop [Just (te,x)]    [bVal]     = [Just (te, (x,bVal))]
+        loop (Just (te,x):_)    [bVal]     = repeat (Just (te, (x,bVal)))
 
         loop (Nothing : mbs') (_:bVals') = Nothing : loop mbs' bVals'
 
@@ -163,7 +163,7 @@ snapshot :: Event a -> Behavior b -> Event (a,b)
 predicate :: Behavior Bool -> Time -> Event ()
 
 -- Simple implementation, not using interval analysis.
-
+{-
 predicate condB t0 =
   Event (Behavior (\ ts -> testCond ts (condB `ats` ts) t0))
   where
@@ -173,6 +173,46 @@ predicate condB t0 =
       [Just (tPrev + (t-tPrev)/2, ())]
     testCond (t : tRest) (False : bools') _    =
       Nothing : testCond tRest bools' t
+-}
+{-
+-- This version contains a work-around for the problem of recursive
+-- reactivity.  Tack on an initial False condition.
+predicate condB t0 =
+  Event (Behavior (\ ts -> testCond ts (False : (condB `ats` ts)) t0))
+  where
+    -- When we find a True, assume that the event occurred midway
+    -- between the previously checked time and this one.
+    testCond (t : _)     (True : _)      tPrev =
+      [Just (tPrev, ())]
+    testCond (t : tRest) (False : bools') _    =
+      Nothing : testCond tRest bools' t
+-}
+
+-- This version uses an independent sampling rate for the predicate and steps
+-- through the behaviors sampling using a piecewise constant stepper function.
+predicate condB t0 = 
+    Event (Behavior (stepperE tsFixed es))
+  where
+    tsFixed = [t0, t0 + deltat ..]
+    bs = False : condB `ats` tsFixed
+--    es  = forceList (testCond tsFixed bs t0)
+    es  = (testCond tsFixed bs t0)
+    deltat = 0.05
+
+-- forceList [] = []
+-- forceList (y : ys) = force y `seq` (y : forceList ys) 
+
+-- When we find a True, assume that the event occurred midway
+-- between the previously checked time and this one.
+testCond (t : _)  (True : _)   tPrev = repeat (Just (tPrev, ()))
+testCond (t : ts) (False : bs) _     = Nothing : testCond ts bs t
+
+stepperE tsFixed@(tFixed0:tsFixedTail@(tFixed1:_)) es@(e0:esTail) 
+        tsSample@(tSample0:tsSampleTail)
+  | tSample0 <= tFixed1  =  e0 : stepperE tsFixed es tsSampleTail
+  | otherwise =  stepperE tsFixedTail esTail tsSample
+
+stepperE _ _ [] = []
 
 
 -- Testing

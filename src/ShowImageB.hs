@@ -1,7 +1,7 @@
 -- Experimental support for displaying image behaviors in an existing
 -- window.  Intended for use with the ActiveX Hugs control
 -- 
--- Last modified Tue Oct 08 13:49:24 1996
+-- Last modified Tue Oct 15 12:42:31 1996
 -- 
 -- Recycled bits from ShowImageB.hs.
 
@@ -27,7 +27,6 @@ import qualified RenderImage as Render
 import Utils (andOnError)
 import PrimInteract
 import Postpone
-import ShowImage(windowSize)
 
 
 -- Something that repeatedly paints into a window.  Expected to use
@@ -52,9 +51,11 @@ timeSinceMS startMS =
   timeGetTime                        >>= \ ms ->
   let
       (wholePart,fracPart) = (ms - startMS) `divMod` 1000
+      t = (  (fromInt wholePart :: Time)
+           + (fromInt fracPart  :: Time) / 1000.0 )
   in
-      return (  (fromInt wholePart :: Time)
-              + (fromInt fracPart  :: Time) / 1000.0 )
+      -- putStrLn ("time " ++ show t) >>
+      return t
 
 
 -- For testing
@@ -71,8 +72,8 @@ draw startMS imb hwnd =
   -- debugMessage "Entering draw" >>
   times startMS               >>= \ ts ->
   let
-  loop (im:ims') =
-     postpone (
+  loop (t:ts') (im:ims') =
+       -- putStrLn ("draw sample time = " ++ show t) >>
        (invalidateRect (Just hwnd) Nothing eraseBackground >>
         paintWith hwnd (\hdc lpps ->
           windowSize hwnd >>= \ (w',h') ->
@@ -100,9 +101,9 @@ draw startMS imb hwnd =
             )
           else
             Render.draw hdc im'))
-       >> loop ims' )
+       >> postpone (loop ts' ims')
   in
-      loop (imb `ats` ts)
+      loop ts (imb `ats` ts)
 
 worldToScreen, screenToWorld :: Int -> Int -> Transform2
 
@@ -240,7 +241,18 @@ makeTestWindow startMS hwndConsumer =
   return ()
 
 
--- Next section swiped from ShowImageB.hs
+-- Get the width and height of a window's client area, in pixels.
+
+windowSize :: HWND -> IO (LONG,LONG)
+
+windowSize hwnd =
+ alloc 			   >>= \ lprect ->
+ getClientRect hwnd lprect >> 
+ getLPRECT lprect          >>= \ (l',t',r',b') ->
+ free lprect               >>
+ return (r' - l', b' - t')
+
+
 
 ----------------------------------------------------------------
 -- Common imperative programming idioms

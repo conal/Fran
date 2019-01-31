@@ -1,4 +1,4 @@
--- Last modified Mon Sep 16 17:27:56 1996 by conal
+-- Last modified Thu Oct 24 13:15:03 1996 by conal
 
 -- To do: weed out some of these as possible
 
@@ -60,9 +60,9 @@ ShowImageB.hs
 
 ImageTest.hs
 RBMH.hs
+
+-- Misc utilities for simplifying examples
+UtilsB.hs
+
 ImageBTest.hs
--- IImageTest.hs
-
--- DynamicTest.hs
-
 

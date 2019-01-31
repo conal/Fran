@@ -1,6 +1,6 @@
 -- ImageB = 2d Image behaviors
 -- 
--- Last modified Thu Sep 19 11:54:01 1996
+-- Last modified Wed Oct 23 22:40:15 1996
 
 module ImageB where
 
@@ -26,6 +26,8 @@ over         = lift2 I.over
 bboxed2      = lift3 I.bboxed2
 ellipse      = lift1 I.ellipse
 rectangle    = lift1 I.rectangle
+regularPolygon = lift1 I.regularPolygon
+star         = lift2 I.star
 unitBBoxed2  = lift1 I.unitBBoxed2
 
 pick2        = lift2 PI.pick2

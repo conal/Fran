@@ -19,14 +19,16 @@ href="http://www.research.microsoft.com/research/graphics/elliott/">Conal
 Elliott</a> </h3>
 
 <p align="center"><em>Last modified <!--webbot bot="TimeStamp"
-startspan s-type="EDITED" s-format="%B %d, %Y" -->September 18, 1996<!--webbot
-bot="TimeStamp" i-checksum="39112" endspan --> </em></p>
+startspan s-type="EDITED" s-format="%B %d, %Y" -->October 10, 1996<!--webbot
+bot="TimeStamp" i-checksum="31566" endspan --> </em></p>
 
 <ul>
     <li>More interesting demos. </li>
     <li>Make demos self-documenting.</li>
     <li>Come up with a more appealing name -- memorable and
         meaningful.</li>
+    <li>Switch to SPJ's recommended representation of behaviors:<br>
+        data Behavior a = Behavior (Time -&gt; (a , Behavior a))</li>
     <li>Experiment with ways to eliminate redundant sampling. I
         suspect it is a significant expense. The initial approach
         I have in mind is to change the representation of behaviors

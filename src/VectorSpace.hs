@@ -24,6 +24,7 @@ class VectorSpace v where
   scaleVector        :: Scalar -> v -> v
   addVector          :: v -> v -> v
   dot                :: v -> v -> Scalar
+  force		     :: v -> v
 
 -- negateVector :: VectorSpace v =>  v -> v
 -- negateVector v = -1 `scaleVector` v
@@ -60,12 +61,14 @@ instance  VectorSpace Double  where
   scaleVector    =  (*)
   addVector      =  (+)
   dot            =  (*)
+  force 	 =  id
 
 instance VectorSpace Float where
   zeroVector          =  0.0
   d  `scaleVector` f  =  (fromDouble d) * f
   addVector           =  (+)
   a `dot` b           =  fromRealFrac (a * b)
+  force		      =  id
 
 
 {- We'd like to use +, -, and negate on vector spaces.  As above, we

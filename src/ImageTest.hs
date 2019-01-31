@@ -1,6 +1,6 @@
 -- Simple test harness for static Image values and their display
 -- 
--- Last modified Fri Oct 04 11:55:42 1996
+-- Last modified Wed Oct 23 22:38:03 1996
 -- To try these out, run disp i{j} where j `elem` [1..] 
 
 module ImageTest where
@@ -18,10 +18,6 @@ i2 = square
 
 i3 = line (point2XY (-1) (-1)) (point2XY 1 1) `over` i2
 
-star vertices skip =
-  polyline (map (\i -> point2Polar 1 (2 * pi * i * skip / vertices))
-                [0 .. vertices])
-
 i4 = star 13 5
 
 i5 = rectangle (vector2XY 0.7 1.3)
@@ -29,7 +25,7 @@ i5 = rectangle (vector2XY 0.7 1.3)
 i6 = ellipse  (vector2XY 1.0 0.7)
 
 i7 = bezier (point2XY 0 0)
-	    (point2XY (-0.7) (-0.7))
+            (point2XY (-0.7) (-0.7))
             (point2XY   0      0.7 )
             (point2XY (-0.7)   0.7 ) `over` i2
 

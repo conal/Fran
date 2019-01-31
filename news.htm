@@ -18,6 +18,10 @@ content="text/html; charset=iso-8859-1">
 
 <h1 align="center">News on Recent RBMH Releases</h1>
 
+<h3 align="center"><em>Last modified <!--webbot bot="TimeStamp"
+startspan s-type="EDITED" s-format="%B %d, %Y" -->October 25, 1996<!--webbot
+bot="TimeStamp" i-checksum="31577" endspan --></em></h3>
+
 <h2><a href="http:rbmh0.0.zip">0.0</a> Sept 8, 1996</h2>
 
 <ul>
@@ -30,12 +34,11 @@ content="text/html; charset=iso-8859-1">
     <li>Fixed inverse2 bug that messed up screen-to-world mapping </li>
     <li>Fixed RenderImage.draw to catch all errors and print
         &quot;Win32 drawing error&quot; instead of bombing. When
-        you start seeing this message, you can kill the animation
-        window. </li>
+        you start seeing this message, you can kill the animation window. </li>
     <li>Changed ImageBTest.smoothGrowShrink to scale by &quot;exp
         (integral (changingRate t0) t0&quot; instead of &quot;1 + integral
-        (changingRate t0) t0&quot;. The result looks better the
-        new way and never does negative scaling. </li>
+        (changingRate t0) t0&quot;. The result looks better the new
+        way and never does negative scaling. </li>
     <li>Added a bunch of fun examples to ImageBTest. These
         examples are eyes that look at the mouse and one that chases
         it. See i12 to i16. </li>
@@ -66,10 +69,10 @@ content="text/html; charset=iso-8859-1">
         Point2XY.</li>
     <li>Re-implemented integral so that recursive systems (ODEs)
         work efficiently! Try &quot;disp (i17 0)&quot; in
-        ImageBTest, and move the mouse around. The eyes are
-        connected in a chain of springs. Introduced the t0
-        argument to to avoid a space leak problem. This change
-        should be done throughout ImageBTest.</li>
+        ImageBTest, and move the mouse around. The eyes are connected
+        in a chain of springs. Introduced the t0 argument to to avoid
+        a space leak problem. This change should be done
+        throughout ImageBTest.</li>
     <li>Removed determinant common-subexpression from inverse2.</li>
     <li>Renamed lerp2 to linearInterpolate2.</li>
     <li>Added RBMH module, which imports all the individual parts
@@ -95,13 +98,13 @@ content="text/html; charset=iso-8859-1">
         functions of start time, to eliminate space leak (CAFs)
         and to make them temporally composable.</li>
     <li>Added keyboard event primitives <strong>primKP</strong>
-        and <strong>primKR</strong> in <strong>PrimInteract.hs</strong>,
-        plus a higher-level version <strong>keyPress</strong> in <strong>Interaction.hs</strong>.
+        and <strong>primKR</strong> in <strong>PrimInteract.hs</strong>, plus a
+        higher-level version <strong>keyPress</strong> in <strong>Interaction.hs</strong>.
         Changed <strong>i8</strong> in <strong>ImageBTest</strong>
         to use it.</li>
     <li>Added <strong>allDemos</strong> to <strong>ImageBTest</strong>.
-        This new &quot;super demo&quot; combines all of the
-        others. run &quot;<strong>disp allDemos</strong>&quot; to see
+        This new &quot;super demo&quot; combines all of the others.
+        run &quot;<strong>disp allDemos</strong>&quot; to see
         them all, and press &lt;space&gt; to go on to the next
         item.</li>
     <li>Added lifted list formation and extraction: <strong>nilB,
@@ -113,11 +116,11 @@ content="text/html; charset=iso-8859-1">
 <ul>
     <li>Changed <strong>polyline</strong> from being a filled
         polygon to be a set of connected line segments. Added <strong>polygon</strong>
-        for describing n-sided filled polygons. The inside of a
-        polygon is filled with the (outermost) color specified
-        with the <strong>withColor</strong> combinator, i.e., <tt>withColor
-        red (polygon ls)</tt> draws a red polygon. (default is
-        white). Line segments are drawn with a white pen.</li>
+        for describing n-sided filled polygons. The inside of a polygon
+        is filled with the (outermost) color specified with the <strong>withColor</strong> combinator,
+        i.e., <tt>withColor red (polygon ls)</tt> draws a red
+        polygon. (default is white). Line segments are drawn with
+        a white pen.</li>
     <li>Switched color transformation combinators from using RGB
         color space to HSL (removed mixRed,mixGreen,mixBlue).</li>
     <li>Added a fourth control point argument to <strong>bezier</strong>,
@@ -150,11 +153,10 @@ content="text/html; charset=iso-8859-1">
         Several couldn't be lifted because of their types, and so
         have names like &quot;<strong>roundB</strong>&quot;
         instead of &quot;<strong>round</strong>&quot;. If you try
-        using something like &quot;<strong>round</strong>&quot;,
-        you'll get a helpful error message.</li>
+        using something like &quot;<strong>round</strong>&quot;, you'll
+        get a helpful error message.</li>
     <li>Added <strong>dispFps</strong> to ImageBTest.hs. This
-        variant of <strong>disp</strong> shows the frames per
-        second.</li>
+        variant of <strong>disp</strong> shows the frames per second.</li>
     <li>Re-activated frames-per-second counting. See <strong>dispFps</strong>
         in <strong>ImageBTest.hs</strong>.</li>
     <li>Added <strong>showB</strong>, a lifting of <strong>show</strong>.</li>
@@ -168,8 +170,47 @@ content="text/html; charset=iso-8859-1">
         Loosemore's frog page</a>.</li>
 </ul>
 
-<p><em>Last modified <!--webbot bot="TimeStamp" startspan
-s-type="EDITED" s-format="%B %d, %Y" -->October 08, 1996<!--webbot
-bot="TimeStamp" i-checksum="31581" endspan --></em></p>
+<h2><a href="http:rbmh0.6.zip">0.6</a> Oct 25, 1996</h2>
+
+<ul>
+    <li>Changed several of the examples in <strong>ImageBTest.hs</strong>
+        to use the <font face="Courier New"><strong>*=&gt;</strong></font>
+        operator, whose second argument consumes just the event
+        time, ignoring the data.</li>
+    <li>Added <strong>regularPolygon</strong> and <strong>star</strong>
+        in <strong>Image.hs</strong> and <strong>ImageB.hs</strong>.</li>
+    <li>Added <strong>bounce1'</strong>, a new version of <strong>bounce</strong>1,
+        in <strong>ImageBTest.hs</strong>. The new one is simpler,
+        but doesn't yet work, probably because of too much
+        self-reactivity (snapshotting and/or predicate).</li>
+    <li>Added <strong>UtilsB.hs</strong>. Ad hoc collection of
+        definitions. These are here for introductory use, to make
+        it easier to do some simple things. I'd like to make it so
+        that kids can use this simple vocabulary.</li>
+</ul>
+
+<h2><a href="http:rbmh0.7.zip">0.7</a> Oct ??, 1996</h2>
+
+<ul>
+    <li>Re-introduced Sigbjorn's monadic event combinators. See
+        especially &gt;&gt;, &gt;&gt;=, +&gt;&gt;=, and
+        joinEvent. These are very useful and complement the
+        previous set. The event combinators <strong>suchThat</strong>
+        and <strong>filterEv</strong>, which were previously
+        primitive, are now derived. Even <strong>predicate</strong>
+        is defined in terms of &gt;&gt;. (Interval analysis still not restored.) <em>Check
+        it out!</em></li>
+    <li>Big change in representation of behaviors and events. A
+        behavior is no longer maps time streams to value streams,
+        but rather maps a single time to a value and a new behavior.
+        Simon PJ recommended this representation as being neatly deforestable by
+        GHC. (Sigbjorn also suggested it a while back.)
+        Similarly, an event takes a query time tq and returns
+        either a time/value pair (te,x) with te&lt;tq, or a new
+        event (non-occurrence).</li>
+    <li>Rewrote <strong>integral</strong> to be a recursive
+        reactive behavior. Still uses Euler's method :-( but now
+        is piecewise-linear between steps.</li>
+</ul>
 </body>
 </html>

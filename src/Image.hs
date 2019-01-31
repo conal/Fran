@@ -1,6 +1,6 @@
 {- Definition of 2d static Image type -}
 
--- Last modified Thu Sep 19 11:44:19 1996
+-- Last modified Wed Oct 23 22:44:58 1996
 
 -- To do: be selective about exports
 
@@ -113,6 +113,18 @@ ellipse size = scale2 size *% circle
 rectangle :: Vector2 -> Image
 rectangle size = scale2 size *% square
 
+
+regularPolygon :: Int -> Image
+
+regularPolygon vertices = star vertices 1
+
+star :: Int -> Int -> Image
+
+star vertices skip = polygon points
+ where
+  points = [ point2Polar 1 (2 * pi * fromInt i * fromInt skip
+                            / fromInt vertices) |
+             i <- [0 .. vertices] ]
 
 importBitmap :: String -> Image
 importBitmap fileName =

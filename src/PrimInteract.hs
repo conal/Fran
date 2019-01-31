@@ -2,7 +2,7 @@
 --
 -- These functions should not be used directly.  See Interaction.hs.
 --
--- Last modified Tue Oct 08 13:25:59 1996
+-- Last modified Tue Oct 15 12:27:51 1996
 
 module PrimInteract 
         (
@@ -71,9 +71,9 @@ primBPEGVar =
 -- Shortcut used by toplevel ev.loop
 
 firePrimBPEv :: Time -> Point2 -> Bool -> Bool -> IO ()
-firePrimBPEv t pt left down = 
+firePrimBPEv t pt left press = 
 -- putStrLn ("firing: "++show t) >>
- fireExternalEGen primBPEGVar t (pt,left,down)
+ fireExternalEGen "button" primBPEGVar t (pt,left,press)
 
 primBPTEv :: MutVar (Time -> Event (Point2,Bool,Bool))
 primBPTEv = unsafePerformIO (newVar (error "primBPTEv"))
@@ -81,43 +81,25 @@ primBPTEv = unsafePerformIO (newVar (error "primBPTEv"))
 primBP :: Time -> Event (Point2,Bool,Bool)
 primBP = unsafePerformIO (readVar primBPTEv)
 
+filteredBP :: Bool -> Bool -> Time -> Event Point2
+filteredBP isLeft isPress = filterEv primBP f
+ where
+  f (p,left,press) =
+    if left==isLeft && press==isPress then
+       Just p
+    else
+       Nothing
+
+
 -- Derived mouse button functions
 
-primLBP :: Time -> Event Point2
-primLBP = filterEv (primBP) f
- where
-  f (p,left,down) =
-    if left && down then
-       Just p
-    else
-       Nothing
+primLBP, primLBR, primRBP, primRBR :: Time -> Event Point2
 
-primLBR :: Time -> Event Point2
-primLBR = filterEv (primBP) f
- where
-  f (p,left,down) =
-    if left && (not down) then
-       Just p
-    else
-       Nothing
+primLBP = filteredBP True  True
+primLBR = filteredBP True  False
+primRBP = filteredBP False True
+primRBR = filteredBP False False
 
-primRBP :: Time -> Event Point2
-primRBP = filterEv (primBP) f
- where
-  f (p,left,down) =
-    if (not left) && down then
-       Just p
-    else
-       Nothing
-
-primRBR :: Time -> Event Point2
-primRBR = filterEv (primBP) f
- where
-  f (p,left,down) =
-    if (not left) && (not down) then
-       Just p
-    else
-       Nothing
 
 -- Keyboard handling
 
@@ -132,28 +114,26 @@ primKeyTEv = unsafePerformIO (newVar (error "primKeyTEv"))
 
 firePrimKeyEv :: Time -> Char -> Bool -> IO ()
 firePrimKeyEv t ch press = 
- fireExternalEGen primKeyEGVar t (ch,press)
+ fireExternalEGen "key" primKeyEGVar t (ch,press)
 
 primKey :: Time -> Event (Char,Bool)
 primKey = unsafePerformIO (readVar primKeyTEv)
 
-primKP :: Time -> Event Char
-primKP = filterEv primKey f
+filteredKey :: Bool -> Time -> Event Char
+
+filteredKey isPress = filterEv primKey f
  where
   f (ch,press) =
-    if press then
+    if press==isPress then
        Just ch
     else
        Nothing
 
-primKR :: Time -> Event Char
-primKR = filterEv primKey f
- where
-  f (ch,press) =
-    if not press then
-       Just ch
-    else
-       Nothing
+primKP, primKR :: Time -> Event Char
+
+primKP = filteredKey True
+primKR = filteredKey False
+
 
 
 -- Tracking mouse positions
@@ -168,7 +148,7 @@ primMouseTEv :: MutVar (Time -> Event Point2)
 primMouseTEv = unsafePerformIO (newVar (error "primMouseTEv"))
 
 firePrimMouseEv :: Time -> Point2 -> IO ()
-firePrimMouseEv = fireExternalEGen primMouseEGVar
+firePrimMouseEv = fireExternalEGen "mouse" primMouseEGVar
 
 primMousePos :: Time -> Event Point2
 primMousePos = unsafePerformIO (readVar primMouseTEv)
@@ -184,7 +164,7 @@ primViewSzEGVar =
 firePrimViewSize :: Time -> Vector2 -> IO ()
 firePrimViewSize t v  =
   -- trace ("view size " ++ show v ++ " at time " ++ show t ++ "\n") $
-  fireExternalEGen primViewSzEGVar t v
+  fireExternalEGen "view size" primViewSzEGVar t v
 
 primViewSzTEv :: MutVar (Time -> Event Vector2)
 primViewSzTEv = unsafePerformIO (newVar (error "primViewSzTEv"))
@@ -200,7 +180,7 @@ primFPSEGVar =
 
 {- Shortcut used by toplevel ev.loop -}
 firePrimFPS :: Time -> Double -> IO ()
-firePrimFPS = fireExternalEGen primFPSEGVar
+firePrimFPS = fireExternalEGen "fps" primFPSEGVar
 
 primFPSTEv :: MutVar (Time -> Event Double)
 primFPSTEv = unsafePerformIO (newVar (error "primFPSTEv"))

@@ -1,6 +1,6 @@
--- Picking Picture values
+-- Picking Image values
 --
--- Last modified Mon Oct 07 16:33:17 1996
+-- Last modified Wed Oct 09 11:57:43 1996
 
 module Pick2Image where
 

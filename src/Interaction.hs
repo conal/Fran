@@ -1,6 +1,6 @@
 -- Higher-level interaction
 --
--- Last modified Tue Oct 08 13:48:06 1996
+-- Last modified Tue Oct 15 10:11:39 1996
 
 module Interaction where
 
@@ -16,15 +16,15 @@ import Vector2B (Vector2B)
 import Point2
 import Point2B (Point2B)
 import qualified Point2B (linearInterpolate2)
-import Image (Image)
+-- import Image (Image)
 -- import Point2B
-import qualified Pick2Image
+-- import qualified Pick2Image
 
 lbp :: Time -> Event (Event ())
-lbp t0 = primLBP t0 +=> \ t1 _ -> (primLBR t1 -=> ())
+lbp t0 = primLBP t0 *=> \ t1 -> primLBR t1 -=> ()
 
 rbp :: Time -> Event (Event ())
-rbp t0 = primRBP t0 +=> \ t1 _ -> (primRBR t1 -=> ())
+rbp t0 = primRBP t0 *=> \ t1 -> primRBR t1 -=> ()
 
 
 keyPress :: Time -> Event (Char, Event ())
@@ -50,9 +50,9 @@ mouse t0 = mouse' t0 origin2
 mouseMotionTimeOut = 0.2 :: Time
 
 mouse :: Time -> Point2B
-mouse t0 = mouse' origin2 t0 origin2 (t0-1)
+mouse t0 = mouse' t0 origin2 (t0-1) origin2
  where
-  mouse' p0 t0 p1 t1 =
+  mouse' t0 p0 t1 p1 =
    -- Follow a linear interpolation until we get another motion event.  If we
    -- don't get one before long, pretend we saw the same position.
    -- 
@@ -60,8 +60,7 @@ mouse t0 = mouse' origin2 t0 origin2 (t0-1)
    -- adding an initial peaceful state.
    Point2B.linearInterpolate2 (lift0 p0) (lift0 p1)
 			      ((time - lift0 t0) / lift0 (t1-t0)) `untilB`
-    (primMousePos t1 .|. (timeIs (t1+0.2) -=> p1)) +=> \ t2 p2 ->
-   mouse' p1 t1 p2 t2
+    (primMousePos t1 .|. (timeIs (t1+0.2) -=> p1)) +=> mouse' t1 p1
 
 -}
 

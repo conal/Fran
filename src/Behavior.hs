@@ -1,9 +1,10 @@
 -- Non-reactive behaviors
 -- 
--- Last modified Tue Oct 08 11:00:47 1996
+-- Last modified Fri Oct 11 14:39:16 1996
 
 module Behavior where
 
+import BaseTypes
 import VectorSpace
 
 type Time = Double
@@ -21,6 +22,17 @@ type Sampler a = [Time] -> [a]
 data Behavior a = Behavior (Sampler a)
 
 ~(Behavior fl) `ats` ts = fl ts
+
+-- Convenient type synonyms
+
+type TimeB = Behavior Time
+type BoolB = Behavior Bool
+
+type RealValB  =  Behavior RealVal
+type LengthB   =  Behavior Length
+type RadiansB  =  Behavior Radians
+type FractionB =  Behavior RealVal
+
 
 time :: Behavior Time
 
@@ -83,11 +95,23 @@ liftLs ls =
 -- and so on
 
 
--- Define number-valued behaviors as numbers
+-- Define number-valued behaviors as numbers.  Sadly, type restrictions
+-- prevent us from defining some of the methods on behaviors.
 
--- Hack: needed because Num derives from Eq and Text.  Similarly below.
-instance (Eq   a) => Eq   (Behavior a)
+noOverload suffix name =
+ error ("Couldn't overload \"" ++ name ++ "\" for behaviors.  Use \"" ++
+        name ++ suffix ++"\" instead.")
+
+noOverloadId = noOverload "B"
+noOverloadOp = noOverload "*"
+
+
 instance (Text a) => Text (Behavior a)
+
+-- Needed because Num derives from Eq and Text.  Similarly below.
+instance  (Eq a) => Eq (Behavior a)  where
+  (==) = noOverloadOp "=="
+  (/=) = noOverloadOp "/="
 
 instance  Num a => Num (Behavior a) where
   (+)          =  lift2 (+)
@@ -100,13 +124,20 @@ instance  Num a => Num (Behavior a) where
 fromIntegerB :: Num a => Behavior Integer -> Behavior a
 fromIntegerB = lift1 fromInteger
 
+instance  Ord a => Ord (Behavior a)  where
+  (<)   =  noOverloadOp "<"
+  (<=)  =  noOverloadOp "<="
+  (>)   =  noOverloadOp ">"
+  (>=)  =  noOverloadOp ">="
+  min	=  lift2 min
+  max	=  lift2 max
 
-instance Real a => Ord (Behavior a)
-instance  Real a => Real (Behavior a)
-
+instance  Real a => Real (Behavior a)  where
+  toRational = noOverloadId "toRational"
 
 toRationalB ::  Real a => Behavior a -> Behavior Rational
 toRationalB = lift1 toRational
+
 
 instance Integral a => Enum (Behavior a)
 instance Integral a => Integral (Behavior a)  where
@@ -116,18 +147,11 @@ instance Integral a => Integral (Behavior a)  where
     mod	      =	lift2 mod
     quotRem x y  = pairBSplit (lift2 quotRem x y)
     divMod  x y  = pairBSplit (lift2 divMod  x y)
-    toInteger = noOverload "toInteger"
-    even      = noOverload "even"
-    odd	      =	noOverload "odd"
-    toInt     =	noOverload "toInt"
+    toInteger = noOverloadId "toInteger"
+    even      = noOverloadId "even"
+    odd	      =	noOverloadId "odd"
+    toInt     =	noOverloadId "toInt"
 
-noOverload name =
- error ("Couldn't overload \"" ++ name ++ "\" for behaviors.  Use \"" ++
-        name ++ "B\" instead.")
-
-pairBSplit :: Behavior (a,b) -> (Behavior a, Behavior b)
-
-pairBSplit b = (fstB b, sndB b)
 
 toIntegerB :: Integral a => Behavior a -> Behavior Integer
 evenB, oddB :: Integral a => Behavior a -> Behavior Bool
@@ -169,11 +193,11 @@ instance (Floating a) => Floating (Behavior a) where
 -- handle b, but can only handle Behavior b.  (See prelude.hs.)
 
 instance  RealFrac a => RealFrac (Behavior a)  where
-    properFraction = noOverload "properFraction"
-    truncate	   = noOverload "truncate"
-    round	   = noOverload "round"
-    ceiling	   = noOverload "ceiling"
-    floor	   = noOverload "floor"
+    properFraction = noOverloadId "properFraction"
+    truncate	   = noOverloadId "truncate"
+    round	   = noOverloadId "round"
+    ceiling	   = noOverloadId "ceiling"
+    floor	   = noOverloadId "floor"
 
 
 properFractionB	  :: (RealFrac a, Integral b) => Behavior a -> Behavior (b,a)
@@ -236,18 +260,17 @@ infixr 2 ||*
      (<=) :: a -> a -> b
 -}
 
-(<*),(<=*),(==*),(>=*),(>*) :: Ord a => Behavior a -> Behavior a -> Behavior Bool
+(==*),(/=*) :: Eq a => Behavior a -> Behavior a -> Behavior Bool
+(==*) = lift2 (==)
+(/=*) = lift2 (/=)
+
+(<*),(<=*),(>=*),(>*) :: Ord a => Behavior a -> Behavior a -> Behavior Bool
 (<*)  = lift2 (<)
 (<=*) = lift2 (<=)
-(==*) = lift2 (==)
 (>=*) = lift2 (>=)
 (>*)  = lift2 (>)
 
-minB,maxB :: Ord a => Behavior a -> Behavior a -> Behavior a
-minB = lift2 (min)
-maxB = lift2 (max)
-
-cond :: Ord a => Behavior Bool -> Behavior a -> Behavior a -> Behavior a
+cond :: Behavior Bool -> Behavior a -> Behavior a -> Behavior a
 cond = lift3 (\ a b c -> if a then b else c)
 
 notB :: Behavior Bool -> Behavior Bool
@@ -266,6 +289,11 @@ fstB  = lift1 fst
 sndB  = lift1 snd
 
 -- List formation and extraction
+
+
+pairBSplit :: Behavior (a,b) -> (Behavior a, Behavior b)
+
+pairBSplit b = (fstB b, sndB b)
 
 nilB  = lift0 []
 consB = lift2 (:)
