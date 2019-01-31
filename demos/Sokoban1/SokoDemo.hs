@@ -23,14 +23,14 @@ main _ = disp $ makeAll levels
 
 demo :: (User -> (ImageB, BoolB)) -> IO ()
 demo level = disp $ fst . level `untilF` \ u -> keyPress vK_ESCAPE u -=>
-             const (stringIm "C H E A T E R !")
+             const (uscale2 2 *% (stringIm "C H E A T E R !"))
 
 levels = [level0, level1, level2, level3, level4, level5, level6]
 
 makeAll :: [User -> (ImageB, BoolB)] -> User -> ImageB
-makeAll []     = const (stringIm "T H E    E N D")
+makeAll []     = const (uscale2 2 *% stringIm "T H E    E N D")
 makeAll (l:ls) = \ u ->
-  stringIm "Loading  next  level  ..." `untilB`
+  (uscale2 2 *% stringIm "Loading  next  level  ...") `untilB`
   timeIs (startTime u + 0.2) -=>
   let (imgB, finalB) = l u in imgB `untilB`
   (keyPress vK_ESCAPE u .|.		-- ESC to next level

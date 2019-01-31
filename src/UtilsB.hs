@@ -2,7 +2,7 @@
 -- to make it easier to do some simple things. I'd like to make it so that
 -- kids can use this simple vocabulary.
 --
--- Last modified Tue Oct 07 13:26:32 1997
+-- Last modified Fri Oct 10 09:00:28 1997
 
 module UtilsB where
 
@@ -18,6 +18,7 @@ import ColorB
 import TextB
 import Transform2B
 import ImageB
+import GeometryB
 import User
 import Integral
 import Interaction
@@ -59,10 +60,10 @@ wiggleRange lo hi =
 
 later, earlier :: TimeTransformable bv => TimeB -> bv -> bv
 
-later dt b = b `timeTransform` (timeSince 0 - dt)  -- Bogus zero!!! ###
+later dt b = b `timeTransform` (time - dt)
 earlier dt = later (-dt)
 
-faster x b = b `timeTransform` (timeSince 0 * x)  -- Bogus!!! ###
+faster x b = b `timeTransform` (time * x)
 slower x   = faster (1/x)
 
 -- Import a single bitmap from a file.  Simple case of flipbook ImageB
@@ -112,6 +113,18 @@ mouseMotion :: User -> Vector2B
 
 mouseMotion u = mouse u .-. origin2
 
+-- Toggle between true and false on event occurrences.
+
+toggle :: Event a -> Event b -> BoolB
+toggle go stop =
+  stepper False (  go   -=> True
+               .|. stop -=> False)
+
+-- Button states
+leftButton, rightButton :: User -> BoolB
+leftButton  u = toggle (lbp u) (lbr u)
+rightButton u = toggle (rbp u) (rbr u)
+
 -- More specialized 
 
 -- Given an image and a canonical size, stretch the image uniformly so
@@ -127,6 +140,20 @@ viewStretch size u =
 
 
 -- Convert a user-based event to one that produces the next user.
+nextUser :: (User -> Event a) -> (User -> Event (a,User))
+nextUser f u = f u `afterE` u
 
-nextUser :: (User -> Event a) -> (User -> Event User)
-nextUser f u = f u `afterE_` u
+-- Discard the original event data
+nextUser_ :: (User -> Event a) -> (User -> Event User)
+nextUser_ f u = nextUser f u ==> snd
+
+
+-- Count the number of event occurrences
+countE :: Event a -> Behavior Int
+countE e = stepper 0 (scanlE (\ c _ -> c + 1) 0 e)
+
+
+-- Import an X mesh file to make a geometry.  Currently presumes that the
+-- X file is a simple mesh.
+importX :: String -> GeometryB
+importX = meshG . meshBuilder

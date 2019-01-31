@@ -1,6 +1,6 @@
 -- Various routines to create and draw into surfaces.
 --
--- Last modified Sun Oct 05 17:45:34 1997
+-- Last modified Wed Oct 08 16:59:06 1997
 
 module RenderImage where
 
@@ -13,7 +13,7 @@ import Vector2
 import qualified Font
 import Text
 import Win32 hiding (readFile, writeFile)
-import IOExtensions (unsafePerformIO)
+import Win32 (unsafePerformIO)
 import HSpriteLib
 
 import Trace
@@ -274,4 +274,4 @@ importPixelsPerLength = 100 :: RealVal
 -- cancel out in the absence of explicit scaling, which makes for much
 -- faster display on video cards that don't do hardware scaling.
 
-screenPixelsPerLength = importPixelsPerLength :: RealVal
+screenPixelsPerLength = importPixelsPerLength * (2/3) :: RealVal

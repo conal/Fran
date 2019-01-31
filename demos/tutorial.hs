@@ -1,4 +1,6 @@
 -- Examples used in the Fran tutorial, which may be found at:
+--
+-- Last modified Tue Oct 14 11:12:36 1997
 -- 
 --   http://www.research.microsoft.com/~conal/fran/tutorial.hs
 -- 
@@ -22,8 +24,10 @@ module Tutorial where
 import Fran     -- Bring RBMH into scope
 import Win32Key
 
-main = displayU allAnims
+--backColor = white; textColor = black
+backColor = black; textColor = white
 
+main = displayU allAnims
 
 importKid name =
   importBitmap ("../Media/" ++ name ++ " head black background.bmp")
@@ -36,10 +40,10 @@ charlotte = importKid "charlotte"
 
 upDownPat = moveXY 0 waggle pat
 
-pat = importKid "pat" 
+pat = importKid "pat"
 
 
-charlottePatDance = leftRightCharlotte `over` upDownPat 
+charlottePatDance = leftRightCharlotte `over` upDownPat
 
 
 hvDance im1 im2 =
@@ -62,8 +66,9 @@ dance2 = hvDance (bigger wiggle charlotte)
                  (bigger waggle pat)
 
 
-patOrbitsCharlotte = bigger wiggle charlotte       `over`
-                     moveXY wiggle waggle pat
+patOrbitsCharlotte =
+  bigger wiggle charlotte   `over`
+  moveXY wiggle waggle pat
 
 -- Rate-based animation
 
@@ -80,7 +85,7 @@ accelBecky u = moveXY x 0 becky
 
 mouseVelBecky u = move offset becky
   where
-   offset = atRate (mouseMotion u) u 
+   offset = atRate (mouseMotion u) u
 
 beckyChaseMouse u = move offset becky
   where
@@ -109,16 +114,19 @@ orbitAndLater = orbit `over` later 1 orbit
 
 jake = importKid "jake"
 
-orbitAndSlower = orbit `over` slower 2 orbit
+orbitAndSlower =
+ orbit `over` slower 2 orbit
   where
    orbit = moveXY wiggle waggle jake
 
-followMouseAndDelay u = follow `over` later 1 follow
+followMouseAndDelay u =
+ follow `over` later 1 follow
   where
    follow = move (mouseMotion u) jake
 
 -- This one uses a delayed motion.  The quality is much better.
-followMouseAndDelay' u = follow `over` follow'
+followMouseAndDelay' u =
+  follow `over` follow'
   where
    follow  = move (mouseMotion u) jake
    follow' = move (later 1 (mouseMotion u)) jake
@@ -132,7 +140,31 @@ delayAnims dt anims =
 
 kids u =
   delayAnims 0.5 (map (move (mouseMotion u))
-                      [jake, becky, charlotte, pat])
+                      [ jake
+                      , stretch 0.7  becky
+                      , stretch 0.65 charlotte
+                      , stretch 0.6  pat
+                      ])
+
+moreKids u =
+  moveXY 0 (- height / 2 + 0.15) (
+   withColor textColor (
+    bigger 2 (
+      stringBIm message)))  `over`
+  delayAnims 0.5 (map (move path)
+                      (zipWith stretch
+                               (map constantB scales) (cycle kidsL)))
+ where
+  kidsL   = [bigger 1.2 jake, becky, charlotte, pat]
+  scales  = [1, (1 - 2 / fromInt numKids) .. -1]
+  -- Increase numKids on a faster computer/video card.
+  numKids = 15
+  path    = size *^ vector2Polar (sin (fromIntB n*time)) time
+  n       = stepper 0 (scanlE (+) 0 changeN)
+  changeN = lbp u -=> (-1) .|. rbp u -=> 1
+  size    = (height `min` width) / 2.7  -- extra to keep heads in window
+  message = constantB "right or left click" `untilB` changeN -=> showB n
+  (width,height) = vector2XYCoords (viewSize u)
 
 trailWords motion str =
   delayAnims 1 (map moveWord (words str))
@@ -143,7 +175,7 @@ trailWords motion str =
 
 flows u = trailWords motion "Time flows like a river"
   where
-    motion = 0.7 *^ vector2XY (cos (userTime u)) (sin (2 * (userTime u)))
+    motion = 0.7 *^ vector2XY (cos time) (sin (2 * time))
 
 flows2 u = trailWords (mouseMotion u) "Time flows like a river"
 
@@ -161,7 +193,7 @@ redBlueCycle u = buttonMonitor u `over`
                  withColor (cycle red blue u) circle
   where
    cycle c1 c2 u =
-    c1 `untilB` nextUser lbp u ==> cycle c2 c1
+    c1 `untilB` nextUser_ lbp u ==> cycle c2 c1
 
 
 tricycle u =
@@ -171,7 +203,7 @@ tricycle u =
        circle )
   where
    cycle3 c1 c2 c3 u =
-    c1 `untilB` nextUser lbp u ==> cycle3 c2 c3 c1
+    c1 `untilB` nextUser_ lbp u ==> cycle3 c2 c3 c1
 
 
 jumpFlower u = buttonMonitor u `over`
@@ -179,45 +211,52 @@ jumpFlower u = buttonMonitor u `over`
 
 flower = smaller 2.5 (importBitmap "../Media/rose medium.bmp")
 
-selectLeftRight :: a -> a -> a -> User -> Behavior a
-
-selectLeftRight none left right u = notPressed u
- where
-  notPressed u =
-   constantB none `untilB` 
-     nextUser lbp u ==> pressed left  lbr .|. 
-     nextUser rbp u ==> pressed right rbr 
-
-  pressed x stop u = 
-   constantB x `untilB` nextUser stop u ==> notPressed
-
 bSign :: User -> RealB
 
 bSign = selectLeftRight 0 (-1) 1
 
+selectLeftRight :: a -> a -> a -> User -> Behavior a
+
+selectLeftRight none left right u =
+  condB (leftButton  u) (constantB left ) (
+    condB (rightButton u) (constantB right) (
+      constantB none ))
+ 
 buttonMonitor u =
   moveXY 0 (-1) (
-   withColor white (
+   withColor textColor (
     bigger 2 (
     stringBIm (selectLeftRight "(press a button)" "left" "right" u))))
- 
+
+
+{-
+selectLeftRight none left right u = notPressed u
+ where
+  notPressed u =
+   constantB none `untilB`
+     nextUser_ lbp u ==> pressed left  lbr .|.
+     nextUser_ rbp u ==> pressed right rbr
+
+  pressed x stop u =
+   constantB x `untilB` nextUser_ stop u ==> notPressed
+-}
 
 growFlower u = buttonMonitor u `over`
-               grow flower u
+               bigger (grow u) flower
 
-grow im u = bigger size im 
- where 
-  size = 1 + atRate rate u 
-  rate = bSign u 
+grow u = size
+ where
+  size = 1 + atRate rate u
+  rate = bSign u
 
 
 growFlowerExp u = buttonMonitor u `over`
-                  grow' flower u
+                  bigger (grow' u) flower
 
-grow' im u = bigger size im 
- where 
-  size = 1 + atRate rate u 
-  rate = bSign u * size 
+grow' u = size
+ where
+  size = 1 + atRate rate u
+  rate = bSign u * size
 
 
 -- A fun alternative to "flower" in the previous examples:
@@ -225,57 +264,134 @@ godzilla = moveXY 0 (-0.4) (
            smaller 2.5 (importBitmap "../Media/godzilla medium.bmp") )
 
 
+-- 3D stuff
 
--- --- Misc to go elsewhere ---
+-- These first two differ by how closely they approximate a sphere.  The
+-- second does a better job, but is more expensive.
+sphereLowRes = importX "../Media/sphere1.x"
+sphere = importX "../Media/sphere.x"
+teapot = uscale3 2                **%
+         rotate3 xVector3 (-pi/2) **%
+         importX "../Media/tpot2.x"
 
-display imB = disp (\ u -> later (constantB (userStartTime u)) imB)
+redSpinningPot =
+  rotate3 yVector3 time **%
+  withColorG red teapot
+
+mouseSpinningPot :: User -> GeometryB
+mouseSpinningPot u =
+  rotate3 xVector3 y **%
+  rotate3 yVector3 x **%
+  withColorG green teapot
+ where
+   (x,y) = vector2XYCoords (pi *^ mouseMotion u)
+
+-- Not used: spin g with the mouse position and render
+gRender :: GeometryB -> User -> ImageB
+gRender g u = renderGeometry g' defaultCamera
+ where
+  g' = rotate3 xVector3 y    **%
+       rotate3 yVector3 (-x) **%
+       g
+  (x,y) = vector2XYCoords (pi *^ mouseMotion u)
+
+spinPot :: ColorB -> RealB -> GeometryB
+spinPot potColor potAngle =
+  rotate3 yVector3 potAngle **%
+  withColorG potColor teapot
+
+spin1, spin2 :: User -> ImageB
+spin1 = withSpin potSpin1
+spin2 = withSpin potSpin2
+
+potSpin1, potSpin2 :: RealB -> User -> GeometryB
+
+potSpin1 angle u = spinPot red angle
+
+potSpin2 potAngleSpeed u =
+  spinPot potColor potAngle `unionG` light
+ where
+  light = rotate3 yVector3 (pi/4)   **%
+          translate3 (vector3Spherical
+                          2 time 0) **%
+          uscale3 0.1               **%
+          withColorG white (
+           sphereLowRes `unionG` pointLightG)
+  potColor =
+     colorHSL (slower 10 wiggle * pi) 0.5 0.5
+  potAngle = integral potAngleSpeed u
+
+
+withSpin :: (RealB -> User -> GeometryB) -> User -> ImageB
+withSpin f u = buttonMonitor u `over`
+               renderGeometry (f (grow u) u) defaultCamera
+
+growHowTo :: User -> ImageB
+growHowTo u =
+  moveXY 0 (-1) (
+   withColor yellow (
+    stringBIm messageB ))
+ where
+   messageB =
+     selectLeftRight
+       "Use mouse buttons to \
+            \control pot's spin"
+       "left" "right" u
+
+
+
+--- Misc to go elsewhere ---
+
+uDelay :: (GBehavior bv, TimeTransformable bv) => bv -> User -> bv
+uDelay bv u = later (constantB (userStartTime u)) bv
+
+display imB = disp (uDelay imB)
 
 displayU = disp
 
+displayG g   = display (renderGeometry g defaultCamera)
+displayGU gf = displayU (\ u -> renderGeometry (gf u) defaultCamera)
+
+-- Stand back far enough to look at a unit sphere comfortably
+defaultCamera = translate3 (vector3XYZ 0 0 (-5))
+
 -- Packing it all up
 
-titles = [ "leftRightCharlotte", "upDownPat", "charlottePatDance",
-          "charlottePatDoubleDance", "dance1", "dance2",
-          "patOrbitsCharlotte",
-          "velBecky", "accelBecky", "mouseVelBecky", "beckyChaseMouse",
-          "danceChase",
-          "springDragBecky", "orbitAndLater", "orbitAndSlower",
-          "followMouseAndDelay", "kids", "flows", "flows2",
-          "redBlue", "redBlueCycle", "tricycle",
-          "jumpFlower", "growFlower", "growFlowerExp",
-          "The End" ]
+titles = [ "leftRightCharlotte", "upDownPat", "charlottePatDance"
+         , "charlottePatDoubleDance", "dance1", "dance2"
+         , "patOrbitsCharlotte"
+         , "velBecky", "accelBecky", "mouseVelBecky", "beckyChaseMouse"
+         , "danceChase"
+         , "springDragBecky", "orbitAndLater", "orbitAndSlower"
+         , "followMouseAndDelay", "kids", "moreKids", "flows", "flows2"
+         , "redBlue", "redBlueCycle", "tricycle"
+         , "jumpFlower", "growFlower", "growFlowerExp"
+         , "sphere", "teapot", "redSpinningPot", "mouseSpinningPot"
+         , "spin1", "spin2"
+         , "The End"
+         ]
 
-anims = map const [ talkTitle,
-                    leftRightCharlotte, upDownPat, charlottePatDance,
-                    charlottePatDoubleDance, dance1, dance2,
-                    patOrbitsCharlotte ]
+anims = map const [ talkTitle
+                  , leftRightCharlotte, upDownPat, charlottePatDance
+                  , charlottePatDoubleDance, dance1, dance2
+                  , patOrbitsCharlotte
+                  ]
         ++
-        [ velBecky, accelBecky, mouseVelBecky, beckyChaseMouse, danceChase,
-          springDragBecky, const orbitAndLater, const orbitAndSlower,
-          followMouseAndDelay, kids, flows, flows2,
-          redBlue, redBlueCycle, tricycle,
-          jumpFlower, growFlower, growFlowerExp,
-          const emptyI ]
+        [ velBecky, accelBecky, mouseVelBecky, beckyChaseMouse, danceChase
+        , springDragBecky, const orbitAndLater, const orbitAndSlower
+        , followMouseAndDelay, kids, moreKids, flows, flows2
+        , redBlue, redBlueCycle, tricycle
+        , jumpFlower, growFlower, growFlowerExp
+        ]
+        ++
+        map (\ gf -> \ u -> renderGeometry (gf u) defaultCamera )
+            [ const sphere, const teapot, const redSpinningPot
+              , mouseSpinningPot ]
+        ++
+        [ spin1, spin2 ]
 
-{-
-animsAndTitles =
- concat [ [titleIm title, anim]
-         | (title,anim) <- zip titles anims]
-  where
-   titles = [ "leftRightCharlotte", "upDownPat", "charlottePatDance",
-              "charlottePatDoubleDance", "dance1", "dance2",
-              "patOrbitsCharlotte",
-              "velBecky", "accelBecky", "mouseVelBecky", "beckyChaseMouse",
-              "danceChase",
-              "springDragBecky", "orbitAndLater", "orbitAndSlower",
-              "followMouseAndDelay", "flows", "flows2",
-              "redBlue", "redBlueCycle", "tricycle",
-              "jumpFlower", "growFlower", "growFlowerExp",
-              "The End" ]
-
-   titleIm name u =  bigger (25 / fromInt (length name)) (
-                        withColor red (stringIm name) )
--}
+-- Interleave the animations and titles.  Note that there's an extra
+-- animation at the start and an extra title at the end.
 
 animsAndTitles = interleave anims animTitles
  where
@@ -285,9 +401,10 @@ animsAndTitles = interleave anims animTitles
     | (col,str,tAnim) <- zip3 colors titles
                               (concat (repeat titleAnimators)) ]
 
-  colors = [ colorHSL (constantB h + 30*wiggle) 0.5 0.5 | h <- [0, sep .. 359] ]
+  colors = [ colorHSL (constantB h + wiggle/2) 0.5 0.5
+           | h <- [0, sep .. 2*pi] ]
 
-  sep = fromInt 360 / fromInt (length titles)
+  sep = 2*pi / fromInt (length titles)
 
   tsize str = bigger (25 / fromInt (length str))
 
@@ -299,7 +416,7 @@ animsAndTitles = interleave anims animTitles
 allAnims u = allRec 0 u
  where
   allRec i u =
-     {-whiteBack-} (animsAndTitles!!i) u `untilB`
+     withBack (animsAndTitles!!i) u `untilB`
        (newIndex u `afterE` u) ==> uncurry allRec
     where
       newIndex u = plusMinus u `suchThat` validIndex
@@ -312,8 +429,8 @@ allAnims u = allRec 0 u
   nextKeys = [vK_SPACE,vK_RIGHT, charToVKey 'N']
   prevKeys = [vK_LEFT, charToVKey 'P']
 
-  -- Use a white background
-  whiteBack imF u = imF u `over` bigger 3 (withColor white square)
+  -- Add a background
+  withBack imF u = imF u `over` withColor backColor solidImage
 
 charToVKey :: Char -> VKey
 charToVKey = fromInt . fromEnum
@@ -323,12 +440,12 @@ talkTitle =
  trail 1.2 motion
    [ withColor (colorHSL (constantB h + wiggleColor) 0.5 0.5) (
        bigger 1.5 (stringIm str))
-   | (str,h) <- zip titleWords
-                    [0, 360 / fromIntegral (length titleWords) .. 359]  ]
+   | (str,h) <- zip titleWords [0, sep .. 2*pi]  ]
  where
   motion = vector2XY (slower 5 (0.3 * waggle))
                      (slower 4 (0.3 * wiggle))
-  wiggleColor = slower 2 (180 * wiggle)
+  wiggleColor = slower 2 (pi * wiggle)
+  sep         = 2 * pi / fromIntegral (length titleWords)
   titleWords = words "Functional Reactive Animation"
 
   trail dt motion anims =

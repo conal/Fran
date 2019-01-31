@@ -1,6 +1,6 @@
 -- Module for testing Fran
 --
--- Last modified Tue Oct 07 14:43:42 1997
+-- Last modified Fri Oct 10 08:20:25 1997
 
 module Test where
 
@@ -135,7 +135,7 @@ wordy2 u =
    scale = 1.5 + sin dt
    angle = dt / 3
    color = colorHSL h 0.5 0.5
-   h = 180 * (1 + sin dt)
+   h = pi * (1 + sin dt)
    text = simpleText (showB dt)
 
 wordy3 angle u =
@@ -165,7 +165,9 @@ seqD1 u = b `untilB` (userTimeIs 2.1111 u `afterE_` b)
 
 lotsODonuts u = accumB over (donut6 u) another
  where
-  another = (alarmE (userStartTime u) 1.2 `afterE_` u) ==> donut6
+  another = alarmUE 1.2 u ==> donut6
+
+alarmUE dt u = alarmE (userStartTime u) dt `afterE_` u
 
 -- From the tutorial
 
@@ -233,33 +235,28 @@ snd3 u = stringBIm msg `over`
   msg = constantB "Move the mouse around"
   (x, y) = vector2XYCoords (mouse u .-. point2XY (-1) (-1.5))
 
-snd4 u = accum u `untilB` nextUser (keyPress Win32.vK_ESCAPE) u ==> snd4
+snd4 u = accum u `untilB` nextUser_ (keyPress Win32.vK_ESCAPE) u ==> snd4
  where
-  accum u = emptyImage `untilB` nextUser (keyPress Win32.vK_SPACE) u ==> \ u' ->
+  accum u = emptyImage `untilB` nextUser_ (keyPress Win32.vK_SPACE) u ==> \ u' ->
             accum u' `over` donut1 u'
 
 snd5 u = soundImage (loop u)
  where
-  loop  u = accum u `untilB` nextUser (keyPress Win32.vK_ESCAPE) u ==> loop
-  accum u = silence `untilB` nextUser (keyPress Win32.vK_SPACE) u ==> \ u' ->
+  loop  u = accum u `untilB` nextUser_ (keyPress Win32.vK_ESCAPE) u ==> loop
+  accum u = silence `untilB` nextUser_ (keyPress Win32.vK_SPACE) u ==> \ u' ->
             bufferSound bounceBuffer `mix` accum u'
 
 snd6 u = soundImage (loop u)
  where
-  loop  u = accum u `untilB` nextUser (keyPress Win32.vK_ESCAPE) u ==> loop
+  loop  u = accum u `untilB` nextUser_ (keyPress Win32.vK_ESCAPE) u ==> loop
   accum u = accumB mix silence (addSound u)
   addSound u = withTimeE (bounceButton u)  ==> bounce
-  bounceButton u = nextUser (keyPress Win32.vK_SPACE) u
+  bounceButton u = nextUser_ (keyPress Win32.vK_SPACE) u
   bounce (u',te) = trace ("bounce at " ++ show (userStartTime u', te) ++ "\n") $
                    bufferSound bounceBuffer
 
 
 --- 3D !!
-
--- Import an X mesh file to make a geometry.  Currently presumes that the
--- X file is a simple mesh.
-importX :: String -> GeometryB
-importX = meshG . meshBuilder
 
 -- Stand back far enough to look at a unit sphere comfortably
 defaultCamera = translate3 (vector3XYZ 0 0 (-5))
@@ -271,9 +268,18 @@ teapot = uscale3 2 **% rotate3 xVector3 (-pi/2) **% importX "../Media/tpot2.x"
 --teapot = meshG (meshBuilder "tpot2.x")
 sphere = importX "../Media/sphere1.x"
 
-dispG g = disp $ \u -> renderGeometry (g u) defaultCamera
+-- spin g with the mouse position and render
+gRender :: GeometryB -> User -> ImageB
+gRender g u = renderGeometry g' defaultCamera
+ where
+  g' = rotate3 xVector3 y **%
+       rotate3 yVector3 (-x) **%
+       g
+  (x,y) = vector2XYCoords (pi *^ mouseMotion u)
 
-ig0 u = renderGeometry g defaultCamera
+dispG g = disp $ \u -> gRender (g u) u
+
+ig0 u = gRender g u
  where
    g = withColorG red $
        rotate3 yVector3 (userTime u) **%
@@ -287,7 +293,7 @@ withSpin :: (RealB -> User -> GeometryB) -> User -> ImageB
 
 withSpin f u = growHowTo u  `over` geomImage
  where
-   geomImage = renderGeometry (f (grow u 0) u) defaultCamera
+   geomImage = gRender (f (grow u 0) u) u
 
 spinPot :: ColorB -> RealB -> GeometryB
 
@@ -303,7 +309,7 @@ potSpin2 potAngleSpeed u = spinPot potColor potAngle `unionG` light
   light = rotate3 axis (pi/3) **%
           translate3 (vector3Spherical 2 (userTime u) 0) **%
           uscale3 0.1 **% (sphere `unionG` pointLightG)
-  potColor = colorHSL (sin (userTime u / 3) * 180) 0.5 0.5
+  potColor = colorHSL (sin (userTime u / 3) * pi) 0.5 0.5
   potAngle = atRate potAngleSpeed u
   axis = yVector3
   -- axis = rotate3 zVector3 (userTime u) **% yVector3
@@ -315,7 +321,7 @@ potSpin3 potAngleSpeed u =
 
 -- Simple moving image of rendered constant geometry
 ig4 u = move (vector2Polar 0.5 (- userTime u)) $
-       renderGeometry (withColorG red teapot) defaultCamera
+        gRender (withColorG red teapot) u
 
 
 -- Geometry switching.  As of 10/6/97, this guy doesn't work, because
@@ -374,11 +380,11 @@ selectLeftRight none left right u = notPressed u
  where
   notPressed u =
    constantB none `untilB` 
-     nextUser lbp u ==> pressed left  lbr .|. 
-     nextUser rbp u ==> pressed right rbr 
+     nextUser_ lbp u ==> pressed left  lbr .|. 
+     nextUser_ rbp u ==> pressed right rbr 
 
   pressed x stop u = 
-   constantB x `untilB` nextUser stop u ==> notPressed
+   constantB x `untilB` nextUser_ stop u ==> notPressed
 
 bSign :: User -> RealB
 

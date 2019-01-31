@@ -144,7 +144,7 @@ void clearDDSurface(IDirectDrawSurface *pSurface, COLORREF color)
     DDBLTFX ddbltfx;
 
     ddbltfx.dwSize = sizeof(ddbltfx);
-    ddbltfx.dwFillColor = color;
+    ddbltfx.dwFillColor = DDColorMatch(pSurface, color);
     HRESULT ddrval;
     while (DDERR_WASSTILLDRAWING ==
             (ddrval = pSurface->Blt(NULL,  NULL, NULL,
@@ -176,44 +176,6 @@ IDirectSoundBuffer *
 newWaveDSBuffer (char *wavName)
 {
     return WaveBuffer(g_pDSound, wavName);
-}
-
-// For testing
-
-IDirectDrawSurface *
-textDDSurface (LPCSTR string, COLORREF color)
-{
-    TTRACE("newTextDDSurface(%s)\n", string);
-
-    SIZE size;
-
-    // Figure size.
-    {
-	HDC scratchHDC = GetDDrawHDC(g_pScratchSurf);
-	GetTextExtentPoint32(scratchHDC, string, lstrlen(string), &size);
-	ReleaseDDrawHDC(g_pScratchSurf, scratchHDC);
-    }
-
-    // Set the background to black unless the text is black
-    COLORREF backColor =
-	color != RGB(0,0,0) ? RGB(0,0,0) : RGB(255,255,255);
-
-    // Make the surface
-    IDirectDrawSurface *pSurface =
-	newPlainDDrawSurface(size.cx, size.cy, backColor);
-    
-    // Get a DC and draw the text
-    {
-	HDC hdc = GetDDrawHDC(pSurface);
-
-	SetBkColor( hdc, backColor );
-	SetTextColor( hdc, color );
-	TextOut( hdc, 0, 0, string, lstrlen(string) );
-
-	ReleaseDDrawHDC(pSurface, hdc);
-    }
-    
-    return pSurface;
 }
 
 

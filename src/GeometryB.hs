@@ -1,6 +1,6 @@
 -- "Geometry behavior" type defined directly, i.e., without Geometry or Behavior.
 -- 
--- Last modified Tue Oct 07 14:45:51 1997
+-- Last modified Wed Oct 08 14:50:16 1997
 
 -- To do:
 --
@@ -45,7 +45,7 @@ import SoundB
 import ImageB
 import Event
 import Transform3B
-import MVar
+import Concurrent			-- MVar
 import Maybe
 
 -- The fixities of `unionG` and **% are the same as + and *

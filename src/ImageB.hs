@@ -15,18 +15,16 @@ import Event
 import qualified RenderImage as R
 import SoundB
 import Maybe (fromMaybe)
-import MVar
+import Concurrent			-- MVar
 import Trace
 
 infixl 6 `over`
 
 defaultColor = red
 
-defaultTextColor = defaultColor
-
-
 data ImageB
  = EmptyImage
+ | SolidImage                           -- solid color
  | FlipImage  SL.HFlipBook RealB        -- page # behavior
  | RenderImage RenderIO                 -- renders to a DDSurface
  | SoundI     SoundB                    -- embedded sound
@@ -42,6 +40,11 @@ data ImageB
 -- The empty ImageB
 emptyImage :: ImageB
 emptyImage = EmptyImage
+
+-- Solid color image.  Useful for background for now and later with
+-- stenciling.  Use with "withColor".
+solidImage :: ImageB
+solidImage = SolidImage
 
 -- Flipbook-based ImageB, given page # behavior
 flipImage :: SL.HFlipBook -> RealB -> ImageB
@@ -139,7 +142,9 @@ instance  GBehavior ImageB  where
 
 afterTimesI :: ImageB -> [Time] -> [ImageB]
 
-im@EmptyImage `afterTimesI` _ = repeat im
+EmptyImage `afterTimesI` _ = repeat EmptyImage
+
+SolidImage `afterTimesI` _ = repeat SolidImage
 
 FlipImage book page `afterTimesI` ts =
  map (FlipImage book) (page `afterTimes` ts)
@@ -285,7 +290,7 @@ textSurface :: TextB -> Maybe ColorB -> Transform2B -> SurfaceULB
 textSurface textB mbColorB xfB =
   lift3 R.renderText
 	textB
-	(fromMaybe defaultTextColor mbColorB)
+	(fromMaybe defaultColor mbColorB)
 	xfB
 
 textImage :: TextB -> ImageB

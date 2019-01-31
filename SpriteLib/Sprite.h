@@ -38,17 +38,11 @@ EXT_API HSpriteTree spriteToSpriteTree(HSprite);
 EXT_DECL_DATA int MinSpriteSize;
 
 EXT_CLASS(FlipSprite);
-
 EXT_API HFlipSprite newFlipSprite (HFlipBook,
                double posX0, double posY0, 
                double scaleX0, double scaleY0, 
                double page0, SpriteTreeChain rest);
 EXT_API HSprite flipSpriteToSprite (HFlipSprite);
-
-/* Phasing out
-EXT_API void setGoalPage 
-(HFlipSprite, double goalPage, SpriteTime t);
-*/
 EXT_API void updateFlipSprite (HFlipSprite,
                                SpriteTime t, 
                                double posX, double posY, 
@@ -74,6 +68,16 @@ EXT_API void updateSimpleSprite (
     HDDSurface pSurface, Pixels ulX, Pixels ulY,
     double posX, double posY, 
     double scaleX, double scaleY);
+
+EXT_CLASS(MonochromeSprite);
+EXT_API HMonochromeSprite newMonochromeSprite (
+    double r0, double g0, double b0, 
+    SpriteTreeChain rest);
+EXT_API HSpriteTree monochromeSpriteToSpriteTree (HMonochromeSprite);
+EXT_API void updateMonochromeSprite (
+    HMonochromeSprite,
+    SpriteTime t,
+    double r, double g, double b);
 
 EXT_CLASS(SoundSprite);
 EXT_API HSoundSprite newSoundSprite (
@@ -231,7 +235,6 @@ public:
 		 IDirectDrawSurface *pSurface, Pixels ulX, Pixels ulY,
 		 double posX, double posY, 
 		 double scaleX, double scaleY);
-    void Render (SpriteTime t) ;
     ~SimpleSprite() { RELEASEIF(m_pSurface); }
 protected:
     void GetSrc (SpriteTime t, IDirectDrawSurface **pSrc,
@@ -242,6 +245,20 @@ protected:
     IDirectDrawSurface *m_pSurface;
     CCriticalSection m_critSec;
 };
+
+// A MonochromeSprite is not a sprite, since it has no position or scale.
+class AFX_EXT_CLASS MonochromeSprite : public SpriteTree {
+public:
+    MonochromeSprite (double r0, double g0, double b0, 
+                      SpriteTreeChain rest)
+        : SpriteTree(rest), m_r(r0), m_g(g0), m_b(b0) { }
+    void Paint (IDirectDrawSurface *pDest, SpriteTime t);
+    void Update (SpriteTime t, double r, double g, double b);
+    ~MonochromeSprite() { }
+protected:
+    LinearDouble m_r, m_g, m_b;
+};
+
 
 #ifndef NO_SOUND_SPRITE
 

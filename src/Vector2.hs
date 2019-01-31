@@ -1,6 +1,6 @@
 {- RBMH 2D (static) Vectors
 
- Last modified Tue Sep 30 10:04:59 1997
+ Last modified Fri Oct 10 15:50:44 1997
 -}
 module Vector2 
         (
@@ -53,6 +53,9 @@ instance  VectorSpace Vector2  where
 
 instance  Num Vector2  where
   (+)    = (^+^)
+  (*)	 = error "bad operator on Vector2: *"
+  abs	 = error "bad operation on Vector2: abs"
+  signum = error "bad operation on Vector2: signum"
   negate = negateVector
   -- (-) follows from negate and +
   fromInteger = error "Can't interpret integers as Vector2"

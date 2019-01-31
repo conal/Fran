@@ -76,6 +76,9 @@ type HSimpleSprite = Word32
 -- Arguments surface, ulX, ulY, posX0, posY0, scaleX0, scaleY0, page0, rest
 -- Arguments: simple sprite, goal time, new surface, ulX, ulY, posX, posY,
 -- scaleX, scaleY
+type HMonochromeSprite = Word32
+-- Arguments: color and rest
+-- Arguments: time, r, g, b
 type HSoundSprite = Word32
 -- Arguments orig buffer, vol, pan, freq, rest
 -- Update methods go here (volume, frequency)
@@ -381,6 +384,17 @@ set_MinSpriteSize :: Int -> IO ()
 set_MinSpriteSize arg1 =
   prim_set_MinSpriteSize arg1
 primitive prim_set_MinSpriteSize :: Int -> IO ()
+newMonochromeSprite :: Double -> Double -> Double -> SpriteTreeChain -> IO HMonochromeSprite
+newMonochromeSprite arg1 arg2 arg3 arg4 =
+  prim_newMonochromeSprite arg1 arg2 arg3 arg4 >>= \ (h,gc_failed,gc_failstring) ->
+  if ( gc_failed /= 0)
+  then unmarshall_string_ gc_failstring >>= fail . userError
+  else (return (h))
+primitive prim_newMonochromeSprite :: Double -> Double -> Double -> Word -> IO (Word,Int,Addr)
+updateMonochromeSprite :: HSimpleSprite -> SpriteTime -> Double -> Double -> Double -> IO ()
+updateMonochromeSprite arg1 arg2 arg3 arg4 arg5 =
+  prim_updateMonochromeSprite arg1 arg2 arg3 arg4 arg5
+primitive prim_updateMonochromeSprite :: Word -> Double -> Double -> Double -> Double -> IO ()
 newSoundSprite :: HDSBuffer -> Double -> Double -> Double -> SpriteTreeChain -> IO HSoundSprite
 newSoundSprite arg1 arg2 arg3 arg4 arg5 =
   prim_newSoundSprite arg1 arg2 arg3 arg4 arg5 >>= \ (h,gc_failed,gc_failstring) ->

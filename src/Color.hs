@@ -1,4 +1,6 @@
--- Simple color type.  To add: hsl view, and duller, brighter, ...
+-- Simple color type.
+--
+-- Last modified Mon Oct 13 13:55:17 1997
 
 module Color(
 	Color(..),
@@ -16,7 +18,7 @@ module Color(
 import BaseTypes
 import qualified Win32 (COLORREF, rgb)
 
--- Rep uses RGB
+-- Representation uses RGB
 data Color = ColorRGB Fraction Fraction Fraction -- all in [0,1]
    deriving (Eq, Show)
 
@@ -24,6 +26,7 @@ data Color = ColorRGB Fraction Fraction Fraction -- all in [0,1]
 colorRGBCoords :: Color -> (Fraction,Fraction,Fraction)
 colorRGBCoords (ColorRGB r g b) = (r,g,b)
 
+-- Hue varies between 0 and 2pi
 colorHSLCoords :: Color -> (RealVal,Fraction,Fraction)
 colorHSLCoords (ColorRGB r g b) =
  rgb_to_hsl r g b
@@ -82,6 +85,7 @@ brown     = ColorRGB 0.5 0 0
 {-
  From ColourmapImpl.lhs in Haggis distrib. (boxified version),
  which again was `inspired' by Foley&van Dam.
+ (conal: changed from degrees to radians)
 -}
 
 hsl_to_rgb :: Fraction 
@@ -90,11 +94,12 @@ hsl_to_rgb :: Fraction
 	   -> (Fraction,
 	       Fraction,
 	       Fraction)
-hsl_to_rgb h s l =
+hsl_to_rgb hRadians s l =
  (value m1 m2 (h + 120),
   value m1 m2 h,
   value m1 m2 (h - 120))
  where
+  h = hRadians * 180 / pi
   m2 =
    if l <= 0.5 then
       l * (1 + s)
@@ -104,15 +109,6 @@ hsl_to_rgb h s l =
    (2 * l) - m2
 
   value n1 n2 hue =
-   let
-    hue' =
-     if hue > 360 then
-        hue - 360
-     else if hue < 0 then
-        hue + 360
-     else
-        hue
-   in
    if hue' < 60 then
       n1 + (n2 - n1) * hue' / 60
    else if hue' < 180 then
@@ -122,6 +118,9 @@ hsl_to_rgb h s l =
       (240   - hue') / 60
    else
       n1
+    where
+     -- Map hue to [0,360)
+     hue' = hue - 360 * fromInt (floor (hue / 360))
 
 rgb_to_hsl :: Fraction
 	   -> Fraction
@@ -158,7 +157,8 @@ rgb_to_hsl r g b =
 
      h = if h' < 0 then h' + 1 else h'
     in
-    (h,s,l)
+    -- Changed from degrees to radians: conal
+    (h  * pi / 180 ,s,l)
 
 
 transformHSL :: RealVal -> Fraction -> Fraction
@@ -166,13 +166,14 @@ transformHSL :: RealVal -> Fraction -> Fraction
 
 transformHSL dh ds dl color = 
   colorHSL
-   (clamp 0 360 (h+dh))
+   (clamp 0 twicePi (h+dh))
    (clamp 0 1 (s+ds)) 
    (clamp 0 1 (l+dl))
   where
    (h, s, l) = colorHSLCoords color
    clamp mi ma v = mi `max` (ma `min` v)
 
+twicePi = 2 * pi
 
 stronger :: Fraction -> Color -> Color
 stronger d = transformHSL 0 d d

@@ -1,6 +1,6 @@
 -- Envelope module for RBMH
 --
--- Last modified Thu Oct 02 16:22:46 1997
+-- Last modified Thu Oct 09 10:23:10 1997
 --
 -- To do: Maybe imitate John P's structuring
 
@@ -10,6 +10,7 @@ module Fran (
             , module Event
             , module Behavior
             , module BehaviorEvent
+            , VectorSpace
             , module VectorSpaceB
             , module Vector2B
             , module Point2B
@@ -35,6 +36,7 @@ import BaseTypes
 import Event
 import Behavior
 import BehaviorEvent
+import VectorSpace (VectorSpace)
 import VectorSpaceB
 import Vector2B
 import Point2B

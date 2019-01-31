@@ -97,7 +97,7 @@ DDrawEnv::~DDrawEnv()
     ReleaseBack();
 }
 
-const COLORREF backgroundColor = RGB(1,1,1); // RGB(0,0,0);
+const COLORREF backgroundColor = RGB(0,0,0);
 
 void DDrawEnv::ClearBack()
 {

@@ -1,11 +1,7 @@
 -- Event combinators that involve events.  Separated out from Event.hs to
 -- avoid a mutual module recursion.
 --
--- Last modified Tue Oct 07 11:54:24 1997
---
--- To do:
---
---  + Resolve Forceable in snapshot and snapshot_
+-- Last modified Thu Oct 09 15:58:18 1997
 
 module BehaviorEvent where
 
@@ -112,4 +108,3 @@ be3'' t0 = traceE "be2'" TraceOccsE (be2' t0)
 -- not getting fed.  See be4 in Spritify.hs
 
 -- be4 t0 = predicate (timeSince t0 >=* 1) u
-

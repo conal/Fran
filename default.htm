@@ -8,14 +8,15 @@
 <BODY LINK="#0000ff" VLINK="#800080">
 
 <P><!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN"></P>
-<H1 ALIGN="CENTER">Fran version 1.05</H1>
+<H1 ALIGN="CENTER">Fran version 1.06</H1>
 <H2 ALIGN="CENTER">(Functional Reactive Animation)</H2>
 <P ALIGN="CENTER"><IMG SRC="patOrbitsCharlotte.gif" WIDTH=200 HEIGHT=200></P>
 <H2 ALIGN="CENTER"><A HREF="http://www.research.microsoft.com/~conal/">Conal Elliott</A></H2>
 <EM><P ALIGN="CENTER">Last edited <!--webbot bot="Timestamp"
 startspan s-type="EDITED" s-format="%B %d, %Y" -->October 07, 1997<!--webbot
 bot="Timestamp" i-checksum="31707" endspan --> 
-</EM><P>Fran is a Haskell library (or "embedded language") for interactive animations with 2D and 3D graphics and sound. It runs on <A HREF="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs version 1.4</A> under Windows 95 and Windows NT, using DirectX. </P>
+<FONT SIZE=4><P>Note: The new Fran with 3D and sound is <U>almost</U>, but not quite, ready for use, because it depends on an unreleased version of Hugs. Please check back here later, or let me know you're interested, and I'll email you when Hugs and Fran are ready.  Meanwhile, an older version of Fran is distributed with Hugs (see link below).</P>
+</FONT></EM><P>Fran is a Haskell library (or "embedded language") for interactive animations with 2D and 3D graphics and sound. It runs on <A HREF="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs version 1.4</A> under Windows 95 and Windows NT, using DirectX. </P>
 <P>Try it, it's fun! Please let me know how it goes.</P>
 <P>See <A HREF="news.htm">news</A> for details on changes from one version to another.</P>
 <H3>Notes</H3>
@@ -27,7 +28,7 @@ bot="Timestamp" i-checksum="31707" endspan -->
 <H3>Directions</H3>
 <OL>
 
-<LI>Download <A HREF="Fran1.05.zip">Fran1.05.zip</A></LI>
+<LI>Download <A HREF="Fran1.06.zip">Fran1.06.zip</A></LI>
 <LI>Unzip to create a directory tree called <STRONG>Fran</STRONG>, with subdirectories <STRONG>demos</STRONG>, <STRONG>gc</STRONG>, <STRONG>media</STRONG>, <STRONG>SpriteLib</STRONG>, and <STRONG>src</STRONG>. </LI>
 <LI>In <EM>Windows Explorer</EM>, double click on <STRONG>Tutorial.hs</STRONG> in <STRONG>Fran\demos</STRONG>. If your Hugs is set up properly, it should start up, load a bunch of modules and put up a graphics window. (If double-clicking <STRONG>Tutorial.hs</STRONG> didn't work for you, then instead, start up Hugs, and <STRONG>:cd</STRONG> to <STRONG>Fran\demos</STRONG>. Type <STRONG>:l Tutorial</STRONG>. Lots of modules will then get loaded. At the Hugs prompt (should be in module <STRONG>Tutorial</STRONG>), type <STRONG>main</STRONG>.) </LI>
 <LI>Press space, "<STRONG>n</STRONG>", or right-arrow to advance to the next animation, and "<STRONG>p</STRONG>" or left-arrow to back up to previous one.</LI>
@@ -54,7 +55,8 @@ bot="Timestamp" i-checksum="31707" endspan -->
 <LI><A HREF="http://www.cs.yale.edu/users/ling/">Gary Shu Ling</A> found misc bugs and sources of incompleteness. He also helped out quite a lot with the Fran 1.05 during a Fall '97 internship, and developed the Sokoban demo. </LI>
 <LI><A HREF="http://www.dcs.gla.ac.uk/~simonpj/">Simon Peyton Jones</A> is helping me understand <A HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</A> (the Glasgow Haskell compiler) and how to use it effectively to compiler animation programs, as well as how to better implement Fran. </LI>
 <LI><A HREF="http://www.cs.nott.ac.uk/Department/Staff/mpj/">Mark Jones</A> has been helping me understand Haskell type classes and how to use them well in Fran. </LI>
-<LI><A HREF="http://www.dcs.gla.ac.uk/~wadler/">Philip Wadler</A> had provided interesting and insightful feedback on the semantics of behaviors and events. </LI></UL>
+<LI><A HREF="http://www.dcs.gla.ac.uk/~wadler/">Philip Wadler</A> had provided interesting and insightful feedback on the semantics of behaviors and events. </LI>
+<LI><A HREF="http://www.oz.net/~conal/Jake.html">Jake Elliott</A> did the artwork for Sokoban.</LI></UL>
 
 <H3>Contact</H3>
 <BLOCKQUOTE><A HREF="http://www.research.microsoft.com/~conal">Conal Elliott</A> <BR>

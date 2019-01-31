@@ -14,12 +14,23 @@
 <B><FONT FACE="Arial"><P>Bugs</P>
 
 <UL>
-</B></I></FONT><LI>GeometryB <B>untilB</B> doesn't remove the old geometry when it adds the new. Just needs some Direct3DRM work. </LI></UL>
+</B></I></FONT><LI>GeometryB <B>untilB</B> doesn't remove the old geometry when it adds the new. Just needs some Direct3DRM work. </LI>
+<LI>DirectDraw surfaces are lost and not automatically restored.  You'll get <B>DDERR_SURFACELOST</B>, and have to restart Hugs.</LI>
+<LI>Bug with flipImage inversion and off-screen motion. In Tutorial, try </LI></UL>
+<DIR>
+<DIR>
+<DIR>
+<DIR>
 
-<B><I><FONT FACE="Arial"><P>To Do</P>
+<B><P>display (move (vector2Polar 1.2 time) $ stretch (-1) $ pat)</P></DIR>
+</DIR>
+</DIR>
+</DIR>
+
+<I><FONT FACE="Arial"><P>To Do</P>
 
 <UL>
-</B></I></FONT><LI>New art for Sokoban. </LI>
+</B></I></FONT><LI>Get Fran running under GHC! We really need the speed! </LI>
 <LI>More GeometryB: texturing, embedded sounds. </LI>
 <LI>keyPress should perhaps have VKey and Char alternatives. For Char, it should be possible to get lower-case, control, etc. </LI>
 <LI>Non-uniform scaling for 2D. Already supported by SpriteLib. Just needs factorization support in Transform2.hs. </LI>
@@ -33,7 +44,6 @@
 
 
 <UL>
-<LI>More 2D operations: stenciling, bitmap rotation, <B>colorImageB :: ColorB -&gt; ImageB</B>, with infinite size.</LI>
 <LI>Handle sound sharing gracefully. Sometimes another application, say NetShow, will have grabbed the sound card before Fran could get it it, and Fran doesn't react gracefully. You'll often see the reverse problem: after you've done your first graphics, so that OpenSpriteLib has gotten called, you won't hear anything .wav from your sound card from other applications until you quit Hugs. This is a serious problem, but I think it mostly goes away with DirectX 5, assuming the competing program is using DirectX 5 as well. For robustness sake, I should at least make OpenSpriteLib return some kind of error value to be treated as an IO Error. </LI>
 <LI>Maybe eliminate afterE in favor of the following </LI></UL>
 
@@ -47,14 +57,15 @@
 
 <UL>
 <LI>Maybe rename "<TT>-=&gt;</TT>" to <TT>"==&gt;-</TT>", and in general use a trailing "-" in operator names just as "_" in alphabetic names. </LI>
-<LI>f<TT>ilterE</TT> remaps event data and removes some occurrences. Maybe replace by a simplified function<TT>: Event (Maybe a) -&gt; Event a</TT>, to be used in conjunction with <TT>==&gt;</TT>. </LI>
+<LI>Try to be systematic in the names of the set of functions derived from handleE. There should be a predictable pattern. </LI>
+<TT><LI>filterE</TT> remaps event data and removes some occurrences. Maybe replace by a simplified function<TT>: Event (Maybe a) -&gt; Event a</TT>, to be used in conjunction with <TT>==&gt;</TT>. </LI>
 <LI>Find and fix the bug tickled by the general <TT>*$/untilB</TT> transformations in Behavior.hs. Probably related to <TT>afterE</TT>, but I don't know. </LI>
 <LI>Fix integral to use Runge Kutta 4. </LI>
 <LI>Make events carry a start time, and re-implement <TT>startTime</TT> </LI>
 <LI>Add a rectangular trimming operation to <TT>ImageB</TT> and use for making a photo background in ..\demos\Mover.hs. </LI>
 <LI>Make <TT>condB</TT> belong to <TT>GBehavior</TT>. For <TT>ImageB</TT>, we'll probably have to add a conditional sprite tree. </LI>
 <LI>Adjust operator precedences so we can chain all of the event modifiers: <TT>-=&gt;</TT>, <TT>==&gt;</TT>, `<TT>afterE</TT>`, `<TT>snapshot</TT>`, etc. They need to all be left-associative and of the same precedence. See, e.g., <TT>whenSnap</TT>. The <TT>.|.</TT> operator should be of lower precedence. </LI>
-<LI>Fix memory management of DD surfaces. The Release done in <TT>SimpleSprite::SetSurface</TT> is probably wrong, since a surface can now be shared, thanks to dynamic constant folding. </LI>
+<LI>Fix memory management of DDraw surfaces. The Release done in <TT>SimpleSprite::SetSurface</TT> is probably wrong, since a surface can now be shared, thanks to dynamic constant folding. </LI>
 <LI>Other places marked with "###" </LI>
 <LI>Re-org the behavior/event modules a bit, renaming "Event.hs" to "EventPart1.hs" and "BehaviorEvent.hs" to "Event.hs", importing and re-exporting all of EventPart1. Then most modules can just import Event.hs. </LI>
 <LI>Setting of surfaces and of transforms happens too soon. Should happen at t', not t, but there's no interface for it. </LI>

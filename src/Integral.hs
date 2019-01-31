@@ -1,7 +1,7 @@
 -- Integration.  Handles systems of mutually recursive integral behaviors
 -- (ODEs).
 -- 
--- Last modified Tue Sep 23 11:32:34 1997
+-- Last modified Thu Oct 09 10:06:20 1997
 --
 -- To do:
 --
@@ -28,7 +28,7 @@ import User (User, userStartTime)
 import Interaction (updateDone)
 
 
-integral :: (Forceable v, VS.VectorSpace v) => 
+integral :: VS.VectorSpace v => 
 	    Behavior v -> User -> Behavior v
 
 integral b u = integralFrom b (userStartTime u)

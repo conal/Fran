@@ -2,7 +2,7 @@
 -- 
 -- The "event algebra".
 -- 
--- Last modified Tue Oct 07 11:53:40 1997
+-- Last modified Thu Oct 09 12:59:51 1997
 --
 -- To do:
 
@@ -12,7 +12,7 @@ module Event where
 import BaseTypes
 
 import Channel                           -- for EventChannel
-import IOExtensions (unsafeInterleaveIO) -- for getChanContents
+-- import IOExtensions (unsafeInterleaveIO) -- for getChanContents
 
 import Maybe (isJust)
 import Trace
@@ -68,6 +68,7 @@ Event possOccs `occs` ts = loop possOccs ts
           -- with the remainder.
           Just x  -> --trace ("occurrence at " ++ show te ++ "\n") $
                      Just (te,x) : loop possOccs' ts'
+   loop _ _ = error "no time stream"	-- GSL
 
 afterTimesE :: Event a -> [Time] -> [Event a]
 
@@ -90,6 +91,7 @@ Event possOccs `afterTimesE` ts =
 
      | otherwise = --trace ("  Event/afterTimesE: " ++ show te ++ " >  " ++ show t ++ "\n") $
                    Event possOccs : loop possOccs ts'
+   loop _ _ = error "no time stream"	-- GSL
 
 
 -- An event from a list of possible occurrences
@@ -156,6 +158,7 @@ Event possOccs `withElemE` l = Event (loop possOccs l)
       mbPair = map (`pair` b) mb
       bsNext | isJust mb = bs'
              | otherwise = bs
+   loop [] _ = []
 
 withElemE_ :: Event a -> [b] -> Event b
 e `withElemE_` l = (e `withElemE` l) ==> snd
@@ -202,14 +205,14 @@ class GBehavior bv where
 -- I thought this would be useful.  However, the event should really be a
 -- function of bv, which breaks the mold.
 instance (GBehavior bv, GBehavior bv') => GBehavior (bv -> bv') where
- (f `untilB` e) bv = f bv `untilB` e `afterE` bv ==> uncurry ($)
- -- ...
+ untilB f e = \ bv -> f bv `untilB` e `afterE` bv ==> uncurry ($)
+ afterTimes = error "afterTimes for GBehavior (->) not available"
 
 -- Instead, use this guy.  Should there be one version for GBehavior a
 -- that does the afterE and one for non-GBehavior a that doesn't??
 untilF :: (GBehavior bv, GBehavior a)
        => (a -> bv) -> (a -> Event (a -> bv)) -> (a -> bv)
-(f `untilF` e) a = f a `untilB` e a `afterE` a ==> uncurry ($)
+untilF f e = \ a -> f a `untilB` e a `afterE` a ==> uncurry ($)
 
 instance (GBehavior bv1, GBehavior bv2) => GBehavior (bv1,bv2) where
  (bv1, bv2) `untilB` e    =
@@ -230,7 +233,7 @@ instance (GBehavior bv1, GBehavior bv2, GBehavior bv3)
 instance (GBehavior bv) => GBehavior (Maybe bv) where
  -- There can't be an untilB, since there's no way to change between
  -- Nothing and Just bv.
- --untilB             = error "Sorry -- no untilB for (Maybe bv)"
+ untilB             = error "Sorry -- no untilB for (Maybe bv)"
  Nothing `afterTimes` ts = map (const Nothing) ts
  Just bv `afterTimes` ts = map Just (bv `afterTimes` ts)
 
@@ -238,9 +241,6 @@ instance GBehavior (Event a) where
   Event possOccs1 `untilB` Event possOccs2 = Event (loop possOccs1 possOccs2)
    where
      -- No more in first event.  Just use what e2 gives
-     loop [] possOccs2  =  --trace "Event untilB: no more LHS occurrences\n" $
-                           possOccsOf (joinEOne (Event possOccs2))
-
      loop pos1@(po1@(te1,mb1) : pos1')
           pos2@(po2@(te2,mb2) : pos2') =
        if te1 <= te2 then
@@ -254,6 +254,9 @@ instance GBehavior (Event a) where
                            possOccsOf e2'
               Nothing  ->  --trace "non-occurrence\n"$
                            (te2,Nothing) : loop pos1 pos2'
+     loop [] possOccs2  =  --trace "Event untilB: no more LHS occurrences\n" $
+                           possOccsOf (joinEOne (Event possOccs2))
+     loop possOccs1 []  = possOccs1	-- GSL
 
   afterTimes = afterTimesE
 
@@ -327,7 +330,7 @@ e `withPrevE_` a0 = (e `withPrevE` a0) ==> snd
 
 -- External event occurrences come in on a channel, together with
 -- non-occurrence buffering.
-type EventChannel a = Channel (PossOcc a)
+type EventChannel a = Chan (PossOcc a)
 
 -- Make a new channel event, with an initial no-op.  This no-op lets the
 -- user be queried for time t0 even when there isn't yet a thread doing
@@ -344,13 +347,13 @@ newChannelEvent t0 =
 -- From the Concurrent Haskell Channel, courtesy of Sigbjorn
 -- Should really move into Hugs/lib/hugs/Channel.hs
 -- getChanContents :: Show a => Channel a -> IO [a]
-getChanContents ch =
- unsafeInterleaveIO (
- do -- putStrLn "Doing getChan"
-    x  <- getChan ch
-    --print x
-    xs <- unsafeInterleaveIO (getChanContents ch)
-    return  (x:xs) )
+-- getChanContents ch =
+--  unsafeInterleaveIO (
+--  do -- putStrLn "Doing getChan"
+--     x  <- getChan ch
+--     --print x
+--     xs <- unsafeInterleaveIO (getChanContents ch)
+--     return  (x:xs) )
 
 -------------- non-primitives --------------
 

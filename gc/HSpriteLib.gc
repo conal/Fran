@@ -126,10 +126,6 @@ type HFrame = Word32
 %fail { h == 0 } { CouldNotOpen(arg1) }
 %result (hDDSurface h)
 
--- For testing, but phase out
-
---%fun textDDSurface :: String -> COLORREF -> HDDSurface
-
 -- The size in pixels of a surface
 %fun ddSurfaceSize :: HDDSurface -> SIZE
 %{ SIZE res1 = GetDDSurfaceSize(arg1) %}
@@ -300,6 +296,21 @@ type HSimpleSprite = Word32
 
 %fun set_MinSpriteSize :: Int -> IO ()
 %{ MinSpriteSize = arg1 %}
+
+
+type HMonochromeSprite = Word32
+%dis hMonochromeSprite h = word32 h
+
+-- Arguments: color and rest
+
+%fun newMonochromeSprite :: Double -> Double -> Double -> SpriteTreeChain -> IO HMonochromeSprite
+%{ h = newMonochromeSprite(arg1, arg2, arg3, arg4) %}
+%fail { h == 0 } { ErrorString("newMonochromeSprite") }
+%result (hMonochromeSprite h)
+
+-- Arguments: time, r, g, b
+%fun updateMonochromeSprite :: HSimpleSprite -> SpriteTime -> Double -> Double -> Double -> IO ()
+
 
 type HSoundSprite = Word32
 %dis hSoundSprite h = word32 h

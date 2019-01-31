@@ -10,12 +10,23 @@
 <P><!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN"></P>
 <H1 ALIGN="CENTER">News on Recent Fran Releases</H1>
 <H2>&nbsp;</H2>
+<H2><A HREF="http:Fran1.06.zip">1.06</A> Oct 14, 1997</H2>
+
+<UL>
+<LI>src\Color.hs: Changed hue in HSL from degrees to radians, for consistency with angles.  Fixed <B>colorHSL</B> to map hue properly to [0,2*pi)</LI>
+<LI>Added <B>solidImage :: ImageB</B> </LI>
+<LI>Some preparation for GHC compatibility (VectorSpace.lhs and Behavior.lhs) </LI>
+<LI>demos\tutorial.hs: added moreKids.hs, which is a crazy animation!  In Tutorial, try "<B>displayU moreKids</B>".  Click deliberately and watch carefully.</LI>
+<LI>Sokoban3: new artwork -- need Pentium 5 to run this fast :-)</LI>
+<LI>UtilsB: added <B>toggle</B>, <B>leftButton</B>, <B>rightButton</B>, <B>importX</B>. Renamed <B>nextUser</B> to <B>nextUser</B>_, and added a new <B>nextUser</B>.</LI>
+<LI>Many import changes for GHC compatibility</LI></UL>
+
 <H2><A HREF="http:Fran1.05.zip">1.05</A> Oct 7, 1997</H2>
 
 <UL>
-<LI>Added sound and 3D, and "flipbook" 2D animation, all using DirectX.  The implementation incorporates a "temporal sprite engine" for very smooth 2D motion and scaling (if you have DirectDraw hardware acceleration).  The 3D support is "preliminary", and could use a lot more work.  (<B>untilB</B> doesn't work quite yet.)</LI>
-<LI>Behaviors are represented by memoized functions from time streams to value streams.</LI>
-<LI>Added <B>demos</B> directory.  Check out <B>Tutorial.hs</B>, <B>Mover.hs</B>, and <B>Sokoban3\SokoDemo.hs</B>.</LI></UL>
+<LI>Added sound and 3D, and "flipbook" 2D animation, all using DirectX. The implementation incorporates a "temporal sprite engine" for very smooth 2D motion and scaling (if you have DirectDraw hardware acceleration). The 3D support is "preliminary", and could use a lot more work. (<B>untilB</B> doesn't work quite yet.)</LI>
+<LI>Behaviors are represented by memoized functions from time streams to value streams. </LI>
+<LI>Added <B>demos</B> directory. Check out <B>Tutorial.hs</B>, <B>Mover.hs</B>, and <B>Sokoban3\SokoDemo.hs</B>.</LI></UL>
 
 <H2><A HREF="http:rbmh0.81.zip">0.81</A> Nov 11, 1996</H2>
 

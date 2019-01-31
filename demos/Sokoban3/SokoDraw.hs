@@ -11,10 +11,15 @@ import Array
 -- Media stuff
 -----------------------------------------------------------------
 
-sokobanFlipBook :: HFlipBook
-sokobanFlipBook = flipBook sokobanSurface 16 16 0 0 6 1
+floorFlipBook :: HFlipBook
+floorFlipBook = flipBook floorSurface 32 32 0 0 5 1
   where 
-    sokobanSurface = bitmapDDSurface "../../Media/sokoban.bmp"
+    floorSurface = bitmapDDSurface "../../Media/SokoFloor.bmp"
+
+sokobanFlipBook :: HFlipBook
+sokobanFlipBook = flipBook sokobanSurface 32 32 0 0 8 2
+  where
+    sokobanSurface = bitmapDDSurface "../../Media/Sokoban.bmp"
 
 toImageB :: Board -> ([Behavior Pos], BoolB) -> (ImageB, BoolB)
 toImageB b (locBs, finalB) = (moveables `over` board, finalB)
@@ -23,8 +28,8 @@ toImageB b (locBs, finalB) = (moveables `over` board, finalB)
     moveables = mkMoveables locBs
 
 xx, yy :: Int -> S.RealVal
-xx x = 0.16 * (fromIntegral x - (fromIntegral maxX / 2.0) + 0.5)
-yy y = 0.16 * (fromIntegral y - (fromIntegral maxY / 2.0) + 0.5)
+xx x = 0.315 * (fromIntegral x - (fromIntegral maxX / 2.0) + 0.5)
+yy y = 0.312 * (fromIntegral y - (fromIntegral maxY / 2.0) + 0.5)
 
 mkBoardImageB :: Board -> BoolB -> ImageB
 mkBoardImageB b finalB = overs $ [ f x y | x <- [0 .. (maxX - 1)],
@@ -33,20 +38,24 @@ mkBoardImageB b finalB = overs $ [ f x y | x <- [0 .. (maxX - 1)],
     f x y = 
       let identityB = lift0 $ b ! (x, y)
 
-          f' final Empty  = if final then 5 else 2
+          f' final Empty  = if final then 4 else 2
           f' final Target = 0
-          f' final Wall   = 1
+          f' final Wall   = 3
 
           pageNumberB = lift2 f' finalB identityB
       in  move (lift0 (S.vector2XY (xx x) (yy y)))
-               (flipImage sokobanFlipBook pageNumberB)
+               (flipImage floorFlipBook pageNumberB)
 
 mkMoveables :: [Behavior Pos] -> ImageB
-mkMoveables locBs = overs $ map toImageB (zip (4 : repeat 3) locBs)
+mkMoveables locBs = overs $ map toImageB (zip (True : repeat False) locBs)
   where
     posB :: Behavior Pos -> Vector2B
     posB = lift1 f where f (x, y) = S.vector2XY (xx x) (yy y)
 
-    toImageB :: (RealB, Behavior Pos) -> ImageB
-    toImageB (pageNumberB, locB) =
-      move (posB locB) (flipImage sokobanFlipBook pageNumberB)
+    toImageB :: (Bool, Behavior Pos) -> ImageB
+    toImageB (isPusher, locB) =
+      move (posB locB) (if isPusher then pusherI else boxI)
+
+    pusherI, boxI :: ImageB
+    pusherI = flipImage sokobanFlipBook (30 * time)
+    boxI    = flipImage floorFlipBook 1

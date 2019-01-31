@@ -110,6 +110,21 @@ updateSimpleSprite (
 { pSimple->Update(t, pSurface, ulX, ulY, posX, posY, scaleX, scaleY); }
 
 
+EXT_API MonochromeSprite *
+newMonochromeSprite (double r0, double g0, double b0, 
+                     SpriteTreeChain rest)
+{ return new MonochromeSprite(r0,g0,b0,rest); }
+
+EXT_API SpriteTree*
+monochromeSpriteToSpriteTree (MonochromeSprite *pMono)
+{ return pMono; }
+
+EXT_API void
+updateMonochromeSprite (MonochromeSprite *pMono, SpriteTime t,
+                        double r, double g, double b)
+{ pMono->Update(t,r,g,b); }
+
+
 EXT_API SoundSprite *
 newSoundSprite (
     IDirectSoundBuffer *pOrigBuffer,
@@ -144,22 +159,6 @@ ResetSpriteGroup (SpriteGroup *pSpriteGroup, SpriteTreeChain elems, BOOL isMutab
 
 
 // End of C interface
-
-// To be obsolete, because of VBlankHandler
-void paintAndFlip(SpriteTreeChain chain, DDrawEnv *env, SpriteTime paintTime)
-{
-    env->Lock();
-    //{ CSingleLock lock(&(env->m_syncObj), TRUE);
-    //TRACE("paintAndFlip grabbed DDrawEnv lock.\n");
-
-    env->ClearBack();
-    PaintAll(chain, env->GetBack(), paintTime);
-    env->Flip();
-
-    //TRACE("   paintAndFlip releasing DDrawEnv lock.\n");
-    // } // unlock
-    env->Unlock();
-}
 
 // Iteratively paint all of the sprite trees in a chain (possibly empty/NULL).
 void PaintAll(SpriteTreeChain chain, IDirectDrawSurface *pDest, SpriteTime t)
@@ -358,6 +357,28 @@ void SimpleSprite::Update (SpriteTime t,
 }
 
 
+
+void
+MonochromeSprite::Update (SpriteTime t, double r, double g, double b)
+{
+    m_r.SetGoalValue(r,t);
+    m_g.SetGoalValue(g,t);
+    m_b.SetGoalValue(b,t);
+}
+
+static inline BYTE
+doubleToByte(double x)
+{
+    return (BYTE) ((UINT) (x * 255 + 0.5) & 0xff);
+}
+
+void
+MonochromeSprite::Paint (IDirectDrawSurface *pDest, SpriteTime t)
+{
+    clearDDSurface (pDest, RGB(doubleToByte(m_r.at(t)),
+                               doubleToByte(m_g.at(t)),
+                               doubleToByte(m_b.at(t))));
+}
 
 // Sound sprite.  For now, just "static", i.e., preloaded sounds
 

@@ -1,6 +1,6 @@
 -- Mapping ImageB and SoundB to sprite trees
 --
---   Last modified Tue Oct 07 13:27:24 1997 by t-garyl
+--   Last modified Mon Oct 13 11:49:06 1997 by conal
 --
 -- Here's the idea: instead of repeatedly sampling an image behavior into
 -- static images and displaying each such image, break up the image
@@ -23,11 +23,11 @@ import ImageB
 import SoundB
 import User
 import Interaction
-import MVar
+import Concurrent			-- MVar
 import Channel
 import MutVar
 import Trace
-import Maybe (isJust)
+import Maybe (isJust, fromMaybe)
 import HSpriteLib
 import ShowImageB
 import Transform2B
@@ -66,10 +66,28 @@ spritifyImageB _ _ EmptyImage _ _ = \ _ _ requestV replyV above -> do
 -- here, because the heads are not available until the (takeMVar requestV)
 -- succeeds.
 
+spritifyImageB mbColorB xfB SolidImage t0 xt0 =
+  \ ts xts requestV replyV above -> do
+  hMonochromeSprite <- newMonochromeSprite r0 g0 b0 above
+  --putStrLn "Made new MonochromeSprite"
+  let update ~(t:ts') ~(S.ColorRGB r g b : colors') = do
+         continue <- takeMVar requestV
+         if continue then do
+           updateMonochromeSprite hMonochromeSprite t r g b
+           putMVar replyV True
+           update ts' colors'
+          else
+           putMVar replyV False
+  forkIO $ update ts (colorB `ats` xts)
+  return (toSpriteTree hMonochromeSprite)
+ where
+   colorB = fromMaybe defaultColor mbColorB
+   S.ColorRGB r0 g0 b0 : _ = colorB `ats` [xt0]
+
 spritifyImageB mbColorB xfB (FlipImage flipBook pageB) t0 xt0 =
   \ ts xts requestV replyV above -> do
   hFlipSprite <- newFlipSprite flipBook motX0 motY0
-                     scale0 scale0 page0 above
+                     scaleAdjusted0 scaleAdjusted0 page0 above
   --putStrLn "Made new flipSprite"
   let update ~(t:ts')
              ~(S.Transform2 (S.Vector2XY motX motY) scale rotation : xfs')
@@ -90,6 +108,7 @@ spritifyImageB mbColorB xfB (FlipImage flipBook pageB) t0 xt0 =
  where
    scaleAdjust = screenPixelsPerLength / importPixelsPerLength
    S.Transform2 (S.Vector2XY motX0 motY0) scale0 _ : _ = xfB `ats` [xt0]
+   scaleAdjusted0 = scale0 * scaleAdjust
    page0 : _ = pageB `ats` [xt0]
 
 spritifyImageB mbColorB xfB (RenderImage renderIO) t0 xt0 =

@@ -1,6 +1,6 @@
 -- 3D Vectors (static)
 --
--- Last modified Thu Jul 17 14:38:12 1997
+-- Last modified Fri Oct 10 15:52:00 1997
 --
 -- To do: check formula for vector3Spherical
 
@@ -61,6 +61,9 @@ instance  VectorSpace Vector3  where
 
 instance  Num Vector3  where
   (+)    = (^+^)
+  (*)	 = error "bad operator on Vector3: *"
+  abs	 = error "bad operation on Vector3: abs"
+  signum = error "bad operation on Vector3: signum"
   negate = negateVector
   -- (-) follows from negate and +
   fromInteger = error "Can't interpret integers as Vector3"

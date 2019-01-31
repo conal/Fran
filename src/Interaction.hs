@@ -1,6 +1,6 @@
 -- Higher-level interaction
 --
--- Last modified Tue Sep 23 11:17:59 1997
+-- Last modified Thu Oct 09 15:58:37 1997
 
 module Interaction where
 
@@ -35,7 +35,6 @@ lbp = filterButton True  True
 rbp = filterButton False True
 lbr = filterButton True  False
 rbr = filterButton False False
-
 
 filterKey :: Bool -> User -> Event VKey
 
@@ -97,6 +96,6 @@ viewSize     = stepper (S.vector2XY 2 2) . resize
 updatePeriod = stepper 0.1               . updateDone
 
 -- utility
-uStepper :: a -> (User -> Event a) -> (User -> Behavior a)
-uStepper a0 uEvent u = stepper a0 (uEvent u)
+-- uStepper :: a -> (User -> Event a) -> (User -> Behavior a)
+-- uStepper a0 uEvent u = stepper a0 (uEvent u)
 

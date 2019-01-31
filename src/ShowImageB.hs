@@ -18,7 +18,7 @@ import Channel (Channel, putChan)
 import Event (EventChannel, newChannelEvent)
 import User
 import ImageB (importPixelsPerLength, screenPixelsPerLength)
-import IOExtensions( garbageCollect )
+-- import IOExtensions( garbageCollect )
 
 type UserChannel = EventChannel UserAction
 
@@ -291,4 +291,4 @@ showStats t0 frameCount updateCount =
 -- Program parameters
 ----------------------------------------------------------------
 
-initialWindowSize = 300 :: Int
+initialWindowSize = 200 :: Int
