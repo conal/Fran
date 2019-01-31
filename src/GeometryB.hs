@@ -205,7 +205,7 @@ renderGeometry geom cameraXfB = renderImage renderIO
            else do
             _ <- takeMVar geomReplyV
             putMVar replyV False
-    forkIO $ update ts rects (cameraXfB `ats` xts) xfs
+    forkIO' $ update ts rects (cameraXfB `ats` xts) xfs
     return hSimpleSprite
 
   -- Throw in light.  I was coloring the geometry, but I realized it's
@@ -273,7 +273,7 @@ fillFrameRec parentFrame mbColorB (LightG lightType) _ =
              else
               putMVar replyV False
       setter0
-      forkIO $ update setters
+      forkIO' $ update setters
 
 
 {-
@@ -317,7 +317,7 @@ fillFrameRec parentFrame mbColorB (TransformG xfB geomB) mbTT =
           _ <- takeMVar geomReplyV
           putMVar replyV False
   S.hFrameSetTransform newFrame xf0
-  forkIO $ update xfs
+  forkIO' $ update xfs
 
   
 fillFrameRec parentFrame mbColorB (geomB `UnionG` geomB') mbTT =
@@ -393,7 +393,7 @@ fillFrameRec parentFrame mbColorB (geomB1 `UntilG` e) mbTT =
                            te ts requestV replyV
   -- Avoid a space-time leak here: Don't hang onto the
   -- original color, motion and scale.  Let them age.
-  forkIO $ monitor ts xts ((e `afterE` mbColorB) `occs` xts)
+  forkIO' $ monitor ts xts ((e `afterE` mbColorB) `occs` xts)
 
 
 -- Add a possibly colored leaf in a given frame.
@@ -458,4 +458,4 @@ coloredLeaf parentFrame (Just colorB) addLeaf =
          else
           putMVar replyV False
   setter0
-  forkIO $ update setters
+  forkIO' $ update setters

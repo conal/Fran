@@ -2,13 +2,13 @@
 
 <head>
 <meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1252">
-<meta NAME="GENERATOR" CONTENT="Microsoft FrontPage 4.0">
+<meta NAME="GENERATOR" CONTENT="Microsoft FrontPage 5.0">
 <title>Functional Reactive Animation (Fran)</title>
 </head>
 
 <body>
 
-<h1 ALIGN="CENTER">Fran version 1.14</h1>
+<h1 ALIGN="CENTER">Fran version 1.16</h1>
 
 <h2 ALIGN="CENTER">(Functional Reactive Animation)</h2>
 
@@ -18,8 +18,9 @@ alt="patOrbitsCharlotte.gif (81661 bytes)"></p>
 <h2 ALIGN="CENTER"><a HREF="http://research.microsoft.com/~conal/">Conal Elliott</a></h2>
 <em>
 
-<p ALIGN="CENTER">Updated <!--webbot bot="Timestamp" S-Type="EDITED"
-S-Format="%B %d, %Y" startspan -->March 15, 2001<!--webbot bot="Timestamp" i-CheckSum="17155" endspan --></p>
+<p ALIGN="CENTER">Updated 
+<!--webbot bot="Timestamp" S-Type="EDITED"
+S-Format="%B %d, %Y" startspan -->January 08, 2002<!--webbot bot="Timestamp" endspan i-checksum="31084" --></p>
 </em>
 
 <p>Fran is a Haskell library (or &quot;embedded language&quot;) for interactive
@@ -41,7 +42,7 @@ does for time.</p>
 <h3>Notes</h3>
 <ul>
   <li>Download Hugs98 and the Win32 libraries from the download page linked to <a href="http://haskell.org/hugs">here</a>.</li>
-  <li>Download and unpack the <a href="Zips/Fran1.14.zip">latest version</a> so
+  <li>Download and unpack the <a href="javascript:function openEula(url){window.open(url,'eula','width=500,height=450,scrollbars=no,address=no,menu=no');}openEula('http://research.microsoft.com/downloads/download.asp?FUID={C9EFF407-CE59-4A2A-90CB-DE099A9BACBD}' + '&CodeName=' + escape('Functional Reactive Animation') + '&Version=' + escape('1.16'));">latest version</a> so
     that you have a <tt>Fran</tt> subdirectory in <tt>c:\Hugs98\lib</tt>. (Or
     elsewhere, depending on where you installed Hugs.)&nbsp; Use <tt>:set -P;c:\Hugs98\lib\Fran&quot;</tt>
     to ensure that the library is included on your search path. You will also
@@ -65,7 +66,7 @@ does for time.</p>
     Performance is <em>much</em> better. Installation is somewhat painful, but
     that situation is improving. If you're interested, see <a href="http://research.microsoft.com/~conal/Fran/HowToGHC.txt">HowToGHC.txt</a>.
     Well, there are a few missing pieces, related to GreenCard, so you'd better
-    wait.
+    wait.&nbsp; Sorry!
   <li>Try examples of your own. If you send me ones you've built, I'll consider
     them for inclusion (with credit to you) in future releases.
   <li>If you're installing Fran from a zip file, rename your Hugs/lib/Fran (if
@@ -93,8 +94,8 @@ does for time.</p>
 <h3>&nbsp;Credits</h3>
 
 <ul>
-  <li>Greg Schechter, Ricky Yeung, Salim AbiEzzi, and I collaborated at Sun Microsystems on <a
-    HREF="http://www.research.microsoft.com/research/graphics/elliott/tbag/index.htm">TBAG</a>,
+  <li>Greg Schechter, Ricky Yeung, Salim AbiEzzi, and I collaborated at Sun Microsystems on
+    <a HREF="http://research.microsoft.com/~conal/tbag/index.htm">TBAG</a>,
     a system for constraint-based, semi-declarative modeling of 3D animation. Some of the Fran
     ideas were initially explored there. </li>
   <li><a HREF="http://http://www.research.microsoft.com/research/apl/knoblock">Todd Knoblock</a>
@@ -102,7 +103,7 @@ does for time.</p>
   <li><a HREF="http://www.dcs.gla.ac.uk/~sof">Sigbjorn Finne</a> helped a lot with the
     implementation during his summer '96 internship. Since then, he has been <i><b>very</b></i>
     helpful with getting getting Fran and GHC working well together. </li>
-  <li><a HREF="http://www.cs.nott.ac.uk/~acd/">Tony Daniels</a> has been pushing the limits of
+  <li><a HREF="http://www.cs.ukc.ac.uk/people/staff/acd">Tony Daniels</a> has been pushing the limits of
     physics-oriented reactive behavior, uncovering some limitations in the implementation. He
     also collaborated on some ideas for efficient behavior representation. </li>
   <li><a HREF="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/hudak-paul.html">Paul Hudak</a> has
@@ -118,18 +119,16 @@ does for time.</p>
   <li><a HREF="http://www.cs.yale.edu/users/ling/">Gary Shu Ling</a> found misc bugs and
     sources of incompleteness. He also helped out quite a lot with the Fran 1.05 during a Fall
     '97 internship, and developed the Sokoban demo. </li>
-  <li><a HREF="http://www.dcs.gla.ac.uk/~simonpj/">Simon Peyton Jones</a> is helping me
+  <li><a HREF="http://research.microsoft.com/Users/simonpj">Simon Peyton Jones</a> is helping me
     understand <a HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</a> (the Glasgow
     Haskell compiler) and how to use it effectively to compiler animation programs, as well as
     how to better implement Fran. </li>
-  <li><a HREF="http://www.cs.nott.ac.uk/Department/Staff/mpj/">Mark Jones</a> has been helping
-    me understand Haskell type classes and how to use them well in Fran. </li>
-  <li><a HREF="http://www.dcs.gla.ac.uk/~wadler/">Philip Wadler</a> had provided interesting
+  <li><a HREF="http://www.cse.ogi.edu/~mpj">Mark Jones</a> helped me understand Haskell type classes and how to use them well in Fran.&nbsp;
+    He also adapted Fran for
+    Haskell 98&nbsp; </li>
+  <li><a HREF="http://www.research.avayalabs.com/user/wadler">Philip Wadler</a> had provided interesting
     and insightful feedback on the semantics of behaviors and events. </li>
-  <li><a HREF="http://www.oz.net/~conal/Jake.html">Jake Elliott</a> did the artwork for
-    Sokoban. </li>
-  <li><a href="http://www.cse.ogi.edu/~mpj">Mark Jones</a> adapted Fran for
-    Haskell 98 and added it to the Hugs98 distribution.</li>
+  <li>Jake Elliott did the artwork for Sokoban. </li>
 </ul>
 
 <h3>More fun</h3>
@@ -155,11 +154,11 @@ does for time.</p>
   Microsoft Research <br>
   <a HREF="mailto:conal@microsoft.com">conal@microsoft.com</a> </p>
 </blockquote>
-<p><em><big><strong>Last updated:</strong> </big><!--webbot bot="Timestamp"
-S-Type="EDITED" S-Format="%B %d, %Y" startspan -->March 15, 2001<!--webbot bot="Timestamp" i-CheckSum="17155" endspan -->. <big><strong>Visitor Count:</strong></big></em>&nbsp;&nbsp;<a href="http://member.linkexchange.com/cgi-bin/fc/fastcounter-login?2288745" 
+<p><em><big><strong>Last updated:</strong> </big>
+<!--webbot bot="Timestamp"
+S-Type="EDITED" S-Format="%B %d, %Y" startspan -->January 08, 2002<!--webbot bot="Timestamp" endspan i-checksum="31084" -->. <big><strong>Visitor Count:</strong></big></em>&nbsp;&nbsp;<a href="http://member.linkexchange.com/cgi-bin/fc/fastcounter-login?2288745" 
 target="_top"><img border="0" 
 src="http://fastcounter.linkexchange.com/fastcounter?2288745+4577497"></a>
- since November 20, 1998 <img
-SRC="http://c1.thecounter.com/id=777274" BORDER="0"></p>
+ since November 20, 1998</p>
 </body>
 </html>

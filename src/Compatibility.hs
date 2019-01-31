@@ -5,8 +5,8 @@ module Compatibility ( cacheMatch, Addr, double2Float
 where
 
 import Addr (Addr)
-import IOExts --( unsafePtrEq )
-import Trace
+import IOExts ( unsafePtrEq, trace )
+--import Trace
 
 double2Float :: Double -> Float
 double2Float = fromDouble
@@ -15,7 +15,24 @@ cacheMatch :: a -> a -> Bool
 x `cacheMatch` x' = x `unsafePtrEq` x'
 
 
+
+safeTry :: IO a -> IO (Either IOError a)
+
+-- For now, trivial implementation that is not safe
+safeTry = fmap Right
+
+{-
+-- Thanks to Sigbjorn Finne.  But -- oops, must wait for a Hugs newer than
+-- Feb 2001.
+safeTry m = 
+  catchHugsException 
+       (m >>= \ x -> return (Right x))
+       ( \ x -> return (Left (userError (show x))))
+-}
+
+{-
 -- safeTry swiped from Hugs\lib\Graphics\GraphicsUtilities.hs
+-- [not any more, as it doesn't quite work. --sof]
 
 ----------------------------------------------------------------
 -- Safe Try
@@ -32,7 +49,6 @@ x `cacheMatch` x' = x `unsafePtrEq` x'
 --    of error - but there's no other choice given the current
 --    implementation of concurrency.
 
-safeTry :: IO a -> IO (Either IOError a)
 safeTry (IO m) = IO $ \ f s -> 
   case catchError (m Hugs_Error Hugs_Return) of
   Just (Hugs_Return a) -> s (Right a)
@@ -45,3 +61,5 @@ safeTry (IO m) = IO $ \ f s ->
   mkErr Nothing                   = userError "pattern match failure inside protected code"
 
 primitive catchError :: a -> Maybe a
+-}
+

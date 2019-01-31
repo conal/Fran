@@ -2,13 +2,51 @@
 
 <head>
 <meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1252">
-<meta NAME="GENERATOR" CONTENT="Microsoft FrontPage 4.0">
+<meta NAME="GENERATOR" CONTENT="Microsoft FrontPage 5.0">
 <title>News on Fran Releases</title>
 </head>
 
 <body LINK="#0000ff" VLINK="#800080">
 
 <h1 ALIGN="CENTER">News on Recent Fran Releases</h1>
+
+<i><font color="#ff0000"><b>Most of the old versions are no longer
+available.&nbsp; If you really need one, please let me know.</b></font></i>
+
+<h2 ALIGN="left"><a href="javascript:function openEula(url){window.open(url,'eula','width=500,height=450,scrollbars=no,address=no,menu=no');}openEula('http://research.microsoft.com/downloads/download.asp?FUID={C9EFF407-CE59-4A2A-90CB-DE099A9BACBD}' + '&CodeName=' + escape('Functional Reactive Animation') + '&Version=' + escape('1.16'));">1.16</a>
+June 28, 2001</h2>
+<ul>
+  <li>
+
+<p ALIGN="left">The Prelude tweak for threading mentioned for 1.15 is no longer 
+necessary.</li>
+<li>
+
+<p ALIGN="left">Small source changes to accommodate new hierarchical module name 
+spaces.</li>
+<li>
+
+<p ALIGN="left">Small source tweaks for comment lexer changes (&quot;--|&quot; is no 
+longer a comment).</li>
+</ul>
+
+<h2 ALIGN="left"><a href="javascript:function openEula(url){window.open(url,'eula','width=500,height=450,scrollbars=no,address=no,menu=no');}openEula('http://research.microsoft.com/downloads/download.asp?FUID={8C661070-F425-4319-92DF-EC3E8D736770}' + '&amp;CodeName=' + escape('Fran') + '&amp;Version=' + escape('1.15'));">1.15</a>
+June 28, 2001</h2>
+<ul>
+  <li>
+    <p ALIGN="left">Tiny tweak for compatibility with the February 2001 version
+    of Hugs98.&nbsp; Note: Fran examples will die immediately with &quot;Program error: no more threads (deadlock?)&quot;
+    unless you make a small change to your Hugs98/lib/Prelude.hs. Find the line that says:<br>
+    <br>
+    <kbd>&nbsp;&nbsp; loop (Hugs_ForkThread a b:r) = loop (a:b:r)</kbd><br>
+    <br>
+    and swap &quot;a&quot; and &quot;b&quot; in the right hand side, i.e.,
+    change the line to&nbsp;<br>
+    <br>
+    <kbd>&nbsp;&nbsp; loop (Hugs_ForkThread a b:r) = loop (b:a:r)</kbd><br>
+    <br>
+    My thanks to Sigbjørn Finne for this fix.</li>
+</ul>
 
 <h2 ALIGN="left"><a href="Zips/Fran1.14.zip">1.14</a> December 19, 2000</h2>
 

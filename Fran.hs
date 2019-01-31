@@ -4,6 +4,6 @@
 --
 -- Suitable for use with Hugs 98 on Win32.
 ----------------------------------------------------------------
-module Fran(module FranLoader) where
-import "src/FranLoader" as FranLoader
+module Fran(module Src.FranLoader) where
+import Src.FranLoader
 ----------------------------------------------------------------

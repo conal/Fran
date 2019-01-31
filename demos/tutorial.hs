@@ -22,6 +22,10 @@
 -- result".  You can, however run the examples individually as explained
 -- in the header comment.
 
+-- Sadly and mysteriously, 3D performance and visual quality has become
+-- terrible.  I'm guessing it's due to changes to Direct3D, but I really
+-- don't know.
+
 module Tutorial where
 
 import Fran

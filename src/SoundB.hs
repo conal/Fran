@@ -15,7 +15,7 @@ data SoundB = SilentS
             | VolumeS RealB SoundB            -- scale (only <1, sorry!)
             | PanS    RealB SoundB            -- units?, combines?
             | PitchS  RealB SoundB            -- multiplies
-          --| ImageS  ImageB                  -- listen to an image
+         -- | ImageS  ImageB                  -- listen to an image
             | UntilS  SoundB (Event SoundB)
             | TimeTransS SoundB TimeB         -- timeTransform on SoundB
 

@@ -1,7 +1,7 @@
 -- Envelope module for RBMH
 
 
-module FranLoader (
+module Src.FranLoader (
               module BaseTypes
             , module Event
             , module Behavior

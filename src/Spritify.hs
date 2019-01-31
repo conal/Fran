@@ -67,7 +67,7 @@ spritifyImageB :: RectB -> Maybe ColorB -> Transform2B -> ImageB -> Maybe TimeB
 -- Empty image.  If there's nothing to do next, then just return the
 -- request channel and above chain as the reply channel and chain.
 spritifyImageB rect _ _ EmptyImage _ _ = \ _ requestV replyV above -> do
-  forkIO $ forwardSyncVars requestV replyV
+  forkIO' $ forwardSyncVars requestV replyV
   return above
 
 -- IMPORTANT NOTE: the lazy patterns are crucial in the "update" functions
@@ -92,7 +92,7 @@ spritifyImageB rectB mbColorB xfB SolidImage _ t0 =
            update ts' rects' colors'
           else
            putMVar replyV False
-  forkIO $ update ts rects colors
+  forkIO' $ update ts rects colors
   return (toSpriteTree hMonochromeSprite)
  where
    colorB = fromMaybe defaultColor mbColorB
@@ -123,7 +123,7 @@ spritifyImageB rectB _ xfB (FlipImage flipBook pageB) mbTT t0 =
            update ts' rects' xfs' pages'
           else
            putMVar replyV False
-  forkIO $ update ts rects xfs pages
+  forkIO' $ update ts rects xfs pages
   return (toSpriteTree hFlipSprite)
 
 spritifyImageB rectB mbColorB xfB (RenderImage renderIO) mbTT t0 =
@@ -208,7 +208,7 @@ spritifyImageB rectB mbColor xfB (CondI c imb imb') mbTT t0 =
 
   -- Avoid a space-time leak here: Don't hang onto the
   -- original color, motion and scale.  Let them age.
-  forkIO $ update ts conds
+  forkIO' $ update ts conds
   return (toSpriteTree hCondTree)
 
 
@@ -283,14 +283,14 @@ spritifyUntilB spritify ctx bv1 e mbTT t0 =
               resetSpriteGroup group spriteChain2 False
   -- Avoid a space-time leak here: Don't hang onto the
   -- original color, motion and scale.  Let them age.
-  forkIO $ monitor ts xts ((e `afterE` (ctx, mbTT)) `occs` xts)
+  forkIO' $ monitor ts xts ((e `afterE` (ctx, mbTT)) `occs` xts)
   return (toSpriteTree group)
 
 -- Similar to spritifyImageB, but on SoundB
 spritifySoundB :: RealB -> RealB -> RealB -> SoundB -> Maybe TimeB -> Spritifier
 
 spritifySoundB _ _ _ SilentS _ _ = \ _ requestV replyV above -> do
-  forkIO $ forwardSyncVars requestV replyV
+  forkIO' $ forwardSyncVars requestV replyV
   return above
 
 
@@ -309,7 +309,7 @@ spritifySoundB volB panB pitchB (BufferS buff repeat) mbTT t0 =
            update ts' vols' pans' pitches'
           else
            putMVar replyV False
-  forkIO $ update ts vols pans pitches
+  forkIO' $ update ts vols pans pitches
   return (toSpriteTree hSoundSprite)
 
 
@@ -471,7 +471,7 @@ displayEx imF hwnd = do
         writeChan userActionsChan
                   (tSample, Just (UpdateDone (tSample - tPrev)))
         -- Do effects
-        updateIORef (doEffects tNow) effectsVar
+        updateIORef' (doEffects tNow) effectsVar
         -- Request a round of updates from the sprite threads and event
         -- detector threads.
         putMVar requestV True
@@ -504,8 +504,8 @@ doEffects t (Event possOccs) = loop possOccs
        
 
 -- Convenient utility.
-updateIORef :: (a -> IO a) -> IORef a -> IO ()
-updateIORef updater ref = do
+updateIORef' :: (a -> IO a) -> IORef a -> IO ()
+updateIORef' updater ref = do
   a  <- readIORef ref
   a' <- updater a
   writeIORef ref a'

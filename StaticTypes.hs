@@ -4,6 +4,6 @@
 --
 -- Suitable for use with Hugs 1.4 on Win32.
 ----------------------------------------------------------------
-module StaticTypes(module StaticTypesLoader) where
-import "src/StaticTypesLoader" as StaticTypesLoader
+module StaticTypes(module Src.StaticTypesLoader) where
+import Src.StaticTypesLoader
 ----------------------------------------------------------------

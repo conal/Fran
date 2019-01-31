@@ -145,7 +145,7 @@ set_behaviorSamplePastGoal gc_arg1 =
 -- GHC needs gcc, which cannot handle some of the .h files transitively
 -- included by d3drmdefs.h, so instead, use DXSubst.h, which contains
 -- copies of the minimum requirement.
---%#include "d3drmdefs.h"
+-- %#include "d3drmdefs.h"
 
 primitive prim_get_ddhelpTimeTrace :: IO (Int)
 get_ddhelpTimeTrace :: IO Bool
@@ -366,9 +366,9 @@ newRMRenderer :: HFrame -> HFrame -> Double -> Double -> IO HRMRenderer
 newRMRenderer arg1 arg2 arg3 arg4 =
   prim_newRMRenderer arg1 arg2 arg3 arg4 >>= \ (res1) ->
   (return (res1))
---%{ h = newRMRenderer(arg1, arg2, arg3, arg4) %}
---%fail { h == 0 } { ErrorString("newRMRenderer") }
---%result (hRMRenderer h)
+-- %{ h = newRMRenderer(arg1, arg2, arg3, arg4) %}
+-- %fail { h == 0 } { ErrorString("newRMRenderer") }
+-- %result (hRMRenderer h)
 
 primitive prim_hRendererSetScale :: Word32 -> Double -> IO ()
 hRendererSetScale :: HRMRenderer -> Double -> IO ()
@@ -529,9 +529,9 @@ newSoundSprite arg1 arg2 arg3 arg4 gc_arg1 arg6 =
   (marshall_bool_ gc_arg1) >>= \ (arg5) ->
   prim_newSoundSprite arg1 arg2 arg3 arg4 arg5 arg6 >>= \ (res1) ->
   (return (res1))
---%{ h = newSoundSprite(arg1, arg2, arg3, arg4, arg5, arg6) %}
---%fail { h == 0 } { ErrorString("newSoundSprite") }
---%result (hSoundSprite h)
+-- %{ h = newSoundSprite(arg1, arg2, arg3, arg4, arg5, arg6) %}
+-- %fail { h == 0 } { ErrorString("newSoundSprite") }
+-- %result (hSoundSprite h)
 
 primitive prim_soundSpriteToSpriteTree :: Word32 -> IO (Word32)
 soundSpriteToSpriteTree :: HSoundSprite -> HSpriteTree
@@ -612,9 +612,9 @@ newSpriteEngine :: HWND -> HSpriteTree -> IO HSpriteEngine
 newSpriteEngine arg1 arg2 =
   prim_newSpriteEngine arg1 arg2 >>= \ (res1) ->
   (return (res1))
---%{ h = newSpriteEngine(arg1, arg2) %}
---%fail { h == 0 } { ErrorString("newSpriteEngine") }
---%result (hSpriteEngine h)
+-- %{ h = newSpriteEngine(arg1, arg2) %}
+-- %fail { h == 0 } { ErrorString("newSpriteEngine") }
+-- %result (hSpriteEngine h)
 
 primitive prim_onResizeSpriteEngine :: Word32 -> IO ()
 onResizeSpriteEngine :: HSpriteEngine -> IO ()

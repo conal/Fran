@@ -1,10 +1,8 @@
 -- Envelope module for static modeling types.
 -- 
--- Last modified Mon Oct 27 15:31:30 1997
--- 
--- Recommended use: "import qualified StaticTypes as S" (as in ImageBTest.hs).
+-- Last modified Tue Jan 08 11:20:28 2002
 
-module StaticTypesLoader
+module Src.StaticTypesLoader
   (
     module BaseTypes,
     module VectorSpace,

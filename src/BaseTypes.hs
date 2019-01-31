@@ -1,6 +1,6 @@
 -- Some basic types
 --
--- Last modified Tue Apr 21 12:48:00 1998
+-- Last modified Tue Jan 08 11:00:18 2002
 
 module BaseTypes
        ( RealVal
@@ -14,10 +14,12 @@ module BaseTypes
        , pair , cond
        , fromInt32
        , assoc
+       , forkIO'
        ) where
 
 import Int  (int32ToInt, Int32)
 import List (find)
+import Concurrent (forkIO,yield)
 
 type RealVal  = Double
 type Length   = RealVal
@@ -49,3 +51,10 @@ fromInt32 = fromInt . int32ToInt
 -- Isn't this somewhere standard??
 assoc :: Eq key => [(key,a)] -> key -> Maybe a
 assoc pairs key = fmap snd (find ((== key) . fst) pairs)
+
+
+-- Spawn a thread & yield.  Somehow needed to prevent immediate thread
+-- deadlock.  We still get some deadlock, however.
+forkIO' :: IO () -> IO ()
+forkIO' io = do forkIO io
+                yield

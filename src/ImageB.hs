@@ -107,7 +107,7 @@ forwardSyncVars requestV replyV = do
                    continue <- takeMVar requestV
                    putMVar replyV continue
                    if continue then forward else return ()
-  forkIO forward
+  forkIO' forward
 
 
 -- Renderer creator (should be forkIO'd).  See Spritify.hs
@@ -167,7 +167,7 @@ syntheticImage f = RenderImage renderIO
             update ts' surfaceULs' rects'
            else
             putMVar replyV False
-    forkIO $ update ts surfULBs rects
+    forkIO' $ update ts surfULBs rects
     return hSimpleSprite
 
 
