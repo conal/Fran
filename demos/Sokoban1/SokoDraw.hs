@@ -36,8 +36,8 @@ mkBoardImageB b finalB = overs $ [ f x y | x <- [0 .. (maxX - 1)],
       let identityB = lift0 $ getFloorID (x, y) b
 
           f' final Empty  = if final then 5 else 2
-          f' final Target = 1
-          f' final Wall   = 0
+          f' final Target = 0		-- target
+          f' final Wall   = 1		-- wall
 
           pageNumberB = lift2 f' finalB identityB
       in  move (lift0 (S.vector2XY (xx x) (yy y)))

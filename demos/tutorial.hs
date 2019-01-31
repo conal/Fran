@@ -20,7 +20,6 @@
 module Tutorial where
 
 import Fran     -- Bring RBMH into scope
---import UtilsB   -- Load some utilitles
 import Win32Key
 
 main = displayU allAnims
@@ -108,7 +107,7 @@ orbitAndLater = orbit `over` later 1 orbit
   where
    orbit = moveXY wiggle waggle jake
 
-jake = importKid "jake" 
+jake = importKid "jake"
 
 orbitAndSlower = orbit `over` slower 2 orbit
   where
@@ -241,7 +240,7 @@ titles = [ "leftRightCharlotte", "upDownPat", "charlottePatDance",
           "velBecky", "accelBecky", "mouseVelBecky", "beckyChaseMouse",
           "danceChase",
           "springDragBecky", "orbitAndLater", "orbitAndSlower",
-          "followMouseAndDelay", "flows", "flows2",
+          "followMouseAndDelay", "kids", "flows", "flows2",
           "redBlue", "redBlueCycle", "tricycle",
           "jumpFlower", "growFlower", "growFlowerExp",
           "The End" ]
@@ -253,10 +252,10 @@ anims = map const [ talkTitle,
         ++
         [ velBecky, accelBecky, mouseVelBecky, beckyChaseMouse, danceChase,
           springDragBecky, const orbitAndLater, const orbitAndSlower,
-          followMouseAndDelay, flows, flows2,
+          followMouseAndDelay, kids, flows, flows2,
           redBlue, redBlueCycle, tricycle,
           jumpFlower, growFlower, growFlowerExp,
-          const emptyImage ]
+          const emptyI ]
 
 {-
 animsAndTitles =
@@ -300,7 +299,8 @@ animsAndTitles = interleave anims animTitles
 allAnims u = allRec 0 u
  where
   allRec i u =
-     (animsAndTitles!!i) u `untilB` (newIndex u `afterE` u) ==> uncurry allRec
+     {-whiteBack-} (animsAndTitles!!i) u `untilB`
+       (newIndex u `afterE` u) ==> uncurry allRec
     where
       newIndex u = plusMinus u `suchThat` validIndex
       validIndex i' = 0 <= i' && i' < lenAnims
@@ -311,6 +311,9 @@ allAnims u = allRec 0 u
   lenAnims = length animsAndTitles
   nextKeys = [vK_SPACE,vK_RIGHT, charToVKey 'N']
   prevKeys = [vK_LEFT, charToVKey 'P']
+
+  -- Use a white background
+  whiteBack imF u = imF u `over` bigger 3 (withColor white square)
 
 charToVKey :: Char -> VKey
 charToVKey = fromInt . fromEnum

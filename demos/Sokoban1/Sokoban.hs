@@ -7,9 +7,9 @@ module Sokoban
 
 import SokoType
 import Fran
-import Foreign(Word(..))
 import List(findIndex)
 import Array
+import Win32(vK_LEFT, vK_UP, vK_RIGHT, vK_DOWN)
 
 -----------------------------------------------------------------
 -- sokoban
@@ -35,13 +35,19 @@ sokoban b w outside = worldB
 -----------------------------------------------------------------
 
 outside1 :: User -> Event Direction
-outside1 u = u `filterE` f
-  where
-    f (Key True c) | c == Word 38 = Just North
-   		   | c == Word 40 = Just South
-   		   | c == Word 37 = Just West
-   		   | c == Word 39 = Just East
-    f _                           = Nothing
+outside1 u = (   keyPress vK_UP    u -=> North
+	     .|. keyPress vK_DOWN  u -=> South
+ 	     .|. keyPress vK_LEFT  u -=> West
+ 	     .|. keyPress vK_RIGHT u -=> East
+ 	     )
+
+--  u `filterE` f
+--   where
+--     f (Key True c) | c == vK_UP    = Just North
+-- 			 | c == vK_DOWN  = Just South
+-- 			 | c == vK_LEFT  = Just West
+-- 			 | c == vK_RIGHT = Just East
+--     f _                            = Nothing
 
 -----------------------------------------------------------------
 -- stir: try to apply stimulus on pusher; if success, a new
@@ -88,15 +94,15 @@ stir b d w =
 levelOver :: Board -> Behavior World -> BoolB
 levelOver b = lift1 f
   where
-    f (World (pusher : boxes)) = and (map isOnTarget boxes)
+    f (World (_ : boxes)) = and (map isOnTarget boxes)
 
     isOnTarget :: Inhab -> Bool
     isOnTarget inhab =
       let p   = pos inhab
           fid = getFloorID p b
       in  case fid of
-          Target    -> True
-    	  otherwise -> False
+          Target -> True
+    	  _      -> False
     
 ----------------------------------------------------------------
 -- several utilities functions for access element in list and/or

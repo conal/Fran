@@ -1,7 +1,7 @@
 -- Event combinators that involve events.  Separated out from Event.hs to
 -- avoid a mutual module recursion.
 --
--- Last modified Fri Sep 26 14:54:59 1997
+-- Last modified Tue Oct 07 11:54:24 1997
 --
 -- To do:
 --
@@ -17,7 +17,6 @@ import Interaction
 import Maybe (isJust)
 
 import Trace
-import MVar                             -- for forkIO, which is for testing
 
 infixl 9 `snapshot`, `snapshot_`, `whenE`
 
@@ -35,13 +34,9 @@ Event possOccs `snapshot` b =
    -- Pair up the event data, if any, with the behavior sample.
    -- This lazy pattern is necessary, so that b doesn't get sampled
    -- too soon, which is especially important in self-reactive situations.
-   -- ## But, it does create a possible space leak and later latency from
-   -- unevaluated tails.  :-(  Look for an alternative.  Gary suggested
-   -- just sampling at the actual occurrences.  The "seq" below was
-   -- attempt to find a middle ground, but it's still too strict.  The
-   -- test function iTst9 in Spritify.hs trips over it.
-   loop ((te,mb) : possOccs') ~(x:xs') =
-     (te, map (`pair` x) mb) : ({-xs' `seq` -}loop possOccs' xs')
+   -- See comments about the lazy pattern and "seq" for afterE in Event.hs.
+   loop ((te,mb) : possOccs') ~xs@(x:xs') =
+     (te, map (`pair` x) mb) : (xs `seq` loop possOccs' xs')
 
 
 {-

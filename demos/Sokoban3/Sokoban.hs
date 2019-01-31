@@ -4,7 +4,7 @@ import Fran
 import SokoType
 import Array
 import Maybe(fromJust)
-import Foreign(Word(..))
+import Win32(vK_LEFT, vK_UP, vK_RIGHT, vK_DOWN)
 
 -----------------------------------------------------------------
 -- sokoban
@@ -67,11 +67,8 @@ sokoban board initLocs outside = (locBs, finalB)
 -----------------------------------------------------------------
 
 outside1 :: User -> Event Direction
-outside1 u = u `filterE` f
-  where
-    f (Key True c) | c == Word 38 = Just North
-   		   | c == Word 40 = Just South
-   		   | c == Word 37 = Just West
-   		   | c == Word 39 = Just East
-    f _                           = Nothing
-
+outside1 u = (   keyPress vK_UP    u -=> North
+	     .|. keyPress vK_DOWN  u -=> South
+ 	     .|. keyPress vK_LEFT  u -=> West
+ 	     .|. keyPress vK_RIGHT u -=> East
+ 	     )

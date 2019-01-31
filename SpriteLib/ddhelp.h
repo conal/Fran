@@ -74,6 +74,8 @@ EXT_API HFrame newHFrame (HFrame parent);
 // New scene
 EXT_API HFrame newScene ();
 
+EXT_API void deleteFrameContents (HFrame);
+
 EXT_API void HFrameAddMeshBuilder (HFrame parent, HMeshBuilder builder);
 
 EXT_API void HFrameSetColor (HFrame frame, D3DCOLOR);

@@ -123,33 +123,40 @@ type HFrame = Word32
 
 %fun newBitmapDDSurface :: String -> IO HDDSurface
 %{ h = newBitmapDDSurface(arg1) %}
-%fail { h == 0 } { ErrorString("newBitmapDDSurface") }
+%fail { h == 0 } { CouldNotOpen(arg1) }
 %result (hDDSurface h)
 
 -- For testing, but phase out
 
-%fun textDDSurface :: String -> COLORREF -> HDDSurface
+--%fun textDDSurface :: String -> COLORREF -> HDDSurface
 
-%fun GetDDSurfaceSize :: HDDSurface -> SIZE
+-- The size in pixels of a surface
+%fun ddSurfaceSize :: HDDSurface -> SIZE
 %{ SIZE res1 = GetDDSurfaceSize(arg1) %}
 %result (size res1)
 
 -- To do: do consistent error-reporting
 
+-- Make a surface from a .BMP file.
+bitmapDDSurface :: String -> HDDSurface
 bitmapDDSurface bmpName = unsafePerformIO $ newBitmapDDSurface bmpName
 
 %fun newWaveDSBuffer :: String -> IO HDSBuffer
 %{ h = newWaveDSBuffer(arg1) %}
-%fail { h == 0 } { ErrorString("newWaveDSBuffer") }
+%fail { h == 0 } { CouldNotOpen(arg1) }
 %result (hDSBuffer h)
 
+-- Make an sound buffer from a .WAV file
+waveDSBuffer :: String -> HDSBuffer
 waveDSBuffer fileName = unsafePerformIO $ newWaveDSBuffer fileName
 
 %fun newMeshBuilder :: String -> IO HMeshBuilder
 %{ h = newMeshBuilder(arg1) %}
-%fail { h == 0 } { ErrorString("newMeshBuilder") }
+%fail { h == 0 } { CouldNotOpen(arg1); }
 %result (hMeshBuilder h)
 
+-- Make a mesh builder from a .X mesh file
+meshBuilder :: String -> HMeshBuilder
 meshBuilder fileName = unsafePerformIO $ newMeshBuilder fileName
 
 type D3DColor = DWORD
@@ -173,6 +180,8 @@ type LightType = Int
 
 %fun newHFrame :: HFrame -> IO HFrame
 %fun newScene :: IO HFrame
+%fun deleteFrameContents :: HFrame -> IO ()
+
 %fun HFrameAddMeshBuilder :: HFrame -> HMeshBuilder -> IO ()
 %fun HFrameSetColor :: HFrame -> D3DColor -> IO ()
 
@@ -223,6 +232,11 @@ type Pixels = LONG
 %fun flipBookPages :: HFlipBook -> Int
 %fun deleteFlipBook :: HFlipBook -> IO ()
 
+
+-- Make a flip book given: surface, width and height, X,Y start pos on surface, 
+-- number of columns, and rows of pages
+flipBook :: HDDSurface -> Pixels -> Pixels -> Pixels -> Pixels
+         -> Int -> Int -> HFlipBook
 flipBook surf width height srcXFirst srcYFirst columns rows =
   unsafePerformIO $
   newFlipBook surf width height srcXFirst srcYFirst columns rows
@@ -243,7 +257,7 @@ type HSprite = Word32
 
 -- Arguments: sprite, posX, posY, goalTime
 
-%fun setGoalUpperLeft :: HSprite -> Double -> Double -> SpriteTime -> IO ()
+%fun setGoalPos :: HSprite -> Double -> Double -> SpriteTime -> IO ()
 %fun setGoalScale :: HSprite -> Double -> Double -> SpriteTime -> IO ()
 %fun spriteToSpriteTree :: HSprite -> HSpriteTree
 
@@ -268,17 +282,18 @@ type HFlipSprite = Word32
 type HSimpleSprite = Word32
 %dis hSimpleSprite h = word32 h
 
--- Arguments surface, posX0, posY0, scaleX0, scaleY0, page0, rest
+-- Arguments surface, ulX, ulY, posX0, posY0, scaleX0, scaleY0, page0, rest
 
-%fun newSimpleSprite :: HDDSurface -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HSimpleSprite
-%{ h = newSimpleSprite(arg1, arg2, arg3, arg4, arg5, arg6) %}
+%fun newSimpleSprite :: HDDSurface -> Pixels -> Pixels -> Double -> Double -> Double -> Double -> SpriteTreeChain -> IO HSimpleSprite
+%{ h = newSimpleSprite(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) %}
 %fail { h == 0 } { ErrorString("newSimpleSprite") }
 %result (hSimpleSprite h)
 
 %fun simpleSpriteToSprite :: HSimpleSprite -> HSprite
 
--- Arguments: simple sprite, goal time, new surface, ulX, ulY, scaleX, scaleY
-%fun updateSimpleSprite :: HSimpleSprite -> SpriteTime -> HDDSurface -> Double -> Double -> Double -> Double -> IO ()
+-- Arguments: simple sprite, goal time, new surface, ulX, ulY, posX, posY,
+-- scaleX, scaleY
+%fun updateSimpleSprite :: HSimpleSprite -> SpriteTime -> HDDSurface -> Pixels -> Pixels -> Double -> Double -> Double -> Double -> IO ()
 
 %fun get_MinSpriteSize :: IO Int
 %{ res1 = MinSpriteSize %}

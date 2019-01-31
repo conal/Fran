@@ -1,0 +1,54 @@
+		   Misc notes on RBMH release Version 0
+
+	     Last modified Fri Aug 30 16:47:07 1996 by conal
+
+Due 9/20, i.e., just before Sigbjorn leaves and WG 2.8 occurs.  Do a
+test release to Yale before then.
+
+Required features:
+
+- Basic 2D animation
+
+- Easy installation
+
+- Home page
+
+- Cleaned up code, with no old stuff
+
+- Robust and fairly efficient
+
+- Adequate documentation for the uninitiated
+
+- A good number of examples
+
+Semi-required features:
+
+- Simple user interaction
+
+Desired features:
+
+- Integrals
+
+- Predicate events
+
+- Version that runs under vanilla Hugs
+
+- DirectX support with guidance on installing DirectX run-time (with
+  second, factored, project file)
+
+- ActiveX controls working better by then, with automatic control
+  downloading via IE 3.0
+
+- Animated GIFs in the web page
+
+- New name
+
+- Sound integrated into images, with simple sound spatialization
+
+- GHC version, if significantly faster
+
+Postponed:
+
+- Interval analysis, until we have better examples and profiling
+
+- 3D

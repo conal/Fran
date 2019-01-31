@@ -1,6 +1,6 @@
 -- Various routines to create and draw into surfaces.
 --
--- Last modified Thu Oct 02 15:24:01 1997
+-- Last modified Sun Oct 05 17:45:34 1997
 
 module RenderImage where
 
@@ -8,6 +8,7 @@ import BaseTypes
 import Point2
 import Color
 import Transform2
+import VectorSpace
 import Vector2
 import qualified Font
 import Text
@@ -17,13 +18,14 @@ import HSpriteLib
 
 import Trace
 
--- the last 2 are for upperleft corner of the bounding box
+-- The RealVals are the x and y motion, and the pixels are the sprite
+-- upperLeft w.r.t. the origin
 
-type HDDSurfacePos = (HDDSurface, RealVal, RealVal)
+type SurfaceUL = (HDDSurface, Pixels, Pixels, RealVal, RealVal)
 
 -- text, angle, color, stretch
 
-renderText :: TextT -> Color -> Transform2 -> HDDSurfacePos
+renderText :: TextT -> Color -> Transform2 -> SurfaceUL
 renderText (TextT (Font.Font fam bold italic) str) color
 	   xf@(Transform2 (Vector2XY x y) stretch angle) =
  -- HSurfaces are immutable, and there are no visible side-effects.
@@ -74,8 +76,8 @@ renderText (TextT (Font.Font fam bold italic) str) color
 	   ", esc " ++ show escapement ++
 	   "" ) >>
 -}
- return (hSurface, x - (fromInt surfWidth) / 2.0 / screenPixelsPerLength,
-		   y + (fromInt surfHeight) / 2.0 / screenPixelsPerLength)
+ return (hSurface, - fromInt surfWidth `div` 2,
+		   - fromInt surfHeight `div` 2, x, y)
  where
   backColor | color /= black =  black
 	    | otherwise      =  white
@@ -156,47 +158,45 @@ withNewHDDSurfaceHDC width height colRef f =
 -- renderCircle: rendering the unit size circle
 -----------------------------------------------------------------
 
-renderCircle :: Color -> Transform2 -> HDDSurfacePos
-renderCircle color (Transform2 (Vector2XY x y) radius' _) =
+renderCircle :: Color -> Transform2 -> SurfaceUL
+renderCircle color (Transform2 (Vector2XY x y) sc _) =
   unsafePerformIO $
     withNewHDDSurfaceHDC
-      (toPixel width) (toPixel height) (asColorRef black) (\ hdc ->
+      pixWidth pixHeight (asColorRef black) (\ hdc ->
+        -- ## WithColor seems pretty heavyweight to use here
         withColor hdc color $
-	ellipse hdc upperLeftX upperLeftY lowerRightX lowerRightY)
-    >>= \ hDDSurface -> return (hDDSurface, x - radius, y + radius)
+	ellipse hdc 0 0 pixWidth pixHeight)
+    >>= \ hDDSurface -> return (hDDSurface, - pixRadius, - pixRadius, x, y)
   where
-    radius = abs radius'
-    width  = 2.0 * radius
-    height = width
-    upperLeft  = origin2
-    lowerRight = swapCoordSys4Pt (point2XY (-radius) radius)
-				 (point2XY radius (-radius))
-    (upperLeftX,  upperLeftY)  = toPixelPoint2 upperLeft
-    (lowerRightX, lowerRightY) = toPixelPoint2 lowerRight
+    radius    = abs sc
+    pixRadius = round (radius * screenPixelsPerLength)
+    pixWidth  = 2 * pixRadius
+    pixHeight = pixWidth
 
 -----------------------------------------------------------------
 -- renderPolyline, renderPolygon, renderPolyBezier
 -----------------------------------------------------------------
 
-renderPolyline   :: [Point2] -> Color -> Transform2 -> HDDSurfacePos
-renderPolygon    :: [Point2] -> Color -> Transform2 -> HDDSurfacePos
-renderPolyBezier :: [Point2] -> Color -> Transform2 -> HDDSurfacePos
+renderPolyline   :: [Point2] -> Color -> Transform2 -> SurfaceUL
+renderPolygon    :: [Point2] -> Color -> Transform2 -> SurfaceUL
+renderPolyBezier :: [Point2] -> Color -> Transform2 -> SurfaceUL
 
 renderPolyline   = renderPoly polyline
 renderPolygon    = renderPoly polygon
 renderPolyBezier = renderPoly polyBezier
 
 renderPoly :: (HDC -> [POINT] -> IO ()) -> [Point2] -> Color ->
-	      Transform2 -> HDDSurfacePos
-renderPoly polyF pts color xf =
+	      Transform2 -> SurfaceUL
+renderPoly polyF pts color xf@(Transform2 (Vector2XY motX motY) sc rot) =
   unsafePerformIO $
     withNewHDDSurfaceHDC
       (toPixel width) (toPixel height) (asColorRef black) (\ hdc ->
         withColor hdc color $
 	polyF hdc (map toPixelPoint2 pts''))
-    >>= \ hDDSurface -> return (hDDSurface, minimumX, maximumY)
+    >>= \ hDDSurface -> return (hDDSurface, toPixel minimumX,
+			        toPixel (-maximumY), motX, motY)
   where
-    pts' = map (xf *%) pts
+    pts' = map (Transform2 zeroVector sc rot *%) pts
     ptsTuples = map point2XYCoords pts'
     xs = map fst ptsTuples
     ys = map snd ptsTuples
@@ -210,18 +210,20 @@ renderPoly polyF pts color xf =
 -- renderLine: takes 2 points
 -----------------------------------------------------------------
 
-renderLine :: Point2 -> Point2 -> Color -> Transform2 -> HDDSurfacePos
-renderLine p0 p1 color xf =
+renderLine :: Point2 -> Point2 -> Color -> Transform2 -> SurfaceUL
+renderLine p0 p1 color (Transform2 (Vector2XY motX motY) sc rot) =
   unsafePerformIO $
     withNewHDDSurfaceHDC
       (toPixel width) (toPixel height) (asColorRef black) (\ hdc ->
         withColor hdc color $ do
 	  moveToEx hdc x0' y0'
 	  lineTo   hdc x1' y1')
-    >>= \ hDDSurface -> return (hDDSurface, ulx, uly)
+    >>= \ hDDSurface -> return (hDDSurface,
+			        toPixel (ulx), toPixel (-uly),
+			        motX, motY)
   where
-    p0' = xf *% p0
-    p1' = xf *% p1
+    p0' = (Transform2 zeroVector sc rot) *% p0
+    p1' = (Transform2 zeroVector sc rot) *% p1
     (x0, y0) = point2XYCoords p0'
     (x1, y1) = point2XYCoords p1'
     (x0', y0') = toPixelPoint2 $ swapCoordSys4Pt newOrigin p0'

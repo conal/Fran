@@ -1,6 +1,6 @@
 -- Module for testing Fran
 --
--- Last modified Thu Oct 02 16:21:40 1997
+-- Last modified Tue Oct 07 14:43:42 1997
 
 module Test where
 
@@ -29,7 +29,7 @@ donut :: Vector2B -> RealB -> RealB -> ImageB
 donut motionB scaleB pageB =
   move motionB $
   stretch scaleB  $
-  --soundImage (bufferSound bounceBuffer) `over`
+  soundImage (bufferSound bounceBuffer) `over`
   flipImage donutFlipBook pageB
 
 
@@ -231,8 +231,7 @@ snd3 u = stringBIm msg `over`
          soundImage (pitch y (volume x (bufferSound planeBuffer)))
  where
   msg = constantB "Move the mouse around"
-  (x, y) = pairBSplit (vector2XYCoords (mouse u .-. point2XY (-1) (-1.5)))
-  -- (x, y) = (1, 1)
+  (x, y) = vector2XYCoords (mouse u .-. point2XY (-1) (-1.5))
 
 snd4 u = accum u `untilB` nextUser (keyPress Win32.vK_ESCAPE) u ==> snd4
  where
@@ -270,17 +269,19 @@ teapot, sphere :: GeometryB
 teapot = uscale3 2 **% rotate3 xVector3 (-pi/2) **% importX "../Media/tpot2.x"
 -- teapot = uscale3 0.005 **% importX "1701d.x"
 --teapot = meshG (meshBuilder "tpot2.x")
-sphere = importX "sphere1.x"
+sphere = importX "../Media/sphere1.x"
 
-g0 u = renderGeometry g defaultCamera
+dispG g = disp $ \u -> renderGeometry (g u) defaultCamera
+
+ig0 u = renderGeometry g defaultCamera
  where
    g = withColorG red $
        rotate3 yVector3 (userTime u) **%
        sphere
 
-g1 = withSpin potSpin1
-g2 = withSpin potSpin2
-g3 = withSpin potSpin3
+ig1 = withSpin potSpin1
+ig2 = withSpin potSpin2
+ig3 = withSpin potSpin3
 
 withSpin :: (RealB -> User -> GeometryB) -> User -> ImageB
 
@@ -303,7 +304,7 @@ potSpin2 potAngleSpeed u = spinPot potColor potAngle `unionG` light
           translate3 (vector3Spherical 2 (userTime u) 0) **%
           uscale3 0.1 **% (sphere `unionG` pointLightG)
   potColor = colorHSL (sin (userTime u / 3) * 180) 0.5 0.5
-  potAngle = integral potAngleSpeed u
+  potAngle = atRate potAngleSpeed u
   axis = yVector3
   -- axis = rotate3 zVector3 (userTime u) **% yVector3
 
@@ -313,23 +314,20 @@ potSpin3 potAngleSpeed u =
     potSpin2 potAngleSpeed u
 
 -- Simple moving image of rendered constant geometry
-g4 u = move (vector2Polar 0.5 (- userTime u)) $
+ig4 u = move (vector2Polar 0.5 (- userTime u)) $
        renderGeometry (withColorG red teapot) defaultCamera
 
--- Simpler.  Trying to fix missing light problem.
-g5 u = renderGeometry (withColorG red teapot) defaultCamera
 
-{-
-gAnims u = loop all u
+-- Geometry switching.  As of 10/6/97, this guy doesn't work, because
+-- emptyFrame is not really implemented.
+g1 = gSphere `untilF` \u -> keyPressAny u -=> gPot
  where
-  all = [g1,g2]
+   gSphere u = withColorG red $
+               uscale3 (sin (userTime u)) **%
+               rotate3 yVector3 (userTime u) **%
+               sphere
+   gPot    u = potSpin2 1 u
 
-  loop []    u = loop all u
-  loop (h:t) u = h u `untilB` 
--}
-
--- for comparison
-h1 u = stretch (growExp u 1) horses
 
 
 growHowTo :: User -> ImageB
@@ -338,7 +336,7 @@ growHowTo u = moveXY 0 (- winHeight / 2 + 0.1) $
               withColor yellow $
               stringBIm messageB
   where
-    winHeight = sndB (vector2XYCoords (viewSize u))
+    winHeight = snd (vector2XYCoords (viewSize u))
     messageB = selectLeftRight "Use mouse buttons to control pot's spin"
                "left" "right" u
 
@@ -347,14 +345,14 @@ grow, growExp :: User -> RealVal -> RealB
 
 grow u x0 = size
  where 
-  size = constantB x0 + integral rate u 
+  size = constantB x0 + atRate rate u 
   rate = bSign u
 
 -- Yipes!! This one is blows the stack :-(
 
 growExp u x0 = size
  where 
-  size = constantB x0 + integral rate u 
+  size = constantB x0 + atRate rate u 
   rate = bSign u * size
 
 {-
@@ -409,17 +407,9 @@ buttonMonitor u =
 
 wildcat, horses :: ImageB
 
-wildcat = flipImage wildcatFlipBook 0
- where
-  wildcatFlipBook = flipBook wildcatSurface w h 0 0 1 1
-  wildcatSurface = bitmapDDSurface "../Media/wildcat.bmp"
-  (w,h) = getDDSurfaceSize wildcatSurface
+wildcat = importBitmap "../Media/wildcat.bmp"
 
-horses = flipImage horsesFlipBook 0
- where
-  horsesFlipBook = flipBook horsesSurface w h 0 0 1 1
-  horsesSurface = bitmapDDSurface "../Media/horses.bmp"
-  (w,h) = getDDSurfaceSize horsesSurface
+horses = importBitmap "../Media/horses.bmp"
 
 
 frolic u =
@@ -447,23 +437,40 @@ iTst6 u = withColor red (stretch x (donut0 u))
 
 iTst7 u = withColor red (stretch x (donut0 u))
  where
-  x = integral dx u `untilB` userTimeIs 5 u `snapshot` x -=> 1
+  x = atRate dx u `untilB` userTimeIs 5 u `snapshot` x -=> 1
   dx = 0.2 :: Behavior RealVal
 
 iTst8 u = withColor red (stretch x (donut0 u))
  where
-  x = integral dx u `untilB` userTimeIs 3 u `snapshot_` x ==> constantB
+  x = atRate dx u `untilB` userTimeIs 3 u `snapshot_` x ==> constantB
   dx = 0.3 :: Behavior RealVal
 
 iTst9 u = withColor red (stretch x (donut0 u))
  where
-  x = integral dx u `untilB` predicate (x>=*1) u `snapshot` x -=> 1
+  x = atRate dx u `untilB` predicate (x>=*1) u `snapshot` x -=> 1
   dx = 0.3 :: Behavior RealVal
 
 iTst10 u = withColor red (stretch x (donut0 u))
  where
-  x = integral dx u `untilB` predicate (x>=*1) u `snapshot_` x ==> constantB
+  x = atRate dx u `untilB` predicate (x>=*1) u `snapshot_` x ==> constantB
   dx = 0.3 :: Behavior RealVal
 
 
 uPeriod u = showBIm (updatePeriod u)
+
+-----------------------------------------------------------------
+-- test 2D stuff
+-----------------------------------------------------------------
+
+l1 u = bigger wiggle circle
+l2 u = polygon [point2XY 1 1, point2XY (- abs wiggle) 0,
+		      point2XY 1 wiggle]
+l3 u = line (point2XY 1 1) (point2XY wiggle wiggle)
+l4 u = slower 2 $ bigger (wiggleRange 2 4) $
+       stringBIm (lift0 text !!* roundB (wiggleRange 0 6))
+ where
+   text = ["Where", "Do", "You", "Want", "To", "Go", "Today?"]
+   strs = map stringIm text
+l5 u = regularPolygon 6
+l6 u = turnLeft (userTime u / 15) $ star 3 10
+l7 u = star (roundB (3 + wiggle)) (roundB (10 - wiggle))

@@ -1,5 +1,5 @@
 -----------------------------------------------------------------
--- Last modified Wed Sep 24 15:19:34 1997 by t-garyl
+-- Last modified Mon Oct 06 17:16:55 1997 by t-garyl
 --
 -- This approach does not quite work in that the computing element
 -- hang on to all the old data (event occurrence) and when doing
@@ -16,9 +16,9 @@ module Sokoban where
 import SokoType
 import Fran
 import Array
-import Foreign(Word(..))
 import Maybe(fromJust)
 import List(find)
+import Win32(vK_LEFT, vK_UP, vK_RIGHT, vK_DOWN)
 
 -----------------------------------------------------------------
 -- sokoban
@@ -161,10 +161,8 @@ sokoban floor initInhabs ev = (inhabBs, board, finalB)
 -----------------------------------------------------------------
 
 outside1 :: User -> Event Direction
-outside1 u = u `filterE` f
-  where
-    f (Key True c) | c == Word 38 = Just North
-   		   | c == Word 40 = Just South
-   		   | c == Word 37 = Just West
-   		   | c == Word 39 = Just East
-    f _                           = Nothing
+outside1 u = (   keyPress vK_UP    u -=> North
+	     .|. keyPress vK_DOWN  u -=> South
+ 	     .|. keyPress vK_LEFT  u -=> West
+ 	     .|. keyPress vK_RIGHT u -=> East
+ 	     )

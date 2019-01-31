@@ -1,9 +1,10 @@
 -- Color behaviors
 --
--- Last modified Wed Jul 09 08:50:07 1997
+-- Last modified Tue Oct 07 13:55:24 1997
 
 module ColorB where
 
+import BaseTypes
 import qualified Color as C
 import Behavior
 
@@ -11,8 +12,8 @@ type ColorB = Behavior C.Color
 
 colorHSL              = lift3 C.colorHSL
 colorRGB              = lift3 C.colorRGB
-colorHSLCoords        = lift1 C.colorHSLCoords
-colorRGBCoords        = lift1 C.colorRGBCoords
+colorHSLCoordsB       = lift1 C.colorHSLCoords
+colorRGBCoordsB       = lift1 C.colorRGBCoords
 grey		      = lift1 C.grey
 asColorRef	      = lift1 C.asColorRef
 interpolateColorRGB   = lift3 C.interpolateColorRGB
@@ -33,3 +34,10 @@ royalBlue = constantB C.royalBlue
 yellow    = constantB C.yellow
 brown     = constantB C.brown
 
+type FractionB = Behavior Fraction
+
+colorRGBCoords :: ColorB -> (FractionB, FractionB, FractionB)
+colorRGBCoords = tripleBSplit . colorRGBCoordsB
+
+colorHSLCoords :: ColorB -> (RealB, FractionB, FractionB)
+colorHSLCoords = tripleBSplit . colorHSLCoordsB

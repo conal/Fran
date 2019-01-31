@@ -10,7 +10,7 @@ content="text/html; charset=iso-8859-1">
 
 <body>
 
-<h1 align="center">Fran version 1.03</h1>
+<h1 align="center">Fran version 1.05</h1>
 
 <h2 align="center">(Functional Reactive Animation)</h2>
 
@@ -18,8 +18,8 @@ content="text/html; charset=iso-8859-1">
 href="http://www.research.microsoft.com/~conal/">Conal Elliott</a></h2>
 
 <p align="center"><em>Last edited <!--webbot bot="Timestamp"
-startspan s-type="EDITED" s-format="%B %d, %Y" -->August 07, 1997<!--webbot
-bot="Timestamp" i-checksum="22310" endspan --></em></p>
+startspan s-type="EDITED" s-format="%B %d, %Y" -->October 06, 1997<!--webbot
+bot="Timestamp" i-checksum="31705" endspan --></em></p>
 
 <p align="left">I am tinkering with a new version of <a
 href="default.htm">Fran</a>. It's not really ready for general
@@ -29,59 +29,47 @@ out.</p>
 <p align="left">Notes on the new version:</p>
 
 <ul>
-    <li><p align="left">As always, this works with Windows only.</p>
-    </li>
-    <li><p align="left">You'll need DirectX version 3 or better.
-        For NT, this means you need NT 4.0 Service Pack 3.</p>
-    </li>
-    <li><p align="left">I changed over the representation of
-        behaviors and events to use infinite trees and lists
-        respectively (see src/BStack.hs). I'm writing a paper on
-        the representation ideas. Unfortunately, this version is
-        overly simplistic and ends up tree searching way too
-        much. I'm working on a better version.</p>
-    </li>
+    <li>As always, this works with Windows only.</li>
+    <li>You'll need DirectX version 3 or better. For NT, this
+        means you need NT 4.0 Service Pack 3.</li>
+    <li>I changed over the representation of behaviors and events
+        to use infinite trees and lists respectively (see
+        src/BStack.hs). I'm writing a paper on the representation
+        ideas. Unfortunately, this version is overly simplistic
+        and ends up tree searching way too much. I'm working on a
+        better version.</li>
 </ul>
 
 <ul>
-    <li><p align="left">Unfortunately the performance is still
-        pretty bad, and even noticeably worse than before. Fran
-        should be running with GHC pretty soon, which should help
-        performance a lot, though at the cost of less convenient
-        development. Maybe the Fran source code could be improved
-        to get acceptable performance under Hugs. Also, there are
-        some mysterious space/time leaks. See the comment near
-        the bottom of demos\Mover.hs.</p>
-    </li>
+    <li>Unfortunately the performance is still pretty bad, and
+        even noticeably worse than before. Fran should be running
+        with GHC pretty soon, which should help performance a
+        lot, though at the cost of less convenient development.
+        Maybe the Fran source code could be improved to get
+        acceptable performance under Hugs. Also, there are some
+        mysterious space/time leaks. See the comment near the
+        bottom of demos\Mover.hs.</li>
 </ul>
 
 <p align="left">Directions for trying out this new version:</p>
 
 <ul>
-    <li><p align="left">Grab the zip file <a href="fran1.03.zip">here</a>.
-        It's 622KB. Extract from the zip file, and you'll get a
-        directory called &quot;Fran1&quot;..</p>
-    </li>
-    <li><p align="left">Be sure you have a pretty recent version
-        of <a href="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs</a>.
-        I'm using 970719.</p>
-    </li>
-    <li><p align="left">Change your Hugs load path, via regedit
-        or by using &quot;:set -P&quot; in Hugs, to include
+    <li>Grab the zip file <a href="fran1.03.zip">here</a>. It's
+        622KB. Extract from the zip file, and you'll get a
+        directory called &quot;Fran1&quot;..</li>
+    <li>Be sure you have a pretty recent version of <a
+        href="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs</a>.
+        I'm using 970719.</li>
+    <li>Change your Hugs load path, via regedit or by using
+        &quot;:set -P&quot; in Hugs, to include
         &quot;..\\src&quot;, before any of the others. Otherwise,
         you'll probably end up loading the version of Fran that
-        comes with Hugs.</p>
-    </li>
-    <li><p align="left">Increase your heap size to 1Mb.</p>
-    </li>
-    <li><p align="left">Copy HSpriteLib.dll to a directory on
-        your search %PATH%.</p>
-    </li>
-    <li><p align="left">Start it up. There are a few demos in
-        Fran1\demos, notably Mover.hs. See &quot;demo&quot; in
-        that source file. As I said above, Fran is rather slow
-        right now.</p>
-    </li>
+        comes with Hugs.</li>
+    <li>Increase your heap size to 1Mb.</li>
+    <li>Copy HSpriteLib.dll to a directory on your search %PATH%.</li>
+    <li>Start it up. There are a few demos in Fran1\demos,
+        notably Mover.hs. See &quot;demo&quot; in that source
+        file. As I said above, Fran is rather slow right now.</li>
 </ul>
 </body>
 </html>

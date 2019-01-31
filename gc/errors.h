@@ -10,9 +10,10 @@
 
 #if 0
 
-static char* ErrorMsg(char* where, char* what);
+// Version that can depend on run-time (RT) info:
+static char* ErrorMsgRT(char* where, char* what);
 
-static char* ErrorMsg(char* where, char* what)
+static char* ErrorMsgRT(char* where, char* what)
 {
     static char buffer[1000];
     _snprintf(buffer, 1000, "Error %s raised in function %s", what, where);
@@ -26,7 +27,13 @@ static char* ErrorMsg(char* where, char* what)
 
 #endif
 
-
+static char* CouldNotOpen(char* file)
+{
+    static char buffer[1000];
+    _snprintf(buffer, 1000, "Could not open file \"%s\"", file);
+    buffer[999] = '\0'; /* paranoia! */
+    return buffer;
+}
 
 #define ErrorString(where) "Error raised in function " where
 

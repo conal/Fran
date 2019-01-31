@@ -45,8 +45,8 @@ toImageB floor (inhabBs, b, finalB) = (moverables `over` board, finalB)
 	              (lift1 (pageNumber (floor ! p)) finalB))
 
     pageNumber Empty  final = if final then 5 else 2 -- empty/final
-    pageNumber Target final = 1		-- target
-    pageNumber Wall   final = 0		-- wall
+    pageNumber Target final = 0		-- target
+    pageNumber Wall   final = 1		-- wall
 
     moverables = overs $ map inhab2ImageB (zip [0 ..] inhabBs)
 

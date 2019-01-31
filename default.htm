@@ -1,178 +1,64 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
-<html>
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1252">
+<META NAME="Generator" CONTENT="Microsoft Word 97">
+<TITLE>Functional Reactive Animation (Fran)</TITLE>
+<META NAME="Template" CONTENT="C:\Program Files\Microsoft Office\Office\html.dot">
+</HEAD>
+<BODY LINK="#0000ff" VLINK="#800080">
 
-<head>
-<meta http-equiv="Content-Type"
-content="text/html; charset=iso-8859-1">
-<meta name="GENERATOR" content="Microsoft FrontPage 2.0">
-<title>Reactive Behavior Modeling in Haskell</title>
-</head>
+<P><!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN"></P>
+<H1 ALIGN="CENTER">Fran version 1.05</H1>
+<H2 ALIGN="CENTER">(Functional Reactive Animation)</H2>
+<P ALIGN="CENTER"><IMG SRC="patOrbitsCharlotte.gif" WIDTH=200 HEIGHT=200></P>
+<H2 ALIGN="CENTER"><A HREF="http://www.research.microsoft.com/~conal/">Conal Elliott</A></H2>
+<EM><P ALIGN="CENTER">Last edited <!--webbot bot="Timestamp"
+startspan s-type="EDITED" s-format="%B %d, %Y" -->October 07, 1997<!--webbot
+bot="Timestamp" i-checksum="31707" endspan --> 
+</EM><P>Fran is a Haskell library (or "embedded language") for interactive animations with 2D and 3D graphics and sound. It runs on <A HREF="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs version 1.4</A> under Windows 95 and Windows NT, using DirectX. </P>
+<P>Try it, it's fun! Please let me know how it goes.</P>
+<P>See <A HREF="news.htm">news</A> for details on changes from one version to another.</P>
+<H3>Notes</H3>
 
-<body>
+<UL>
+<LI>Fran works with Windows only. You'll need <A HREF="http://www.microsoft.com/directx">DirectX</A> version 3 or better. For NT, this means you need NT 4.0 with <A HREF="http://support.microsoft.com/download/support/mslfiles/NT4SP3_I.EXE">Service pack 3</A>. My plan for Unix, etc., is to wait until DirectX is running there (which is in the works). </LI>
+<LI>For Fran, Hugs needs a bigger heap than the default of 100K. Say ":set -h1Mb" once and then ":q" to quit. Hugs will start using the bigger heap size thereafter.</LI></UL>
 
-<h1 align="center"><b>RBMH Release 0.81</b> </h1>
+<H3>Directions</H3>
+<OL>
 
-<h2 align="center">Reactive Behavior Modeling in Haskell </h2>
+<LI>Download <A HREF="Fran1.05.zip">Fran1.05.zip</A></LI>
+<LI>Unzip to create a directory tree called <STRONG>Fran</STRONG>, with subdirectories <STRONG>demos</STRONG>, <STRONG>gc</STRONG>, <STRONG>media</STRONG>, <STRONG>SpriteLib</STRONG>, and <STRONG>src</STRONG>. </LI>
+<LI>In <EM>Windows Explorer</EM>, double click on <STRONG>Tutorial.hs</STRONG> in <STRONG>Fran\demos</STRONG>. If your Hugs is set up properly, it should start up, load a bunch of modules and put up a graphics window. (If double-clicking <STRONG>Tutorial.hs</STRONG> didn't work for you, then instead, start up Hugs, and <STRONG>:cd</STRONG> to <STRONG>Fran\demos</STRONG>. Type <STRONG>:l Tutorial</STRONG>. Lots of modules will then get loaded. At the Hugs prompt (should be in module <STRONG>Tutorial</STRONG>), type <STRONG>main</STRONG>.) </LI>
+<LI>Press space, "<STRONG>n</STRONG>", or right-arrow to advance to the next animation, and "<STRONG>p</STRONG>" or left-arrow to back up to previous one.</LI>
+<LI>Try more demos. See <STRONG>Sokoban3\SokoDemo.hs</STRONG> and <STRONG>Mover.hs</STRONG>.</LI>
+<LI>Try examples of your own. If you send me ones you've built, I'll consider them for inclusion (with credit to you) in future releases. </LI>
+<LI>In any case, please <A HREF="mailto:conal@microsoft.com">let me know</A> about your experience.</LI></OL>
 
-<h2 align="center"><a
-href="http://www.research.microsoft.com/research/graphics/elliott/">Conal
-Elliott</a></h2>
+<H3>Bugs / To do</H3>
 
-<p align="center">&nbsp; <em>Last modified <!--webbot
-bot="TimeStamp" startspan s-type="EDITED" s-format="%B %d, %Y" -->November 11, 1996<!--webbot
-bot="TimeStamp" i-checksum="41272" endspan --></em></p>
+<UL>
+<LI><A HREF="todo.htm">Small items</A> </LI>
+<LI><A HREF="projects.htm">Non-trivial projects</A> </LI></UL>
 
-<p>RBMH is a Haskell library (or &quot;embedded language&quot;)
-for simple 2D animation. It runs on <a
-href="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs <u>version
-???</u></a> under Windows 95 and Windows NT, using Win32 graphics
-(GDI). </p>
+<H3>&nbsp;Credits</H3>
 
-<p><em>Note: I'm not advertising this release, because it depends
-on an unreleased version of Hugs. This version will be useful
-just to the Yale Haskell folks for now.</em></p>
+<UL>
+<LI>Greg Schechter, Ricky Yeung, Salim AbiEzzi, and I collaborated at Sun Microsystems on <A HREF="http://www.research.microsoft.com/research/graphics/elliott/tbag/index.htm">TBAG</A>, a system for constraint-based, semi-declarative modeling of 3D animation. Some of the Fran ideas were initially explored there. </LI>
+<LI><A HREF="http://www.research.microsoft.com/research/graphics/knoblock/">Todd Knoblock</A> and Jim Kajiya helped to explore the basic ideas of behaviors and events. </LI>
+<LI><A HREF="http://www.dcs.gla.ac.uk/~sof">Sigbjorn Finne</A> helped a lot with the implementation during his summer '96 internship. Since then, he has been very helpful with getting getting Fran and GHC ready for each other. </LI>
+<LI><A HREF="http://www.cs.nott.ac.uk/~acd/">Tony Daniels</A> has been pushing the limits of physics-oriented reactive behavior, uncovering some limitations in the implementation. He also collaborated on some ideas for efficient behavior representation. </LI>
+<LI><A HREF="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/hudak-paul.html">Paul Hudak</A> has been collaborating on the ideas and, in particular, how to embed them in Haskell. </LI>
+<LI><A HREF="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/reid-alastair.html">Alastair Reid</A> answered lots of my naive questions about Haskell and its implementation, and provided some emergency Hugs hacking. He also made very helpful pass through version 0.8, updating it to a newer Hugs version, and making various improvements, and rewriting interaction code to be much simpler. </LI>
+<LI><A HREF="http://www.cs.yale.edu/homes/peterson-john.html">John Peterson</A> wrote another implementation that provided an interesting comparison. Many interesting discussions. With Gary Shu Ling, wrote the Fran User's guide. </LI>
+<LI><A HREF="http://www.cs.yale.edu/users/ling/">Gary Shu Ling</A> found misc bugs and sources of incompleteness. He also helped out quite a lot with the Fran 1.05 during a Fall '97 internship, and developed the Sokoban demo. </LI>
+<LI><A HREF="http://www.dcs.gla.ac.uk/~simonpj/">Simon Peyton Jones</A> is helping me understand <A HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</A> (the Glasgow Haskell compiler) and how to use it effectively to compiler animation programs, as well as how to better implement Fran. </LI>
+<LI><A HREF="http://www.cs.nott.ac.uk/Department/Staff/mpj/">Mark Jones</A> has been helping me understand Haskell type classes and how to use them well in Fran. </LI>
+<LI><A HREF="http://www.dcs.gla.ac.uk/~wadler/">Philip Wadler</A> had provided interesting and insightful feedback on the semantics of behaviors and events. </LI></UL>
 
-<p>Try it, it's fun! Please let me know how it goes.</p>
-
-<p>See <a href="news.htm">news</a> for details on changes from
-one version to another.</p>
-
-<h3>Directions</h3>
-
-<ol>
-    <li>Download <a href="http:rbmh0.81.zip"><strong>rbmh0.81.zip</strong></a></li>
-    <li>Unzip to create a directory tree called <strong>rbmh</strong>,
-        with subdirectories <strong>Lib</strong>, <strong>Media</strong>
-        and <strong>src</strong>. </li>
-    <li>Start up Hugs (tested with Yale Release 0), and <strong>:cd</strong>
-        to <strong>rbmh\src</strong>.</li>
-    <li>Type <strong>:l Tutorial.lhs</strong>. Lots of modules
-        will then get loaded (thanks to &quot;import
-        chasing&quot;).</li>
-    <li>At the Hugs prompt (should be in module <strong>Tutorial</strong>),
-        type <strong>disp allAnims</strong>. Press space, &quot;<strong>n</strong>&quot;,
-        or right-arrow to advance to the next animation, and
-        &quot;<strong>p</strong>&quot; or left-arrow to back up
-        to previous one.</li>
-    <li>Try examples of your own. If you send me ones you've
-        built, I'll consider them for inclusion (with credit to
-        you) in future releases. </li>
-</ol>
-
-<h3>Notes</h3>
-
-<ul>
-    <li>As of version 0.7, alpha behaviors are represented as <strong>Time
-        -&gt; (alpha, Behavior a)</strong>. This form allows
-        incremental behavior evaluation without implicit state,
-        in particular for <strong>untilB</strong> and <strong>integral</strong>
-        behaviors. </li>
-</ul>
-
-<h3>Bugs</h3>
-
-<ul>
-    <li>Currently there is a space leak with recursive integrals
-        (ODEs), so don't let <strong>i16</strong> and,
-        especially, <strong>i17</strong>, run very long in
-        ImageBTest.hs. If you see the update rate decreasing
-        dramatically, move on to the next example before you blow
-        Hugs's heap. Also, <strong>i23</strong> seems to exhibit
-        a slow space leak.</li>
-    <li>Button-up and key-up events are missed if they happen too
-        soon after the down event. Be careful with <strong>i8,
-        i9, i10, i11</strong> in <strong>ImageBTest.</strong> If
-        an up-event goes unnoticed, do the <em>same</em> down
-        event again, but this time hold for a bit and release. I
-        think the problem is the coarse resolution of the <strong>timeGetTime</strong>
-        function.</li>
-    <li>Transformation doesn't work on all primitives. In
-        particular: bitmaps, and text don't rotate, and text
-        doesn't even scale. <strong>SetWorldTransform</strong>
-        might be a general fix, but from the documentation, it
-        doesn't appear to work under Win95. </li>
-    <li><strong>ImageBTest.iBlowStack</strong> blows the stack.
-        In general, it seems that infinitely recursive image
-        behaviors blow the stack, even with bounding boxes. I
-        guess there's a subtlety about strictness that I don't
-        grok yet.</li>
-    <li>Text doesn't center. </li>
-    <li>Examples <strong>i9</strong> and <strong>i10</strong>
-        don't hear the button release if you do it too soon after
-        the button press.</li>
-    <li>Switch all <strong>ImageBTest</strong> examples to be
-        functions of start time, to eliminate space leak (CAFs)
-        and to make them temporally composable.</li>
-</ul>
-
-<h3>Future work</h3>
-
-<ul>
-    <li><a href="todo.htm">Small items</a></li>
-    <li><a href="projects.htm">Non-trivial projects</a></li>
-</ul>
-
-<h3>&nbsp;Credits</h3>
-
-<ul>
-    <li>Greg Schechter, Ricky Yeung, Salim AbiEzzi, and I
-        collaborated at Sun Microsystems on <a
-        href="http://www.research.microsoft.com/research/graphics/elliott/tbag/index.htm">TBAG</a>,
-        a system for constraint-based, semi-declarative modeling
-        of 3D animation. Some of the RBMH ideas were initially
-        explored there.</li>
-    <li><a
-        href="http://www.research.microsoft.com/research/graphics/knoblock/">Todd
-        Knoblock</a> and Jim Kajiya helped to explore the basic
-        ideas of behaviors and events.</li>
-    <li><a href="http://www.dcs.gla.ac.uk/~sof">Sigbjorn Finne</a>
-        helped a lot with the implementation during his summer
-        '96 internship.</li>
-    <li>Anthony Daniels has been pushing the limits of
-        physics-oriented reactive behavior, uncovering some
-        limitations in the implementation.</li>
-    <li><a
-        href="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/hudak-paul.html">Paul
-        Hudak</a> has been collaborating on the ideas and, in
-        particular, how to embed them in Haskell.</li>
-    <li><a
-        href="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/reid-alastair.html">Alastair
-        Reid</a> answered lots of my naive questions about
-        Haskell and its implementation, and provided some
-        emergency Hugs hacking. He also made very helpful pass
-        through version 0.8, updating it to a newer Hugs version,
-        and making various improvements, and rewriting
-        PrimInteract.hs to be much simpler.</li>
-    <li><a href="http://www.cs.yale.edu/homes/peterson-john.html">John
-        Peterson</a> wrote another implementation that provided
-        an interesting comparison. Many interesting discussions.</li>
-    <li><a href="http://www.cs.yale.edu/users/ling/">Gary Shu
-        Ling</a> found misc bugs and sources of incompletenesses.</li>
-    <li><a href="http://www.dcs.gla.ac.uk/~simonpj/">Simon Peyton
-        Jones</a> is helping me understand <a
-        href="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</a>
-        (the Glasgow Haskell compiler) and how to use it
-        effectively to compiler animation programs, as well as
-        how to better implement RBMH.</li>
-    <li><a href="http://www.cs.nott.ac.uk/Department/Staff/mpj/">Mark
-        Jones</a> has been helping me understand Haskell type
-        classes and how to use them well in RBMH.</li>
-    <li><a href="http://www.dcs.gla.ac.uk/~wadler/">Philip Wadler</a>
-        had provided interesting and insightful feedback on the
-        semantics of behaviors and events.</li>
-    <li><a href="http://www.pixelmonkey.com/">Pixel Monkey</a>
-        provided some images from their sampler.</li>
-</ul>
-
-<h3>Contact</h3>
-
-<blockquote>
-    <p><a
-    href="http://www.research.microsoft.com/research/graphics/elliott/">Conal
-    Elliott</a> <br>
-    Graphics Research Group <br>
-    Microsoft Research <br>
-    <a href="mailto:conal@microsoft.com">conal@microsoft.com</a> </p>
-</blockquote>
-</body>
-</html>
+<H3>Contact</H3>
+<BLOCKQUOTE><A HREF="http://www.research.microsoft.com/~conal">Conal Elliott</A> <BR>
+Graphics Research Group <BR>
+Microsoft Research <BR>
+<A HREF="mailto:conal@microsoft.com">conal@microsoft.com</A> </BLOCKQUOTE></BODY>
+</HTML>

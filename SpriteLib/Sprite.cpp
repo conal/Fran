@@ -8,6 +8,7 @@
 #include "ddcheck.h"
 #include "ddhelp.h"
 #include "SpriteLib.h" // for g_screenPixelsPerLength
+#include "math.h"
 
 // C interfaces for Haskell
 
@@ -46,10 +47,10 @@ EXT_API void deleteSpriteTree (SpriteTree *pSpriteTree)
 { delete pSpriteTree; }
 
 
-EXT_API void setGoalUpperLeft(Sprite *pSprite,
-                             double ulX, double ulY,
-                             SpriteTime goalTime)
-{ pSprite->SetGoalUpperLeft(ulX, ulY, goalTime); }
+EXT_API void setGoalPos(Sprite *pSprite,
+                        double posX, double posY,
+                        SpriteTime goalTime)
+{ pSprite->SetGoalPos(posX, posY, goalTime); }
 
 EXT_API void setGoalScale(Sprite *pSprite,
                           double scaleX, double scaleY,
@@ -63,11 +64,11 @@ EXT_API SpriteTree *spriteToSpriteTree(Sprite *pSprite)
 
 EXT_API FlipSprite *
 newFlipSprite (FlipBook *pFlipBook,
-               double ulX0, double ulY0, 
+               double posX0, double posY0, 
                double scaleX0, double scaleY0, 
                double startPage,
                SpriteTreeChain rest)
-{ return new FlipSprite(pFlipBook, ulX0, ulY0, scaleX0, scaleY0, startPage, rest); }
+{ return new FlipSprite(pFlipBook, posX0, posY0, scaleX0, scaleY0, startPage, rest); }
 
 EXT_API Sprite *
 flipSpriteToSprite (FlipSprite *pFlipSprite)
@@ -75,10 +76,10 @@ flipSpriteToSprite (FlipSprite *pFlipSprite)
 
 void updateFlipSprite (FlipSprite *pFlipSprite,
                        SpriteTime t, 
-                       double ulX, double ulY, 
+                       double posX, double posY, 
                        double scaleX, double scaleY,
                        double page)
-{ pFlipSprite->Update(t, ulX, ulY, scaleX, scaleY, page); }
+{ pFlipSprite->Update(t, posX, posY, scaleX, scaleY, page); }
 
 /* Phasing out
 EXT_API void
@@ -88,11 +89,12 @@ setGoalPage (FlipSprite *pFlipSprite,
 */
 
 EXT_API SimpleSprite *
-newSimpleSprite (IDirectDrawSurface *pSurface,
+newSimpleSprite (IDirectDrawSurface *pSurface, Pixels ulX0, Pixels ulY0, 
                  double posX0, double posY0, 
                  double scaleX0, double scaleY0, 
                  SpriteTreeChain rest)
-{ return new SimpleSprite(pSurface, posX0, posY0, scaleX0, scaleY0, rest); }
+{ return new SimpleSprite(pSurface, ulX0, ulY0,
+                          posX0, posY0, scaleX0, scaleY0, rest); }
 
 EXT_API Sprite *
 simpleSpriteToSprite (SimpleSprite *pSimple)
@@ -102,10 +104,10 @@ EXT_API void
 updateSimpleSprite (
     SimpleSprite *pSimple,
     SpriteTime t,
-    HDDSurface pSurface, 
-    double ulX, double ulY, 
+    HDDSurface pSurface, Pixels ulX, Pixels ulY,
+    double posX, double posY, 
     double scaleX, double scaleY)
-{ pSimple->Update(t, pSurface, ulX, ulY, scaleX, scaleY); }
+{ pSimple->Update(t, pSurface, ulX, ulY, posX, posY, scaleX, scaleY); }
 
 
 EXT_API SoundSprite *
@@ -184,39 +186,44 @@ void ImageSprite::Paint (IDirectDrawSurface *pDest, SpriteTime t)
 {
     CRect srcRect;
     IDirectDrawSurface *srcSurf;
+    BOOL mirrorX = FALSE, mirrorY = FALSE;
     Lock();
 
     // Get source surface and rectangle.
+
     GetSrc (t, &srcSurf, &srcRect);
     if (srcSurf) {
         CSize destSize = GetDDSurfaceSize(pDest);
+        double scaleX = m_scaleX.at(t),
+               scaleY = m_scaleY.at(t);
+        if (scaleX < 0) {
+            mirrorX = TRUE;
+            scaleX = -scaleX;
+        }
+        if (scaleY < 0) {
+            mirrorY = TRUE;
+            scaleY = -scaleY;
+        }
         // The transformed sprite's height and width in pixels
-        int width  = (int) (srcRect.Width () * m_scaleX.at(t) + 0.5),
-            height = (int) (srcRect.Height() * m_scaleY.at(t) + 0.5);
-        // Sample sprite's upper-left corner.
-        int destULx = toPixels( m_ulX.at(t), destSize.cx),
-            destULy = toPixels(-m_ulY.at(t), destSize.cy);
+        int width  = (int) (srcRect.Width () * scaleX + 0.5),
+            height = (int) (srcRect.Height() * scaleY + 0.5);
+        // To where to map the sprite's upper-left corner.
+        int destULx = toPixels( m_posX.at(t), destSize.cx)
+                       + (int) (m_ulX * scaleX + 0.5),
+            destULy = toPixels(-m_posY.at(t), destSize.cy)
+                       + (int) (m_ulY * scaleY + 0.5);
         
         // If the width or height is negative, we have to do mirroring,
         // via the final Blt flag.
         //HRESULT result;
         DDBLTFX dbf;
-        BOOL mirror = FALSE;
+	BOOL mirror = mirrorX || mirrorY;
 
-        if ((width < 0) || (height < 0))
-        {
-            mirror = TRUE;
+        if (mirror) {
             memset( &dbf, 0, sizeof( dbf ) );
-
             dbf.dwSize = sizeof(dbf);
-            if (width < 0) {
-                dbf.dwDDFX |= DDBLTFX_MIRRORLEFTRIGHT;
-                width = -width;
-            }
-            if (height < 0) {
-                dbf.dwDDFX |= DDBLTFX_MIRRORUPDOWN;
-                height = -height;
-            }
+            if (mirrorX) dbf.dwDDFX |= DDBLTFX_MIRRORLEFTRIGHT;
+            if (mirrorY) dbf.dwDDFX |= DDBLTFX_MIRRORUPDOWN;
         }
 
 
@@ -275,21 +282,21 @@ void FlipBook::GetPage (int pageNum, IDirectDrawSurface **pSrc, CRect *pSrcRect)
 
 
 void FlipSprite::Update (SpriteTime t, 
-                         double ulX, double ulY, 
+                         double posX, double posY, 
                          double scaleX, double scaleY,
                          double page)
 {
     // Update the behaviors
-    SetGoalUpperLeft(ulX,ulY,t);
+    SetGoalPos(posX,posY,t);
     SetGoalScale(scaleX,scaleY,t);
     SetGoalPage(page,t);
 }
 
-void FlipSprite::GetSrc (SpriteTime t, IDirectDrawSurface **pSrc,
+void FlipSprite::GetSrc (SpriteTime t,
+                         IDirectDrawSurface **pSrc,
                          CRect *pSrcRect)
 {
     // Figure out which page we're on, and hand off to GetPage.
-
     m_pFlipBook->GetPage(m_page.atToInt(t), pSrc, pSrcRect);
 }
 
@@ -298,10 +305,11 @@ void FlipSprite::GetSrc (SpriteTime t, IDirectDrawSurface **pSrc,
 /////////// SimpleSprite
 
 SimpleSprite::SimpleSprite (IDirectDrawSurface *pSurface,
+                            Pixels ulX0, Pixels ulY0, 
                             double posX0, double posY0, 
                             double scaleX0, double scaleY0, 
                             SpriteTreeChain rest) :
-    ImageSprite(posX0, posY0, scaleX0, scaleY0, rest),
+    ImageSprite(ulX0, ulY0, posX0, posY0, scaleX0, scaleY0, rest),
     m_pSurface(pSurface)
 {
     TRACE("SimpleSprite::SimpleSprite\n");
@@ -326,7 +334,8 @@ void SimpleSprite::GetSrc (SpriteTime t, IDirectDrawSurface **pSrc,
 
 void SimpleSprite::Update (SpriteTime t, 
                            IDirectDrawSurface *pSurface,
-                           double ulX, double ulY, 
+			   Pixels ulX,  Pixels ulY,
+                           double posX, double posY, 
                            double scaleX, double scaleY)
 {
     // Switch the surface, but wait until it's safe.
@@ -340,10 +349,11 @@ void SimpleSprite::Update (SpriteTime t,
 	m_pSurface->Release();
 	
     m_pSurface = pSurface;
+    m_ulX = ulX; m_ulY = ulY;
 
     Unlock();
     // And update the behaviors
-    SetGoalUpperLeft(ulX,ulY,t);
+    SetGoalPos(posX,posY,t);
     SetGoalScale(scaleX,scaleY,t);
 }
 

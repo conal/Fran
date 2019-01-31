@@ -6,7 +6,7 @@ import SokoDraw
 import "../Sokoban1/SokoBoard.hs" as SokoBoard
 import Fran
 import Array
-import Foreign(Word(..))
+import Win32(vK_ESCAPE)
 import List(transpose)
 
 -----------------------------------------------------------------
@@ -22,7 +22,7 @@ main :: () -> IO ()
 main _ = disp $ makeAll levels
 
 demo :: (User -> (ImageB, BoolB)) -> IO ()
-demo level = disp $ fst . level `untilF` \ u -> keyPress (Word 27) u -=>
+demo level = disp $ fst . level `untilF` \ u -> keyPress vK_ESCAPE u -=>
              const (stringIm "C H E A T E R !")
 
 levels = [level0, level1, level2, level3, level4, level5, level6]
@@ -31,9 +31,9 @@ makeAll :: [User -> (ImageB, BoolB)] -> User -> ImageB
 makeAll []     = const (stringIm "T H E    E N D")
 makeAll (l:ls) = \ u ->
   stringIm "Loading  next  level  ..." `untilB`
-  timeIs (startTime u + 1) -=>
+  timeIs (startTime u ) -=>
   let (imgB, finalB) = l u in imgB `untilB`
-  (keyPress (Word 27) u .|.		-- ESC to next level
+  (keyPress vK_ESCAPE u .|.		-- ESC to next level
   predicate finalB u) `afterE_` u ==> makeAll ls
 
 demo' :: [String] -> (User -> Event Direction) -> User -> (ImageB, BoolB)

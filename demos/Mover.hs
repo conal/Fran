@@ -1,7 +1,13 @@
 --------------------------------------------------------------------------
 -- Some experiments in bug's-eye view animation
+-- 
+-- Try it out.  For instance, try randPicker, (mousePicker lbp) or
+-- (mousePicker updateDone), or (randThenMousePicker updateDone) as the
+-- first argument and inhabs1, inhabs2, or inhabs3 as the second.
+-- Choosing inhabs2 gives the fifteen puzzle, while inhabs3 is an
+-- interesting variation.
 --
--- Last modified Thu Sep 25 10:42:37 1997 by conal
+-- Last modified Tue Oct 07 08:56:43 1997 by conal
 --------------------------------------------------------------------------
 
 
@@ -20,12 +26,12 @@ import Trace -- while debugging
 -- locations and it yields just an incremental moved (dx,dy) event.
 --------------------------------------------------------------------------
 
--- A four-neighbor environment of possible values.
-data MoverEnv  = MoverEnv { envWest, envEast, envNorth, envSouth
-                            :: Maybe Inhabitant }
+-- A four-neighbor environment of booleans saying whether neighboring
+-- spots are occupied
+data MoverEnv  = MoverEnv { envWest, envEast, envNorth, envSouth :: Bool }
 type MoverEnvB = Behavior MoverEnv
 
-allFree = MoverEnv Nothing Nothing Nothing Nothing  -- for testing
+allFree = MoverEnv False False False False  -- for testing
 
 type MoveRule = MoverEnv -> LocMove
 
@@ -33,11 +39,11 @@ moveESWN, neverMove :: MoveRule
 
 -- Move into free neighbor space when asked.  Preferences: east, south,
 -- west, north (ESWN).
-moveESWN MoverEnv{ envEast  = Nothing } = moveEast
-moveESWN MoverEnv{ envSouth = Nothing } = moveSouth
-moveESWN MoverEnv{ envWest  = Nothing } = moveWest
-moveESWN MoverEnv{ envNorth = Nothing } = moveNorth
-moveESWN _                              = stayPut
+moveESWN MoverEnv{ envEast  = False } = moveEast
+moveESWN MoverEnv{ envSouth = False } = moveSouth
+moveESWN MoverEnv{ envWest  = False } = moveWest
+moveESWN MoverEnv{ envNorth = False } = moveNorth
+moveESWN _                            = stayPut
 
 -- Never move
 neverMove _ = stayPut
@@ -58,24 +64,16 @@ traceMoveRule str rule env =
 
 -- An inhabitant is defined by a start, a move rule, and an imaging
 -- function that is told whether it is in the right place.
-data Inhabitant = Mover Loc MoveRule (BoolB -> ImageB)
-                | Wall Loc
-
--- This guy represents a wall.  It really deserves another constructor in
--- the Inhabitant type.
-wallInhab :: Loc -> Inhabitant
-wallInhab = Wall
+data Inhabitant = Inhabitant Loc MoveRule (BoolB -> ImageB)
 
 -- Move an inhabitant when told to by moveE.  (Should this yield an event
 -- instead of a behavior?)
 moveInhabitant :: Event MoverEnv -> Inhabitant -> LocB
-moveInhabitant moveE (Mover startLoc moveRule _) =
+moveInhabitant moveE (Inhabitant startLoc moveRule _) =
   stepper startLoc (scanlE addLocMove startLoc (moveE ==> moveRule))
 
-moveInhabitant moveE (Wall loc) = error "Can't move a wall!"
-
 renderInhabitant :: LocB -> Inhabitant -> ImageB
-renderInhabitant locB inhab@(Mover startLoc _ imGen) =
+renderInhabitant locB inhab@(Inhabitant startLoc _ imGen) =
   move (locToMotionB locB)
        (imGen (locB ==* constantB startLoc))
 
@@ -92,35 +90,35 @@ renderInhabitant locB inhab@(Mover startLoc _ imGen) =
 --------------------------------------------------------------------------
 
 -- A grid-shaped world
-type World  = Array Loc (Maybe Inhabitant)
+type World  = Array Loc Bool
 type WorldB = Behavior  World
 
 emptyWorld :: World
-emptyWorld = array locRange [(loc,Nothing) | loc <- allLocs]
+emptyWorld = array locRange [(loc,False) | loc <- allLocs]
 
 -- Create a world from list of locations
-fillWorld :: [Inhabitant] -> [Loc] -> World
-fillWorld inhabs locs =
-  -- Fill up an array, with Nothing as the default, and (Just inhab) at
+fillWorld :: [Loc] -> World
+fillWorld locs =
+  -- Fill up an array, with False as the default, and (Just inhab) at
   -- loc if inhab is at loc.
-  accumArray (\ _ inhab -> Just inhab) Nothing locRange (zip locs inhabs)
+  accumArray (\ _ () -> True) False locRange (zip locs (repeat ()))
 
-fillWorldB :: [Inhabitant] -> [LocB] -> WorldB
-fillWorldB inhabs = liftL (fillWorld inhabs)
+fillWorldB :: [LocB] -> WorldB
+fillWorldB = liftL fillWorld
 
 -- Convert global information to local for consumption as needed by a move
 -- rule.
 neighbors :: World -> Loc -> MoverEnv
 neighbors world loc =
-  MoverEnv { envWest  = what moveWest
-           , envEast  = what moveEast
-           , envNorth = what moveNorth
-           , envSouth = what moveSouth
+  MoverEnv { envWest  = occupied moveWest
+           , envEast  = occupied moveEast
+           , envNorth = occupied moveNorth
+           , envSouth = occupied moveSouth
            }
  where
-   -- what :: LocMove -> Maybe a
-   what locMove | validLoc loc' = world!loc'
-                | otherwise     = Just (wallInhab loc')
+   occupied :: LocMove -> Bool
+   occupied locMove | validLoc loc' = world!loc'
+                    | otherwise     = True
     where
       loc' = addLocMove loc locMove
 
@@ -206,11 +204,7 @@ randThenMousePicker button =
 
 
 --------------------------------------------------------------------------
--- Try it out.  For instance, try randPicker, (mousePicker lbp) or
--- (mousePicker updateDone), or (randThenMousePicker updateDone) as the
--- first argument and inhabs1, inhabs2, or inhabs3 as the second.
--- Choosing inhabs2 gives the fifteen puzzle, while inhabs3 is an
--- interesting variation.
+--                                 Demo
 --------------------------------------------------------------------------
 
 demo :: UPicker -> [Inhabitant] -> IO ()
@@ -222,7 +216,7 @@ demo upicker inhabitants = disp imF
       -- Here use just the paths as their own obstacles, but we could add
       -- some other stuff as well.
       paths  = doMoves (upicker u) inhabitants worldB
-      worldB = fillWorldB inhabitants paths
+      worldB = fillWorldB paths
 
 
 
@@ -236,14 +230,14 @@ inhabIm a = \ atHomeB -> withColor (condB atHomeB green red) aIm
  where
    aIm = stretch 2 (showIm a)
 
-inhab1 = Mover (0,0) neverMove (inhabIm 1)
-inhab2 = Mover (3,3) (alwaysMove (-1,-1)) (inhabIm 2)
-inhab3 = Mover (1,1) moveESWN (inhabIm 3)
-inhab4 = Mover (2,1) moveESWN (inhabIm 4)
+inhab1 = Inhabitant (0,0) neverMove (inhabIm 1)
+inhab2 = Inhabitant (3,3) (alwaysMove (-1,-1)) (inhabIm 2)
+inhab3 = Inhabitant (1,1) moveESWN (inhabIm 3)
+inhab4 = Inhabitant (2,1) moveESWN (inhabIm 4)
 
 inhabs1 = [inhab1,inhab2,inhab3,inhab4]
 
-inhabs2 = [ Mover startLoc moveESWN (startIm startLoc)
+inhabs2 = [ Inhabitant startLoc moveESWN (startIm startLoc)
           | startLoc <- tail (range locRange)
           ]
  where
@@ -251,39 +245,8 @@ inhabs2 = [ Mover startLoc moveESWN (startIm startLoc)
 
 inhabs3 = tail (tail inhabs2)
 
--- {-
-moverTest :: Inhabitant -> User -> ImageB
-moverTest inhab u = renderInhabitant loc inhab
- where
-   loc   = moveInhabitant moveE inhab
-   moveE = lbp u -=> allFree
-   -- moveE = alarmE (userStartTime u) 1 -=> allFree
-
 -- empty World
-worldTest0 = fillWorld [] []
--- Diagonally occupied World
---worldTest1 = fillWorld [ (i,i) | i <- [0 .. (cols `min` rows) - 1] ]
-
--- Tester for doMove
-doMoveTest inhab upicker world u = renderInhabitant loc inhab
- where
-   loc = doMove (upicker u) (constantB world) inhab
-{-
-   -- Move an Inhabitant around in a changing world
-   doMove :: Picker -> WorldB -> Inhabitant -> LocB
-   doMove picker worldB inhabitant = locB
-    where
-      locB = moveInhabitant envE inhabitant
-      envE = pickThis `snapshot_` neighborsB worldB locB
-             -- pickThis `snapshot_` (error "no neighborsB")
-      pickThis = whenSnap picker locB (==)
-
-   moveInhabitant moveE (Mover startLoc moveRule _) =
-     stepper startLoc (scanlE addLocMove startLoc (moveE ==> moveRule))
-
-   whenSnap e b pred = (e `snapshot` b `suchThat` uncurry pred) ==> fst
--}
--- -}
+worldTest0 = fillWorld []
 
 --------------------------------------------------------------------------
 --                                To do

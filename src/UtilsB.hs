@@ -2,7 +2,7 @@
 -- to make it easier to do some simple things. I'd like to make it so that
 -- kids can use this simple vocabulary.
 --
--- Last modified Thu Oct 02 11:17:44 1997
+-- Last modified Tue Oct 07 13:26:32 1997
 
 module UtilsB where
 
@@ -75,7 +75,7 @@ importBitmapWithSize fileName =
   book  = --trace "Making flip book" $
           flipBook surf w h 0 0 1 1
   (w,h) = --trace "Getting surface size" $
-          getDDSurfaceSize surf
+          ddSurfaceSize surf
   surf  = --trace "Making bitmap surface" $
           bitmapDDSurface fileName
 
@@ -122,8 +122,8 @@ viewStretch :: Vector2B -> User -> ImageB -> ImageB
 viewStretch size u =
   bigger ((wWidth  / iWidth ) `min` (wHeight / iHeight))
   where
-    (wWidth, wHeight) = pairBSplit (vector2XYCoords (viewSize u))
-    (iWidth, iHeight) = pairBSplit (vector2XYCoords size)
+    (wWidth, wHeight) = vector2XYCoords (viewSize u)
+    (iWidth, iHeight) = vector2XYCoords size
 
 
 -- Convert a user-based event to one that produces the next user.

@@ -25,7 +25,7 @@ IDirect3DRM  *g_pD3DRM = NULL;
 
 void DDHelpInit()
 { 
-    TRACE("DDHelpInit()\n");
+    TTRACE("DDHelpInit()\n");
 
     ddcheck (DirectDrawCreate(NULL,&g_pDDraw,NULL));
     // using DDSCL_NORMAL means we will run in a window, coexisting with GDI
@@ -56,7 +56,7 @@ void DDHelpInit()
     ddcheck (g_pDDraw->CreateSurface(&ddsd, &g_pScratchSurf, NULL));
 
     // Now DSound init's
-    // TRACE ("Doing DirectSoundCreate\n");
+    TTRACE ("Doing DirectSoundCreate\n");
     dscheck(DirectSoundCreate(0,&g_pDSound,0));
     // TRACE ("Did DirectSoundCreate\n");
     // Make up a invisible window, just so we can pass its handle
@@ -79,7 +79,7 @@ void DDHelpInit()
 
 void DDHelpFini()
 { 
-    TRACE("DDHelpFini()\n");
+    TTRACE("DDHelpFini()\n");
     RELEASEIF (g_pDSound);
     RELEASEIF (g_pD3DRM);
 
@@ -159,7 +159,7 @@ void clearDDSurface(IDirectDrawSurface *pSurface, COLORREF color)
 IDirectDrawSurface *
 newBitmapDDSurface (LPCSTR bmpName)
 {
-    TRACE("bitmapDDrawSurface(%s)\n", bmpName);
+    TTRACE("bitmapDDrawSurface(%s)\n", bmpName);
     IDirectDrawSurface *pSurface = DDLoadBitmap(g_pDDraw, bmpName, 0, 0);
     // Needs much more friendly error handling.
     // ASSERT (pSurface);
@@ -183,7 +183,7 @@ newWaveDSBuffer (char *wavName)
 IDirectDrawSurface *
 textDDSurface (LPCSTR string, COLORREF color)
 {
-    // TRACE("newTextDDSurface(%s)\n", string);
+    TTRACE("newTextDDSurface(%s)\n", string);
 
     SIZE size;
 
@@ -231,7 +231,7 @@ newMeshBuilder (char *fileName)
 {
     IDirect3DRMMeshBuilder *builder;
     d3check(g_pD3DRM->CreateMeshBuilder(&builder));
-    TRACE("Loading mesh builder from %s.\n", fileName);
+    TTRACE("Loading mesh builder from %s.\n", fileName);
     if (FAILED (builder->Load(fileName, NULL, D3DRMLOAD_FROMFILE, 
 			      NULL, NULL)))
         return NULL;
@@ -244,7 +244,7 @@ newMeshBuilder (char *fileName)
 HLight newHLight (HFrame parent, D3DRMLIGHTTYPE type)
 {
     HLight light;
-    // TRACE("Making new light.\n");
+    TTRACE("Making new light.\n");
     d3check(g_pD3DRM->CreateLightRGB(type,D3DVALUE(1), D3DVALUE(1),
                                      D3DVALUE(1), &light));
     d3check(parent->AddLight(light));
@@ -261,10 +261,26 @@ void HLightSetColor (HLight light, D3DCOLOR col)
 HFrame newHFrame (HFrame parent)
 {
     HFrame frame;
-    // TRACE("Making new frame.\n");
+    TTRACE("Making new frame.\n");
     d3check(g_pD3DRM->CreateFrame(parent, &frame));
     // TRACE("Made new frame.\n");
     return frame;
+}
+
+void deleteFrameContents (HFrame pFrame)
+{
+    TTRACE("deleteFrameContents\n");
+    IDirect3DRMFrameArray *pChildren;
+    ddcheck (pFrame->GetChildren(&pChildren));
+    int numChildren = pChildren->GetSize();
+    for (int i = 0 ; i < numChildren ; i++) {
+        HFrame pChild;
+        ddcheck(pChildren->GetElement(i,&pChild));
+        TTRACE("Deleting a child\n");
+        ddcheck(pFrame->DeleteChild(pChild));
+    }
+    pChildren->Release();
+    // Then similarly for visuals and lights.
 }
 
 HFrame newScene ()
@@ -272,7 +288,7 @@ HFrame newScene ()
 
 void HFrameAddMeshBuilder (HFrame parent, HMeshBuilder builder)
 {
-    // TRACE("Adding mesh builder to frame.\n");
+    TTRACE("Adding mesh builder to frame.\n");
     d3check(parent->AddVisual(builder));
     // TRACE("Added mesh builder to frame.\n");
     // Say to get the color from this frame.  Can I count on
@@ -399,26 +415,25 @@ RMRenderer::RMRenderer (HFrame sceneFrame, HFrame cameraFrame, double scale)
 {
     // The ddraw surface will space from -scale to scale in X and Y.
     TTRACE("Makeing Renderer.\n");
-    DWORD timeWas, timeIs;
+    //DWORD timeWas=timeGetTime(), timeIs;
     int trySize = (int) (2 * scale * g_screenPixelsPerLength);
-    timeWas = timeGetTime();
     TTRACE("Creating %dx%d surface...  ", trySize, trySize);
     m_surf =
         newDDrawSurface (trySize, trySize, RGB(0,0,0), DDSCAPS_3DDEVICE);
-    CKTIME;
+    //CKTIME;
 
-    TTRACE("Creating D3DRM device from surface...  ");
+    //TTRACE("Creating D3DRM device from surface...  ");
     d3check(g_pD3DRM->CreateDeviceFromSurface(NULL, g_pDDraw, m_surf,
                                               &m_dev));
     // Set quality to Gouraud
     d3check(m_dev->SetQuality(D3DRMRENDER_GOURAUD));
-    CKTIME;
+    //CKTIME;
 
     // Create the viewport.  The width and height may have been slightly
     // adjusted, so get them from the device.
     m_width  = m_dev->GetWidth();
     m_height = m_dev->GetHeight();
-    TTRACE("Creating viewport...  ");
+    //TTRACE("Creating viewport...  ");
     d3check(g_pD3DRM->CreateViewport(m_dev, cameraFrame, 0, 0,
                                      m_width, m_height, &m_view));
     // TTRACE("Setting back clipping plane.\n");
@@ -438,26 +453,26 @@ HDDSurface
 RMRenderer::Render ()
 {
     // The ddraw surface will space from -scale to scale in X and Y.
-    TTRACE("Clearing and rendering scene.\n");
-    DWORD timeWas=timeGetTime(), timeIs;
+    //TTRACE("Clearing and rendering scene.\n");
+    //DWORD timeWas=timeGetTime(), timeIs;
 
-    TTRACE("Doing view->Clear()...  ");
+    //TTRACE("Doing view->Clear()...  ");
     d3check(m_view->Clear());
-    CKTIME;
+    //CKTIME;
 
-    TTRACE("Doing view->Render()...  ");
+    //TTRACE("Doing view->Render()...  ");
     d3check(m_view->Render(m_sceneFrame));
-    CKTIME;
+    //CKTIME;
 
-    TTRACE("Making new surface and copying to it...  ");
+    //TTRACE("Making new surface and copying to it...  ");
     // Black background ???
     HDDSurface newSurf = newPlainDDrawSurface(m_width, m_height, RGB(0,0,0));
     d3check(newSurf->BltFast(0,0, m_surf, CRect(0,0, m_width, m_height),
                              DDBLTFAST_WAIT | DDBLTFAST_NOCOLORKEY));
-    CKTIME;
+    //CKTIME;
 
     // Release viewport and device.  Surface will get released when
     // replaced.
-    TTRACE("");
+    //TTRACE("");
     return newSurf;
 }

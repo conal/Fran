@@ -2,7 +2,7 @@
 -- 
 -- The "event algebra".
 -- 
--- Last modified Mon Sep 29 17:17:38 1997
+-- Last modified Tue Oct 07 11:53:40 1997
 --
 -- To do:
 
@@ -270,16 +270,16 @@ Event possOccs `afterE` bv =
    -- Pair up the event data, if any, with the behavior residual.
    -- This lazy pattern is necessary, so that the bv doesn't get "sampled"
    -- too soon, which is especially important if it involves the user.
-   -- ## But, it does create a space leak and later latency from
-   -- unevaluated bvAfter's, heads and tails.  The seq is to try to fix
-   -- that problem.  Is it enough, or should we force bvAfter?  (Doing so
-   -- requires (Eval bv).
-   loop ((te,mb) : possOccs') ~(bvAfter : bvAfters') =
+   -- But, it does create a space leak and later latency from
+   -- unevaluated bvAfter's, heads and tails.  The seq eliminates that
+   -- leak, by making sure that the bvAfters cons cell gets created very
+   -- soon.
+   loop ((te,mb) : possOccs') ~bvAfters@(bvAfter : bvAfters') =
      --trace "afterE\n" $
      -- The seq below is to help avoid the space leak.  Unfortunately, it
      -- then becomes too strict.  See seqD9 in Spritify.hs
      (te, map (`pair` bvAfter) mb) :
-     ({-bvAfters' `seq`-} loop possOccs' bvAfters')
+     (bvAfters `seq` loop possOccs' bvAfters')
 
 afterE_ :: GBehavior bv => Event a -> bv -> Event bv
 e `afterE_` b  = (e `afterE` b) ==> snd

@@ -39,12 +39,28 @@ data ImageB
 
 -- Primitives
 
-emptyImage	=  EmptyImage
-flipImage	=  FlipImage
-renderImage     =  RenderImage
-soundImage      =  SoundI          
-withColor	=  WithColor
-timeTransformI  =  TimeTransI
+-- The empty ImageB
+emptyImage :: ImageB
+emptyImage = EmptyImage
+
+-- Flipbook-based ImageB, given page # behavior
+flipImage :: SL.HFlipBook -> RealB -> ImageB
+flipImage = FlipImage
+
+-- renders to a DDSurface
+renderImage :: RenderIO -> ImageB
+renderImage = RenderImage
+
+-- Embed a sound
+soundImage :: SoundB -> ImageB
+soundImage = SoundI
+
+-- overlay
+over :: ImageB -> ImageB -> ImageB
+
+-- colored image
+withColor :: ColorB -> ImageB -> ImageB
+withColor = WithColor
 
 instance Transformable2B ImageB where (*%) = TransformI
 
@@ -88,11 +104,12 @@ syntheticImage :: (Maybe ColorB -> Transform2B -> SurfaceULB) -> ImageB
 syntheticImage f = RenderImage renderIO
  where
   renderIO mbColorB xfB t0 xt0 ts xts requestV replyV above = do
-    let surfaceULB          = f mbColorB xfB
-        (surf0,ulX0,ulY0):_ = surfaceULB `ats` [xt0]
-    hSimpleSprite <- SL.newSimpleSprite surf0 ulX0 ulY0 1 1 above
+    let surfaceULB = f mbColorB xfB
+        (surf0,ulX0,ulY0,motX0,motY0):_ = surfaceULB `ats` [xt0]
+    hSimpleSprite <- SL.newSimpleSprite
+                       surf0 ulX0 ulY0 motX0 motY0 1 1 above
     --putStrLn "Made new SimpleSprite"
-    let update ~(t:ts') ~((surf,ulX,ulY):surfaceULs') = do
+    let update ~(t:ts') ~((surf,ulX,ulY,motX,motY):surfaceULs') = do
           --putStrLn "updating simple sprite"
           continue <- takeMVar requestV
           if continue then do
@@ -101,7 +118,7 @@ syntheticImage f = RenderImage renderIO
             --putStrLn "setting surface"
 	    -- scale 1 1 for now and (ulX, ulY) is upper-left corner
 	    -- of the bounding box in Fran coord system
-	    SL.updateSimpleSprite hSimpleSprite t surf ulX ulY 1 1
+	    SL.updateSimpleSprite hSimpleSprite t surf ulX ulY motX motY 1 1
             --putStrLn "renderIO replying"
             putMVar replyV True
             update ts' surfaceULs'
@@ -162,8 +179,8 @@ WithColor c imb `afterTimesI` ts =
 
 -- utilities
 
+-- Overlay of list of ImageB's.  First one is on top
 overs :: [ImageB] -> ImageB
-
 overs = foldr over emptyImage
 
 -- circle
@@ -175,22 +192,49 @@ circleSurface mbColorB stretchB =
 circle :: ImageB
 circle = syntheticImage circleSurface
 
+-----------------------------------------------------------------
+-- Naming convection: the ones that are directly lifted are
+-- suffixed with a "B" and those that are more frequently used are
+-- without.
+-----------------------------------------------------------------
+
 -- poly: polygon, polyline, polyBezier
+
+polygonSurfaceB    :: Behavior [S.Point2] -> Maybe ColorB -> Transform2B
+		   -> SurfaceULB
+polylineSurfaceB   :: Behavior [S.Point2] -> Maybe ColorB -> Transform2B
+		   -> SurfaceULB
+polyBezierSurfaceB :: Behavior [S.Point2] -> Maybe ColorB -> Transform2B
+		   -> SurfaceULB
+
+polygonSurfaceB    = polySurface R.renderPolygon
+polylineSurfaceB   = polySurface R.renderPolyline
+polyBezierSurfaceB = polySurface R.renderPolyBezier
 
 polygonSurface    :: [Point2B] -> Maybe ColorB -> Transform2B -> SurfaceULB
 polylineSurface   :: [Point2B] -> Maybe ColorB -> Transform2B -> SurfaceULB
 polyBezierSurface :: [Point2B] -> Maybe ColorB -> Transform2B -> SurfaceULB
 
-polygonSurface    = polySurface R.renderPolygon
-polylineSurface   = polySurface R.renderPolyline
-polyBezierSurface = polySurface R.renderPolyBezier
+polygonSurface    pts = polySurface R.renderPolygon    (liftL id pts)
+polylineSurface   pts = polySurface R.renderPolyline   (liftL id pts)
+polyBezierSurface pts = polySurface R.renderPolyBezier (liftL id pts)
 
-polySurface :: ([S.Point2] -> S.Color -> S.Transform2 ->
-	        (SL.HDDSurface, RealVal, RealVal))
-	    -> [Point2B] -> Maybe ColorB -> Transform2B -> SurfaceULB
+polySurface :: ([S.Point2] -> S.Color -> S.Transform2 -> R.SurfaceUL)
+	    -> Behavior [S.Point2] -> Maybe ColorB -> Transform2B
+	    -> SurfaceULB
 polySurface renderF pts mbColorB stretchB =
-  lift3 renderF (liftL id pts) (fromMaybe defaultColor mbColorB) stretchB
+  lift3 renderF pts (fromMaybe defaultColor mbColorB) stretchB
 
+polygonB    :: Behavior [S.Point2] -> ImageB
+polylineB   :: Behavior [S.Point2] -> ImageB
+polyBezierB :: Behavior [S.Point2] -> ImageB
+
+-- These ones allow the number of vertices to change
+polygonB    pts = syntheticImage (polygonSurfaceB    pts)
+polylineB   pts = syntheticImage (polylineSurfaceB   pts)
+polyBezierB pts = syntheticImage (polyBezierSurfaceB pts)
+
+-- These ones are more convenient in the common case
 polygon    :: [Point2B] -> ImageB
 polyline   :: [Point2B] -> ImageB
 polyBezier :: [Point2B] -> ImageB
@@ -202,17 +246,29 @@ polyBezier pts = syntheticImage (polyBezierSurface pts)
 bezier :: Point2B -> Point2B -> Point2B -> Point2B -> ImageB
 bezier p1 p2 p3 p4 = polyBezier [p1,p2,p3,p4]
 
--- square
+-- square, regularPolygon, star
 
 square :: ImageB
 square = polygon $ map f [0 .. 3]
   where
-    f i = let theta = pi / 4.0 * (1.0 + 2.0 * (fromIntegral i))
-	  in  point2XY (cos theta) (sin theta)
+    f i = let theta = pi / 4 * (1 + 2 * fromIntegral i)
+	  in  point2Polar 1 theta
 
--- star
+-- A regular polygon with given number of vertices
+regularPolygon :: IntB -> ImageB
+regularPolygon vertices = star 1 vertices
 
--- star :: Behavior Int -> Behavior Int -> ImageB
+-- Star figure.  Arguments: skip and vertices.  For instance, (star 7 3)
+-- is a seven-pointed star connecting every third vertex of what would be
+-- a regular 7-gon.
+star :: IntB -> IntB -> ImageB
+star skip vertices = polygonB pts
+  where
+    pts = lift2 f vertices skip
+
+    f :: Int -> Int -> [S.Point2]
+    f v s = let theta = 2 * pi * fromInt s / fromInt v
+	    in  [ S.point2Polar 1 (theta * fromInt i) | i <- [0 .. v] ]
 
 -- line
 
@@ -235,12 +291,7 @@ textSurface textB mbColorB xfB =
 textImage :: TextB -> ImageB
 textImage textB = syntheticImage (textSurface textB)
 
--- Misc to go elsewhere
-
--- the RealVals are the x and y of the upperleft corner 
--- of bounding box
-
-type SurfaceULB = Behavior (SL.HDDSurface, RealVal, RealVal)
+type SurfaceULB = Behavior R.SurfaceUL
 
 -- pixelsPerLength
 

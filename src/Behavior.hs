@@ -1,7 +1,7 @@
 -- Reactive behaviors, represented using memoized functions from time
 -- streams to value streams.
 -- 
--- Last modified Thu Oct 02 10:59:59 1997
+-- Last modified Tue Oct 07 13:54:38 1997
 --
 -- Notes
 --
@@ -26,7 +26,7 @@ import BaseTypes
 import Event
 import Maybe (isJust)
 import MutVar
-import IOExtensions (unsafePerformIO)
+import Win32 (unsafePerformIO)
 import Trace
 
 infixr 8  ^*, ^^*
@@ -564,17 +564,36 @@ pairBSplit :: PairB a b -> (Behavior a, Behavior b)
 
 pairBSplit b = (fstB b, sndB b)
 
+-- triple formation/extraction
+
+type TripleB a b c = Behavior (a, b, c)
+
+tripleB  :: Behavior a -> Behavior b -> Behavior c -> TripleB a b c
+triple1B :: TripleB a b c -> Behavior a
+triple2B :: TripleB a b c -> Behavior b
+triple3B :: TripleB a b c -> Behavior c
+
+tripleB  = lift3 (\ a b c -> (a, b, c))
+triple1B = lift1 (\ (a, _, _) -> a)
+triple2B = lift1 (\ (_, b, _) -> b)
+triple3B = lift1 (\ (_, _, c) -> c)
+
+tripleBSplit :: TripleB a b c -> (Behavior a, Behavior b, Behavior c)
+tripleBSplit t = (triple1B t, triple2B t, triple3B t)
+
 -- List formation and extraction
 
 nilB  :: Behavior [a]
 consB :: Behavior a -> Behavior [a] -> Behavior [a]
 headB :: Behavior [a] -> Behavior a
 tailB :: Behavior [a] -> Behavior [a]
+(!!*) :: Behavior [a] -> IntB -> Behavior a
 
 nilB  = constantB []
 consB = lift2 (:)
 headB = lift1 head
 tailB = lift1 tail
+(!!*) = lift2 (!!)
 
 liftL :: ([a] -> b) -> ([Behavior a] -> Behavior b)
 liftL f bs = lift1 f (foldr consB nilB bs)

@@ -30,8 +30,8 @@ typedef HSpriteTree SpriteTreeChain;  // Okay if NULL
 EXT_API void deleteSpriteTree (HSpriteTree);
 
 EXT_CLASS(Sprite);
-EXT_API void setGoalUpperLeft(HSprite, double ulX, double ulY,
-                             SpriteTime goalTime);
+EXT_API void setGoalPos(HSprite, double posX, double posY,
+                        SpriteTime goalTime);
 EXT_API void setGoalScale(HSprite, double scaleX, double scaleY,
                           SpriteTime goalTime);
 EXT_API HSpriteTree spriteToSpriteTree(HSprite);
@@ -40,7 +40,7 @@ EXT_DECL_DATA int MinSpriteSize;
 EXT_CLASS(FlipSprite);
 
 EXT_API HFlipSprite newFlipSprite (HFlipBook,
-               double ulX0, double ulY0, 
+               double posX0, double posY0, 
                double scaleX0, double scaleY0, 
                double page0, SpriteTreeChain rest);
 EXT_API HSprite flipSpriteToSprite (HFlipSprite);
@@ -51,21 +51,28 @@ EXT_API void setGoalPage
 */
 EXT_API void updateFlipSprite (HFlipSprite,
                                SpriteTime t, 
-                               double ulX, double ulY, 
+                               double posX, double posY, 
                                double scaleX, double scaleY,
                                double page);
 
+// Simple sprites have a second translations.  (ulX,ulY) gives the
+// prescaled offset of the upper left corner, in pixels, relative to the
+// image's origin.  Unlike (posX,posY), the upper-left is not interpolated,
+// because it changes with the DDraw buffer.  Without this tweak, we were
+// getting annoying slipping around.
+
 EXT_CLASS(SimpleSprite);
-EXT_API HSimpleSprite newSimpleSprite (HDDSurface,
-		       double posX0, double posY0, 
-		       double scaleX0, double scaleY0, 
-		       SpriteTreeChain rest);
+EXT_API HSimpleSprite newSimpleSprite (
+    HDDSurface, Pixels ulX0, Pixels ulY0,
+    double posX0, double posY0, 
+    double scaleX0, double scaleY0, 
+    SpriteTreeChain rest);
 EXT_API HSprite simpleSpriteToSprite (HSimpleSprite);
 EXT_API void updateSimpleSprite (
     HSimpleSprite,
     SpriteTime t,
-    HDDSurface pSurface,
-    double ulX, double ulY, 
+    HDDSurface pSurface, Pixels ulX, Pixels ulY,
+    double posX, double posY, 
     double scaleX, double scaleY);
 
 EXT_CLASS(SoundSprite);
@@ -133,15 +140,15 @@ void paintAndFlip (SpriteTree*, DDrawEnv*, SpriteTime);
 
 class AFX_EXT_CLASS Sprite : public SpriteTree {
 public:
-    Sprite (double ulX0, double ulY0,
+    Sprite (double posX0, double posY0,
             double scaleX0, double scaleY0, 
             SpriteTreeChain rest)
      : SpriteTree(rest),
-       m_ulX(ulX0), m_ulY(ulY0), 
+       m_posX(posX0), m_posY(posY0), 
        m_scaleX(scaleX0), m_scaleY(scaleY0) { }
-    void SetGoalUpperLeft (double ulXVal, double ulYVal, SpriteTime goalTime) {
-        m_ulX.SetGoalValue(ulXVal, goalTime);
-        m_ulY.SetGoalValue(ulYVal, goalTime);
+    void SetGoalPos (double posXVal, double posYVal, SpriteTime goalTime) {
+        m_posX.SetGoalValue(posXVal, goalTime);
+        m_posY.SetGoalValue(posYVal, goalTime);
     }
     void SetGoalScale (double scaleXVal, double scaleYVal, SpriteTime goalTime) {
         m_scaleX.SetGoalValue(scaleXVal, goalTime);
@@ -152,7 +159,7 @@ protected:
     // protected on their own.
     virtual void Lock () { }
     virtual void Unlock () { }
-    LinearDouble m_ulX, m_ulY;
+    LinearDouble m_posX, m_posY;
     LinearDouble m_scaleX, m_scaleY;
 };
 
@@ -164,16 +171,21 @@ protected:
 // offset.
 class AFX_EXT_CLASS ImageSprite : public Sprite {
 public:
-    ImageSprite (double ulX0, double ulY0,
+    ImageSprite (Pixels ulX0,  Pixels ulY0,
+                 double posX0, double posY0,
                  double scaleX0, double scaleY0, 
                  SpriteTreeChain rest)
-	  : Sprite(ulX0, ulY0, scaleX0, scaleY0, rest) {}
+	  : Sprite(posX0, posY0, scaleX0, scaleY0, rest),
+            m_ulX(ulX0), m_ulY(ulY0) {}
 protected:
     void Paint (IDirectDrawSurface *pDest, SpriteTime t);
-    // Get a surface and rectangle for blitting.
+    // Get a surface and rectangle.
     virtual void GetSrc (SpriteTime t,
                          IDirectDrawSurface **pSrc,
                          CRect *pSrcRect) = 0;
+    // Offset in pixels of the sprite's upper left corner with respect to
+    // the sprite origin.
+    Pixels m_ulX, m_ulY;
 };
 
 
@@ -182,22 +194,25 @@ protected:
 class AFX_EXT_CLASS FlipSprite : public ImageSprite {
 public:
     FlipSprite (FlipBook *pFlipBook,
-                double ulX0, double ulY0, 
+                double posX0, double posY0, 
                 double scaleX0, double scaleY0, 
                 double page0,
                 SpriteTreeChain rest) :
-        ImageSprite(ulX0, ulY0, scaleX0, scaleY0, rest), 
+        ImageSprite(-pFlipBook->Width()/2, -pFlipBook->Height()/2,
+                    posX0, posY0,
+                    scaleX0, scaleY0, rest),
         m_pFlipBook(pFlipBook), m_page(page0) { }
     // phasing out
     void SetGoalPage (double pageVal, SpriteTime goalTime) {
         m_page.SetGoalValue(pageVal, goalTime); }
     void Update (SpriteTime t, 
-		 double ulX, double ulY, 
+		 double posX, double posY, 
 		 double scaleX, double scaleY,
                  double page);
     
 protected:
-    void GetSrc (SpriteTime t, IDirectDrawSurface **pSrc, CRect *pSrcRect);
+    void GetSrc (SpriteTime t, IDirectDrawSurface **pSrc,
+                 CRect *pSrcRect);
     FlipBook *m_pFlipBook;
     LinearDouble m_page;
 };    
@@ -208,17 +223,19 @@ protected:
 class AFX_EXT_CLASS SimpleSprite : public ImageSprite {
 public:
     SimpleSprite (IDirectDrawSurface *pSurface,
+                  Pixels ulX0,  Pixels ulY0,
 		  double posX0, double posY0, 
 		  double scaleX0, double scaleY0, 
 		  SpriteTreeChain rest);
     void Update (SpriteTime t, 
-		 IDirectDrawSurface *pSurface,
-		 double ulX, double ulY, 
+		 IDirectDrawSurface *pSurface, Pixels ulX, Pixels ulY,
+		 double posX, double posY, 
 		 double scaleX, double scaleY);
     void Render (SpriteTime t) ;
     ~SimpleSprite() { RELEASEIF(m_pSurface); }
 protected:
-    void GetSrc (SpriteTime t, IDirectDrawSurface **pSrc, CRect *pSrcRect);
+    void GetSrc (SpriteTime t, IDirectDrawSurface **pSrc,
+                 CRect *pSrcRect);
     void Lock   () { m_critSec.Lock()  ; }
     void Unlock () { m_critSec.Unlock(); }
 
