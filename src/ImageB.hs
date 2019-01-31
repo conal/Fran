@@ -18,7 +18,7 @@ import qualified RenderImage as R
 import SoundB
 import Maybe (fromMaybe)
 import Concurrent
-import Trace
+import IOExts (trace)
 
 infixl 6 `over`
 
@@ -322,3 +322,20 @@ textImage :: TextB -> ImageB
 textImage textB = syntheticImage (textSurface textB)
 
 type SurfaceULB = Behavior R.SurfaceUL
+
+
+-- Perhaps this should go elsewhere, but where?
+
+flipBookSize :: SL.HFlipBook -> S.Vector2
+flipBookSize book =
+  S.Vector2XY (fromInt (toInt wPix) / R.importPixelsPerLength)
+              (fromInt (toInt hPix) / R.importPixelsPerLength)
+ where
+   (wPix,hPix) = SL.flipBookSizePixels book
+   -- Note: the toInt is because Pixels == Int32
+
+
+-- Renderable class.  Phasing in.  To do: rename "renderGeometry" and "renderText"
+
+class Renderable a where
+  render :: a -> ImageB

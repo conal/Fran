@@ -13,7 +13,6 @@ import Win32 (HWND, HDC, DWORD, LONG, Word32, COLORREF, SIZE)
 %#include "errors.h"
 %#include "SpriteLib.h"
 
-
 -- Argument: how many screen pixels correspond to one length unit
 %fun OpenSpriteLib :: Double -> IO ()
 %fun CloseSpriteLib :: IO ()
@@ -209,9 +208,7 @@ type Pixels = LONG
 %fail { h == 0 } { ErrorString("newFlipBook") }
 %result (hFlipBook h)
 
--- %fun flipBookWidth :: HFlipBook -> Int
--- %fun flipBookHeight :: HFlipBook -> Int
-%fun flipBookSize :: HFlipBook -> SIZE
+%fun flipBookSizePixels :: HFlipBook -> SIZE
 %{ SIZE res1 = flipBookSize(arg1) %}
 %result (size res1)
 
@@ -343,8 +340,11 @@ class  AkoSpriteTree a  where
 
 -- GSL
 
-%fun wordToSpriteTree :: Word -> HSpriteTree
+%fun wordToSpriteTree :: Word32 -> HSpriteTree
 %{ res1 = arg1 %}
 
-instance AkoSpriteTree Word where
+instance AkoSpriteTree Word32 where
   toSpriteTree = wordToSpriteTree
+
+{-
+-}

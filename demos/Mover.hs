@@ -6,8 +6,6 @@
 -- first argument and inhabs1, inhabs2, or inhabs3 as the second.
 -- Choosing inhabs2 gives the fifteen puzzle, while inhabs3 is an
 -- interesting variation.
---
--- Last modified Fri Nov 14 15:36:44 1997 by conal
 --------------------------------------------------------------------------
 
 
@@ -17,9 +15,7 @@ import Fran
 import List
 import Array
 import Grid
-import RandomIO
-
-import Trace -- while debugging
+import Random
 
 --------------------------------------------------------------------------
 -- Move rules.  Each one only sees the contents of four neighboring
@@ -52,11 +48,6 @@ neverMove _ = stayPut
 alwaysMove :: LocMove -> MoveRule
 alwaysMove locMove _ = locMove          -- alwaysMove = const
 
-{-
-traceMoveRule :: String -> MoveRule -> MoveRule
-traceMoveRule str rule env =
-  traceShow ("Move rule: " ++ str ++ " " ++ show env ++ " == ") (rule env)
--}
 
 --------------------------------------------------------------------------
 --                             Inhabitants
@@ -161,19 +152,19 @@ alwaysPicker locMove dt u =
  uAlarm dt u -=> locMove
 
 -- Pick locations at random
-randPicker' u = randInt ==> toLoc
+randPicker' u = randInt ==> flip divMod rows
  where
-   randInt = occsE (zip [t0, t0+0.2 ..] (randoms (floor (t0 * 10))))
+   randInt = occsE (zip [t0, t0+0.2 ..] rands) ==> toInt
    t0      = userStartTime u
-   toLoc i = (i' `mod` cols, (i' `div` cols) `mod` rows)  where i' = abs i
+   rands   = random (0,cols*rows-1) (floor (t0 * 10))
 
 -- Smarter algorithm: follows random path, moving one square at a time.
 -- Once it chooses a moveable piece, it will keep on doing so.
 randPicker u =
   updateDone u `withElemE_` randLocPath (floor (userStartTime u * 10))
 
-randLocPath :: Int -> [Loc]
-randLocPath seed = path minLoc (map toLocMove (randoms seed))
+randLocPath :: Integer -> [Loc]
+randLocPath seed = path minLoc (map toLocMove (random (0,3) seed))
  where
    path loc locMoves = loc : more locMoves
     where
@@ -182,7 +173,7 @@ randLocPath seed = path minLoc (map toLocMove (randoms seed))
                                  | otherwise     = more locMoves'
        where
          loc' = addLocMove loc locMove
-   toLocMove i = case i `mod` 4 of
+   toLocMove i = case i of
                    0 -> ( 1, 0)
                    1 -> ( 0, 1)
                    2 -> (-1, 0)

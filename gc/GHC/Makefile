@@ -3,10 +3,11 @@
 ################################################################
 
 # This goes first to make it the default
-all		: HSpriteLib.o ../errors.obj
+all		: HSpriteLib.$(way_)o ../errors.obj
+default		: all
 
 SRCS		= HSpriteLib.gc
-HS		= $(addsuffix .hs, $(basename $(SRCS)))
+HS		= $(patsubst %.gc,%.hs,$(SRCS))
 
 FRAN = ../..
 include $(FRAN)/env.mk
@@ -40,15 +41,10 @@ CPP	= gcc -P -E -x c -traditional
 
 GHC_FLAGS	+= -H10M
 GHC_FLAGS	+= -cpp
-GHC_FLAGS	+= -fglasgow-exts
+GHC_FLAGS	+= -fglasgow-exts -fno-prune-tydecls
 GHC_FLAGS	+= -concurrent -optc-freg-struct-return
 #GHC_FLAGS	+= -keep-hc-file-too
 # GHC_FLAGS	+= -optCrts-Sstderr
-
-# This makes the OBM_ constants available
-GHC_FLAGS   	+= '-optc -DOEMRESOURCE'
-
-GHC_FLAGS	+= -i$(GCDIR)/win32ghc -I$(GCDIR)/win32ghc
 
 GHC_FLAGS	+= -I../../SpriteLib -I..
 GHC_FLAGS	+= -optc-Wp,-lang-c
@@ -72,9 +68,6 @@ GCPP_FLAGS	= -DTARGET_GHC
 
 # .PRECIOUS	: .o
 
-depends	:: $(HS)
-		 $(GHCDIR)/mkdependHS -- $(GHC_FLAGS) -- $(HS)
-
 %.a		: $(LIBOBJS)
 		$(RM) $@
 		ar clqs $@ $(LIBOBJS)
@@ -85,8 +78,6 @@ depends	:: $(HS)
 ################################################################
 
 .SUFFIXES	: .gc .hs
-
-gre: $(HS)
 
 %.hs		: %.gc
 		$(CPP) $(GCPP_FLAGS) $< | perl -pe 's#\\n#\n#g' >$*_cpp.gc
@@ -103,7 +94,9 @@ clean		:
 # End of Makefile
 ################################################################
 # DO NOT DELETE: Beginning of Haskell dependencies
-HSpriteLib.o : HSpriteLib.hs
-HSpriteLib.o : /Haskell/green-card/win32ghc/StdDIS.hi
-HSpriteLib.o : /Haskell/green-card/win32ghc/Win32.hi
+HSpriteLib.o HSpriteLib.pc_o : HSpriteLib.hs
+HSpriteLib.o : $(WIN32DIR)/StdDIS.hi
+HSpriteLib.pc_o : $(WIN32DIR)/StdDIS.pc_hi
+HSpriteLib.o : $(WIN32DIR)/Win32.hi
+HSpriteLib.pc_o : $(WIN32DIR)/Win32.pc_hi
 # DO NOT DELETE: End of Haskell dependencies

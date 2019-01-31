@@ -35,8 +35,7 @@ import SoundB
 import User
 import RenderImage (screenPixelsPerLength, importPixelsPerLength)
 import Concurrent
-import MutVar
-import Trace
+import IOExts
 import Maybe (isJust, fromMaybe)
 import HSpriteLib
 import ShowImageB
@@ -330,12 +329,12 @@ displayU' imF actionsFun = do
   t0 <- currentSpriteTime
   --putStrLn ("doing spritify for time " ++ show t0)
   (userEv, userActionsChan) <- newChannelEvent t0
-  -- Extract the time sequence.
+  -- Extract the time sequence.w
 
   let initMousePos = S.origin2
   -- initMousePos <- getCursorPos ...
 
-  initWinSize <- readVar initialViewSizeVar
+  initWinSize <- readIORef initialViewSizeVar
 
   let user   = makeUser False False initMousePos initWinSize
                         0.1 userEv
@@ -361,10 +360,10 @@ displayU' imF actionsFun = do
               t0 ts requestV replyV emptySpriteTreeChain
   --putStrLn "Spritify done"
 
-  tPrevVar <- newVar t0
+  tPrevVar <- newIORef t0
   let tick = do
         tNow <- currentSpriteTime
-        tPrev <- readVar tPrevVar
+        tPrev <- readIORef tPrevVar
         -- The benefit of the first choice, which distinguishes these
         -- two times, is that external event times then arrive
         -- monotonically.  On the other hand, this monotonicity is not
@@ -374,17 +373,17 @@ displayU' imF actionsFun = do
         let {tSample = tUpdate; tUpdate = tNow + updatePeriodGoal}
         --putStrLn ("tick " ++ show tSample)
         -- Add sample time to ts
-        putChan timeChan tSample
+        writeChan timeChan tSample
         -- Add the update event for tSample.  This will stop the event
         -- search done by doUpdateTrees below, which is only interested
         -- in events *before* tNow.
-        putChan userActionsChan (tSample, Just (UpdateDone (tSample - tPrev)))
+        writeChan userActionsChan (tSample, Just (UpdateDone (tSample - tPrev)))
         -- Request a round of updates from the sprite threads and event
         -- detector threads.
         putMVar requestV True
         -- Wait for them to finish one step
         _ <- takeMVar replyV
-        writeVar tPrevVar tSample
+        writeIORef tPrevVar tSample
   showSpriteTree chain tick userActionsChan
   -- Space leak experiment.  Hanging onto the user creates a big leak (of
   -- course), even if it ends up not getting used.  Even this "const ()"

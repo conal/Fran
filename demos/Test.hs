@@ -361,9 +361,107 @@ frolic u =
 
 -- A "self reactive" behavior.
 
-iRecReact u = withColor red (stretch x (donut0 u))
+iRecReact u = stretch x (donut0 u)
  where
   x = userTime u `untilB` predicate (x >=* 1) u -=> 1
+
+-- Mutually reactive.  Works
+iMut1 u = d x1 0.5 `over` d x2 (-0.5)
+ where
+  d x y = moveXY x y (donut0 u)
+  x1 = -1 + userTime u `untilB` predicate (x2 >=* 1) u -=> 1
+  x2 = -1 + userTime u `untilB` predicate (x1 >=* 1) u -=> 1
+
+-- Throw in integration.  Works
+iMut2 u = d x1 0.5 `over` d x2 (-0.5)
+ where
+  d x y = moveXY x y (donut0 u)
+  x1 = -1 + atRate   1  u `untilB` predicate (x2 <=* -1) u -=>  1
+  x2 =  1 + atRate (-1) u `untilB` predicate (x1 >=*  1) u -=> -1
+
+-- Throw in a snapshot.  Works
+iMut3 u = d x1 0.5 `over` d x2 (-0.5)
+ where
+  d x y = moveXY x y (donut0 u)
+  x1 = -1 + atRate   1  u `untilB`
+       predicate (x2 <=* -1) u `snapshot_` x1 ==> constantB 
+  x2 =  1 + atRate (-1) u `untilB`
+       predicate (x1 >=*  1) u `snapshot_` x2 ==> constantB 
+
+-- Factor.  Works
+iMut4 u = d x1 0.5 `over` d x2 (-0.5)
+ where
+  d x y = moveXY x y (donut0 u)
+  x1 = m (-1) 1 (x2 <=*)
+  x2 = m 1 (-1) (x1 >=*)
+  m x0 dx stop = x
+   where x = x0 + atRate dx u `untilB`
+              predicate (stop x0) u `snapshot_` x
+                                     ==>        constantB 
+
+-- Try with collisions.  Works, but doesn't contain velocity part of
+-- collision test.
+
+iMut5 u = ball r1 x1 red `over` ball r2 x2 blue
+ where
+   ball r x c = moveXY x 0 $ stretch r $ withColor c $ circle
+   x1 = linearBump (-1) 1 x2
+   x2 = linearBump 1 (-1) x1
+   linearBump x0 dx0 obst = x
+     where
+       x  = x0  + atRate dx u
+       dx = dx0 + sumE impulse
+       impulse = collide `snapshot_` dx ==> (* (-1.3))
+       collide = predicate (magnitude (x - obst) <* minDist) u
+   r1 = 0.1; r2 = 0.2
+   minDist = r1 + r2
+
+-- Add velocity part.  Hey!!  The "~" is crucial!
+iMut6 u = ball r1 x1 red `over` ball r2 x2 blue
+ where
+   ball r x c = moveXY x 0 $ stretch r $ withColor c $ circle
+   o1@(x1,_) = linearBump (-1,1) o2
+   o2@(x2,_) = linearBump (1,-1) o1
+   linearBump (x0, dx0) ~(x',dx') = (x,dx)
+     where
+       x  = x0  + atRate dx u
+       dx = dx0 + sumE impulse
+       relX  = x  -  x'
+       relX' = dx - dx'
+       impulse = collide `snapshot_` dx ==> (* (-1.9))
+       collide = predicate (magnitude relX <* minDist &&*
+                            dot relX' relX <* 0) u
+   r1 = 0.1; r2 = 0.2
+   minDist = r1 + r2
+
+-- ## Note: the dot product test is wrong.  We shouldn't be using just
+-- relX, but rather something involving minDist as well.  Maybe we need to
+-- use "derivative (magnitude relX) >* 0", which means they are moving
+-- apart. ##
+
+
+sumE :: Num a => Event a -> Behavior a
+sumE ev = stepper 0 (scanlE (+) 0 ev)
+
+-- Now let's throw in a reactive event, making the balls disappear when
+-- they hit.  Add a disappearance event.  This one blows the control
+-- stack :(.  I now understand what's going on here, but not how to fix
+-- it.  The culprit is untilB on events.
+
+iMut7 u = ball r1 o1 red `over` ball r2 o2 blue
+ where
+   ball r ~(x,die) c = moveXY x 0 $ stretch r $ withColor c $ circle
+                        `untilB` die -=> emptyImage
+   o1 = linearBoom (-1,1) o2
+   o2 = linearBoom (1,-1) o1
+   linearBoom (x0,dx0) ~(x',die') = (x,die)
+    where
+      x   = x0 + atRate dx0 u
+      die = predicate (magnitude (x-x') <* minDist) u
+             `untilB` die' -=> neverE
+   r1 = 0.1; r2 = 0.2
+   minDist = r1 + r2
+
 
 
 -- Works fine

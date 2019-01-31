@@ -119,9 +119,9 @@ main = displayU (showExamples 1)
 
 showExamples k u =
    addTitle k ((examples !! (k-1)) u)
-              `untilB` keyIn nextKeys u ==> showExamples (if k == len then k else k+1)
+              `untilB` (keyIn nextKeys u ==> showExamples (if k == len then k else k+1))
                        .|.
-                       keyIn prevKeys u ==> showExamples (if k == 1 then k else k-1)
+                       (keyIn prevKeys u ==> showExamples (if k == 1 then k else k-1))
  where  
   len = length examples
   nextKeys = [vK_SPACE,vK_RIGHT, charToVKey 'N']

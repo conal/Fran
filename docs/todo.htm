@@ -3,7 +3,7 @@
 <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1252">
 <META NAME="Generator" CONTENT="Microsoft Word 97">
 <TITLE>Fran Release To Do List</TITLE>
-<META NAME="Template" CONTENT="C:\PROGRAM FILES\MICROSOFT OFFICE\OFFICE\html.dot">
+<META NAME="Template" CONTENT="C:\Program Files\Microsoft Office\Office\html.dot">
 </HEAD>
 <BODY LINK="#0000ff" VLINK="#800080">
 
@@ -17,21 +17,13 @@
 </B></I></FONT><LI>The update rate of 3D examples with many <I>differently colored</I> objects decreases with time. In Tutorial, try <B>displayG (spiral3D ())</B>. </LI>
 <LI>GeometryB <B>untilB</B> doesn't remove the old geometry when it adds the new. I don't know what's going wrong. </LI>
 <LI>Text is not inverted when negatively scaled. </LI>
-<LI>Top-level behavior definitions (CAFs) create very nasty space leaks unless one uses <B>simpleSamplerB</B>, which defeats useful memoization and is non-declarative. Moreover, for some examples, e.g., spiral3D, there would have to be a lot of simpleSamplerB annotations.  Proposed solution: get the Hugs and GHC garbage collectors fixed to understand some kind of weak pointer notion, and so automatically clear out our caches when appropriate during GC's, as suggested in John Hughes's "Lazy Memo Functions" paper. </LI></UL>
+<LI>Top-level behavior definitions (CAFs) create very nasty space leaks unless one uses <B>simpleSamplerB</B>, which defeats useful memoization and is non-declarative. Moreover, for some examples, e.g., spiral3D, there would have to be a lot of simpleSamplerB annotations. Proposed solution: get the Hugs and GHC garbage collectors fixed to understand some kind of weak pointer notion, and so automatically clear out our caches when appropriate during GC's, as suggested in John Hughes's "Lazy Memo Functions" paper. </LI></UL>
 
 <B><I><FONT FACE="Arial,Arial"><P>To Do</P>
 
 <UL>
-</B></I></FONT><LI>I think there's a problem with using <B>afterE </B>on the result of <B>syntheticImage</B>.  For instance, <B>polygon</B> takes a list of point behaviors as arguments, and those point behaviors don't get aged, because their hidden inside of a partial application.<B> </LI>
-</B><li>I don't think the handling of time transformation is right yet.</li>
-<LI>Eliminate remaining Hugs/GHC inconsistencies. </LI>
-
-<UL>
-<LI>Unsafe pointer equality, for lazy memoization. </LI>
-<LI>An unknown number of Win32 greencard incompatibilities. </LI>
-<B><LI>fromDouble</B>: Hugs has it but GHC doesn't. This one is the worst, since it is a method, and hence cannot be isolated in Compatibility.hs. I'm currently using very obscure workaround involving literate modules and #ifdefs. </LI>
-<B><LI>double2Float</B>: GHC has it, but Hugs doesn't.</LI></UL>
-
+</B></I></FONT><LI>I think there's a problem with using <B>afterE </B>on the result of <B>syntheticImage</B>. For instance, <B>polygon</B> takes a list of point behaviors as arguments, and those point behaviors don't get aged, because their hidden inside of a partial application.<B> </LI>
+</B><LI>I don't think the handling of time transformation is right yet in some situations.</LI>
 <LI>Allow explicit background color selection for imported bitmaps and flipbooks. Currently always chooses upper-left pixel. </LI>
 <LI>More GeometryB: texturing, embedded sounds. </LI>
 <LI>Non-uniform scaling for 2D. Already supported by SpriteLib. Just needs factorization support in Transform2.hs. </LI>

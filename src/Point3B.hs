@@ -9,8 +9,7 @@ module Point3B (
 	--point3Polar, point3PolarCoords,
 	distance3,   distance3Squared,
 	(.+^#), (.-^#), (.-.#),
-	linearInterpolate3,
-	point3XYZCoords
+	linearInterpolate3
 	) where
 
 import qualified Point3 as P

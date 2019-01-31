@@ -1,5 +1,5 @@
 -- Ad hoc collection of definitions. These are here for introductory use,
--- to make it easier to do some simple things. I'd like to make it so that
+-- to make it easier to do some simple things.  I'd like to make it so that
 -- kids can use this simple vocabulary.
 
 module UtilsB where
@@ -87,8 +87,8 @@ slower x   = faster (1/x)
 
 importBitmapWithSize :: String -> (ImageB, RealVal, RealVal)
 importBitmapWithSize fileName =
-  (flipImage book 0, fromInt w / importPixelsPerLength
-                   , fromInt h / importPixelsPerLength)
+  (flipImage book 0, fromInt32 w / importPixelsPerLength
+                   , fromInt32 h / importPixelsPerLength)
  where
   book  = --trace "Making flip book" $
           flipBook surf w h 0 0 1 1
@@ -103,6 +103,33 @@ importBitmap fileName = imB
 
 importWave :: String -> SoundB
 importWave = bufferSound . waveDSBuffer
+
+-- Parse a DDSurface into a bunch of flip books.  The DDSurface is assumed
+-- to be a vertical concatenation of flip books, each of which is
+-- rectangular arrays of images.  These arrays are all presumed to fill up
+-- the whole DDSurface width.  The given list of pairs specifies the
+-- number of columns and rows of each flip book, starting from the given
+-- vertical pixel number (with the top pixel being zero).  If some or all
+-- of your surface does not fit this format, you can still use the
+-- flipBook construction function directly.
+
+parseFlipBooks :: [(Int, Int)] -> Pixels -> HDDSurface -> [HFlipBook]
+parseFlipBooks descrs top surf = loop descrs top
+ where
+  (surfWidth, _) = ddSurfaceSize surf
+  loop [] _  = []
+
+  loop (descr : descrs') top = book : loop descrs' top'
+    where
+      (book, top') = oneBook descr top
+
+      oneBook :: (Int, Int) -> Pixels -> (HFlipBook, Pixels)
+      oneBook (columns, rows) top =
+       (flipBook surf size size 0 top columns rows, bottom)
+       where
+         -- The fromInt's here are bogus but necessary for now :-(
+	 size = surfWidth `div` fromInt columns
+	 bottom = top + size * fromInt rows
 
 
 -- Continuous show, rendered into an image
@@ -194,3 +221,4 @@ displayG g   = display (renderGeometry g defaultCamera)
 
 displayGU :: (User -> GeometryB) -> IO ()
 displayGU gf = displayU (\ u -> renderGeometry (gf u) defaultCamera)
+

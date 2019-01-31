@@ -44,9 +44,9 @@ asColorRef :: Color -> Win32.COLORREF
 
 asColorRef (ColorRGB r g b) = Win32.rgb r' g' b'
  where
-  r' = floor (255*r) `mod` 256
-  g' = floor (255*g) `mod` 256
-  b' = floor (255*b) `mod` 256
+  r' = floor (255*r)
+  g' = floor (255*g)
+  b' = floor (255*b)
 
 -- Maybe move to AffineSpace class when we have type relations.
 -- Note that suffix "RGB", meaning interpolation of RGB coordinates

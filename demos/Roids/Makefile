@@ -2,7 +2,7 @@
 
 all	: roids.exe
 
-HS = Roids.hs
+HS = Roids.hs Media.hs Collide.hs
 
 FRAN = ../..
 include $(FRAN)/app.mk

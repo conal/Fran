@@ -12,7 +12,10 @@ module BaseTypes
        , DTime
        , minTime
        , pair
+       , fromInt32
        ) where
+
+import Int(int32ToInt, Int32)
 
 type RealVal  = Double
 type Length   = RealVal
@@ -33,3 +36,8 @@ type Scalar = Double
 
 -- For lifting and sections
 pair x y = (x,y)
+
+-- From Int32 to Int
+
+fromInt32 :: Num a => Int32 -> a
+fromInt32 = fromInt . int32ToInt

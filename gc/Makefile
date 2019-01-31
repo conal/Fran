@@ -4,15 +4,25 @@
 # For now, use the GHC-compiled version, green-card.exe.
 ################################################################
 
-# This goes first to make it the default
-default		: HSpriteLib.dll
+default ::
 
 FRAN = ..
 include $(FRAN)/env.mk
 
-HUGSDIR 	= C:/Haskell/hugs
+FRANSRC = $(FRAN)/src
+
+# This goes first to make it the default
+default		:: $(FRANSRC)/HSpriteLib.dll $(FRANSRC)/HSpriteLib.hs
+
+$(FRANSRC)/HSpriteLib.dll : HSpriteLib.dll
+	cp $< $@
+
+$(FRANSRC)/HSpriteLib.hs : HSpriteLib.hs
+	cp $< $@
+
+HUGSDIR 	= C:/hugs
 GC	    	+= --target Hugs
-GC_INCLUDES 	= --include-dir $(GREENCARD)/lib/hugs --include-dir C:/Haskell/green-card/win32
+GC_INCLUDES 	= --include-dir $(GCDIR)/lib/hugs --include-dir C:/GCLibs/win32
 
 .SUFFIXES	:
 .SUFFIXES	: .gc .dll .c .obj
@@ -22,10 +32,10 @@ INCLUDES	= -I$(HUGSDIR)/src -I../SpriteLib
 
 # Must manually delete the generated .c and .hs files, because
 # green-card.exe wants to append to them!!
-.gc.c	: 
-	rm -f $*.hs $*.c
+.gc.c	:
+	$(RM) $*.hs $*.c
 	$(GC) $(GC_INCLUDES) $*.gc
-	cp $*.hs $*.hs.hugs
+#	cp $*.hs $*.hs.hugs
 
 HSpriteLib.obj : HSpriteLib.c errors.h
 	cl /nologo $(INCLUDES) -c HSpriteLib.c
@@ -37,14 +47,10 @@ HSpriteLib.dll	: HSpriteLib.obj errors.obj ../SpriteLib/Debug/SpriteLib.lib
 	cl /nologo /LD $(INCLUDES) -o HSpriteLib.dll HSpriteLib.obj \
 	errors.obj ../SpriteLib/Debug/SpriteLib.lib
 
-
 clean	:
-	rm -f HSpriteLib.c HSpriteLib.hs
-	rm -f *.dll *.obj *.exp *.lib 
-	rm -f *.so *.o 
-	rm -f *.hi
-	rm -f *.hs
-
-################################################################
-# End of Makefile
-################################################################
+	$(RM) HSpriteLib.c HSpriteLib.hs
+	$(RM) *.dll *.obj *.exp *.lib
+	$(RM) $(FRANSRC)/HSpriteLib.dll $(FRANSRC)/HSpriteLib.hs
+#	$(RM) *.so *.o
+	$(RM) *.hi
+	$(RM) *.hs

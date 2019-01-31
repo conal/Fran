@@ -1,7 +1,7 @@
 -- Event combinators that involve events.  Separated out from Event.hs to
 -- avoid a mutual module recursion.
 --
--- Last modified Mon Nov 03 13:18:29 1997
+-- Last modified Thu Dec 04 17:13:42 1997
 
 module BehaviorEvent where
 
@@ -11,7 +11,7 @@ import User
 import Behavior
 import Maybe (isJust)
 
-import Trace
+import IOExts ( trace )
 
 infixl 3 `snapshot`, `snapshot_`, `whenE`
 
@@ -82,13 +82,14 @@ predicate :: BoolB -> User -> Event ()
 predicate b u = check `whenE` b
  where
   check = updateDone u -=> ()
-  -- an alternative: check at regular intervals
-  -- check = alarmE (startTime u) 0.1
+  -- An alternative: check at regular intervals.  But then we're not 
+  -- adapting to changes in update rate, which can lead to exponential
+  -- degradation of the update rate.
+  -- check = alarmE (userStartTime u) 0.05
 
 -------- Testing.  Use tstE from Event.hs
 
--- Another formulation of {Event}e1, only roughly equal, due to timeSince
--- approximation.
+-- Another formulation of {Event}e1.
 be1 t0 = alarmE t0 0.1 `snapshot_` timeSince t0
 
 be2 t0 = e2 t0 `whenE` wholeTime

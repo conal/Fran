@@ -2,10 +2,13 @@
 
                               Conal Elliott
 
-                  Last modified Fri Nov 14 14:46:54 1997
+                  Last modified Fri Dec 05 14:08:41 1997
 
 
 Introduction
+
+[These notes are were for GHC 2.06.  I think things are somewhat simpler
+with 2.09 and later versions, but I haven't yet tried it.]
 
 While Fran programs are convenient to develop under Hugs, they have much
 better performance under GHC.  At this point, GHC is also harder to

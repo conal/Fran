@@ -4,8 +4,9 @@
 default	::
 
 clean depends default ::
+	echo $(SHELL)
 	cd SpriteLib; make $@
-	cd gc/GHC; make $@
+	cd gc; cd GHC; make $@
 	cd src; make $@
 	cd demos; make $@
 

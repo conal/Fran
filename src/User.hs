@@ -17,7 +17,7 @@ import qualified StaticTypes as S
 import Vector2B
 import Point2B
 import Win32 (VKey)
-import Trace
+import IOExts ( trace )
 
 import Behavior
 import Event
@@ -64,8 +64,8 @@ makeUser lButton0 rButton0 pos0 size0 updatePeriod0 actions = u
     track v0 filt = stepper v0 (actions `filterE` filt)
 
     toggle :: Bool -> Event a -> Event b -> BoolB
-    toggle init go stop =  stepper init (   go   -=> True
-                                        .|. stop -=> False)
+    toggle init go stop =  stepper init (   (go   -=> True)
+                                        .|. (stop -=> False))
 
 
 untilBU :: User -> Event User -> User

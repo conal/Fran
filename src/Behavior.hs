@@ -23,9 +23,7 @@ module Behavior where
 import BaseTypes
 import Event
 import Maybe (isJust)
-import MutVar
-import Win32 (unsafePerformIO)
-import Trace
+import IOExts
 import Compatibility
 
 infixr 8  ^*, ^^*
@@ -43,21 +41,21 @@ type AftererB a = [Time] -> [BStruct a]
 
 -- Sampler cache
 type BCache   a = [([Time],[a])]
-type CacheVar a = MutVar (BCache a)
+type CacheVar a = IORef (BCache a)
 
 -- Whether to do caching.  Tweakable for checking space leaks
 doCaching :: Bool
 doCaching = True
 
 newCache :: IO (Maybe (CacheVar a))
-newCache | doCaching = map Just (newVar [])
+newCache | doCaching = map Just (newIORef [])
          | otherwise = return Nothing
 
 -- A behavior contains structure and possibly a sampler cache.  The
 -- structure is used for $*/constantB and $*/untilB optimizations.
 -- Together, these optimizations do a lot of constant folding.
 
-data Behavior a = Behavior (BStruct a) (Maybe (MutVar (BCache a)))
+data Behavior a = Behavior (BStruct a) (Maybe (IORef (BCache a)))
 
 data BStruct a
    = ConstantB a                         -- K
@@ -189,9 +187,9 @@ afterTimesCV cv (t:ts') = cv' : afterTimesCV cv' ts'
 updateCacheVar :: CacheVar a -> Time -> CacheVar a
 updateCacheVar cacheVar te = unsafePerformIO $ do
   --putStrLn ("updateCacheVar: " ++ show te)
-  cache <- readVar cacheVar
+  cache <- readIORef cacheVar
   let pairs = (map (uncurry trim) cache)
-  newVar pairs
+  newIORef pairs
  where
    -- Trim away all time/value pairs that occur at or before te
    trim []         _          = ([],[])
@@ -207,13 +205,13 @@ updateCacheVar cacheVar te = unsafePerformIO $ do
 cacheLookup :: SamplerB a -> CacheVar a -> [Time] -> [a]
 cacheLookup sampler cacheVar ts = unsafePerformIO $ do
   --putStr "cacheLookup "
-  allPairs <- readVar cacheVar
+  allPairs <- readIORef cacheVar
   -- Could probably use the "find" function in the List module, but for
   -- now I want to keep stats.
   let find [] n = do
         --report "miss" n
         let xs = sampler ts
-        writeVar cacheVar ((ts,xs) : allPairs)
+        writeIORef cacheVar ((ts,xs) : allPairs)
         return xs
 
       find ((tsFound,xsFound) : pairs') n =
@@ -566,11 +564,11 @@ isIEEEB          = lift1 isIEEE
 (^^*) = lift2 (^^)
 
 
+-- Boolean
 
--- The non-strictness of "if" may be a problem here, since there may be a
--- lot of catching up to do when a boolean behavior changes value.
-condB :: BoolB -> Behavior a -> Behavior a -> Behavior a
-condB = lift3 (\ a b c -> if a then b else c)
+trueB, falseB :: BoolB
+trueB  = constantB True
+falseB = constantB False
 
 notB :: BoolB -> BoolB
 notB = lift1 (not)
@@ -579,6 +577,12 @@ notB = lift1 (not)
 (&&*) = lift2 (&&) 
 (||*) :: BoolB -> BoolB -> BoolB
 (||*) = lift2 (||)
+
+-- The non-strictness of "if" may be a problem here, since there may be a
+-- lot of catching up to do when a boolean behavior changes value.
+condB :: BoolB -> Behavior a -> Behavior a -> Behavior a
+condB = lift3 (\ a b c -> if a then b else c)
+
 
 -- Pair formation and extraction
 
@@ -611,7 +615,7 @@ triple2B = lift1 (\ (_, b, _) -> b)
 triple3B = lift1 (\ (_, _, c) -> c)
 
 tripleBSplit :: TripleB a b c -> (Behavior a, Behavior b, Behavior c)
-tripleBSplit t = (triple1B t, triple2B t, triple3B t)
+tripleBSplit b = (triple1B b, triple2B b, triple3B b)
 
 -- List formation and extraction
 

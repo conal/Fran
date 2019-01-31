@@ -23,7 +23,7 @@ SokoDemo.o : ./Sokoban.hi
 SokoDemo.o : ./SokoDraw.hi
 SokoDemo.o : ./SokoBoard.hi
 SokoDemo.o : ../../src/Fran.hi
-SokoDemo.o : /Haskell/green-card/win32ghc/Win32.hi
+SokoDemo.o : $(WIN32DIR)/Win32.hi
 SokoDraw.o : SokoDraw.hs
 SokoDraw.o : ./SokoType.hi
 SokoDraw.o : ./Sokoban.hi
@@ -33,7 +33,7 @@ SokoType.o : SokoType.hs
 Sokoban.o : Sokoban.hs
 Sokoban.o : ../../src/Fran.hi
 Sokoban.o : ./SokoType.hi
-Sokoban.o : /Haskell/green-card/win32ghc/Win32.hi
+Sokoban.o : $(WIN32DIR)/Win32.hi
 SokoMain.o : SokoMain.hs
 SokoMain.o : ./SokoDemo.hi
 # DO NOT DELETE: End of Haskell dependencies

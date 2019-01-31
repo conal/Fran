@@ -13,10 +13,10 @@ import Vector2
 import qualified Font
 import Text
 import Win32 hiding (readFile, writeFile)
-import Win32 (unsafePerformIO)
+import IOExts (unsafePerformIO, trace)
+import Bits((.|.))
+import Int
 import HSpriteLib
-
-import Trace
 
 data SurfaceUL =
   SurfaceUL HDDSurface
@@ -58,9 +58,9 @@ renderText (TextT (Font.Font fam bold italic) str) color
    setBkColor hdc backColorREF	       >>
    setTextColor hdc (asColorRef color) >>
    -- setTextAlign hdc tA_TOP	       >>
-   setTextAlign hdc (tA_TOP `orb` tA_LEFT)    >>
+   setTextAlign hdc (tA_TOP .|. tA_LEFT)    >>
    -- setTextAlign hdc tA_CENTER	       >>
-   -- setTextAlign hdc (tA_BOTTOM `orb` tA_LEFT)	       >>
+   -- setTextAlign hdc (tA_BOTTOM .|. tA_LEFT)	       >>
    textOut hdc dulx (- duly) str) >>= \hSurface ->
  deleteFont hf                             >>
 
@@ -100,15 +100,15 @@ renderText (TextT (Font.Font fam bold italic) str) color
 
 -- Gives new size, and the position of the upper left w.r.t the upper left
 -- of the new box.
-rotateSize :: (Int, Int) -> Radians -> ((Int, Int), (Int, Int))
+rotateSize :: (Int32, Int32) -> Radians -> ((Int, Int), (Int32, Int32))
 
 rotateSize (width, height) rotAngle =
   -- Think of the bounding box as centered at the origin.  Rotate the
   -- upper right and lower right points, and see which stick out further
   -- horizontally and vertically.
   let
-      w2 = fromInt width / 2			-- half width and height
-      h2 = fromInt height / 2
+      w2 = fromInt32 width / 2			-- half width and height
+      h2 = fromInt32 height / 2
       ur = point2XY w2 h2		-- upper right and lower right
       lr = point2XY w2 (-h2)
       xf = rotate2 rotAngle
@@ -119,7 +119,7 @@ rotateSize (width, height) rotAngle =
 		 |  otherwise		 =  (abs lrx', abs ury')
       size' = (round (w2' * 2), round (h2' * 2))
       -- ul' is (-lrx, -lry), and new box's upper left is (-w2',h2')
-      dul = (round (-lrx' - (- w2')), round (-lry' - h2'))
+      dul = (intToInt32 $ round (-lrx' - (- w2')), intToInt32 $ round (-lry' - h2'))
   in
       --trace ("angle " ++  show rotAngle ++ ".  ur = " ++ show ur ++ ".  ur' = " ++ show (xf *% ur) ++ "\n") $
       (size', dul)
@@ -167,7 +167,7 @@ renderCircle color (Transform2 (Vector2XY x y) sc _) =
       pixWidth pixHeight (asColorRef black) (\ hdc ->
         -- ## WithColor seems pretty heavyweight to use here
         withColor hdc color $
-	ellipse hdc 0 0 pixWidth pixHeight)
+	ellipse hdc 0 0 (intToInt32 pixWidth) (intToInt32 pixHeight))
     >>= \ hDDSurface -> return (SurfaceUL hDDSurface (- radius) radius x y)
   where
     radius    = abs sc
@@ -262,9 +262,9 @@ withColor hdc color action = do
 toPixel :: RealVal -> Int
 toPixel r = round (r * screenPixelsPerLength)
 
-toPixelPoint2 :: Point2 -> (Int, Int)
+toPixelPoint2 :: Point2 -> (Int32, Int32)
 toPixelPoint2 pt = let (x, y) = point2XYCoords pt
-		   in  (toPixel x, toPixel y)
+		   in  (toPixel32 x, toPixel32 y)
 
 -----------------------------------------------------------------
 -- bitmap -> Fran Coordinate System -> screen
@@ -279,3 +279,8 @@ importPixelsPerLength = 75 :: RealVal
 -- faster display on video cards that don't do hardware scaling.
 
 screenPixelsPerLength = importPixelsPerLength :: RealVal
+
+-- new utilities
+
+toPixel32 :: RealVal -> Int32
+toPixel32 x = intToInt32 (toPixel x)

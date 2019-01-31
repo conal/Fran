@@ -9,22 +9,40 @@
 
 <P><!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN"></P>
 <H1 ALIGN="CENTER">News on Recent Fran Releases</H1>
-<H2>&nbsp;</H2>
+<H2><A HREF="http:Fran1.09.zip">1.09</A> Dec 5, 1997</H2>
+
+<UL>
+<LI>There's now a Fran user's manual, in UsersMan.htm</LI>
+<LI>Added Roids, a start at an Asteroids game.  Much still to be done.</LI>
+<LI>As of very recently, Fran works with GHC, thanks to tons of help from Sigbjorn Finne.  Performance is much better.  If you're feeling brave, see docs\HowToGHC.txt.</LI>
+<LI>Added charPress and charPressAny which return ASCII characters instead of the VKey</LI>
+<LI>Added setWinSize to set the window start-up size.</LI>
+<LI>Changed the behavior-level versions of functions like vector2XYCoords to return a pair of behaviors, rather than behavior of pairs.  Now you don't have to apply pairBSplit to the result.  The old versions are still around, but are given names like vector2XYCoordsB.</LI>
+<LI>Added partial support for Enum (e.g., [0, dt ..]).  For now, only works for contant behaviors.  I don't know how to do the more general case.</LI>
+<LI>Added Rect and RectB types.  Added ImageB crop function that uses them.  This turned out to be harder than I thought, but it worked out nicely.  You can do some very cool effects with it.  See crop1, .. crop6 in Test.hs.</LI>
+<LI>Generalized move, moveXY, etc to work on Transformable2B types</LI>
+<LI>Change binding strength of several infix event operators so they cascade without parentheses.  All of the following are now "infixl 3": ==&gt;, -=&gt; , `handleE`, `filterE` , `withElemE`, `withElemE_` , `withPrevE`, `withPrevE_` , `suchThat`, `suchThat_`, `snapshot`, `snapshot_`, `whenE`.</LI>
+<LI>Added sound pan function.  (Note that panning and volume adjustment also happen automatically with movement and scaling of images with embedded sounds.)</LI>
+<LI>Fixed bug with negative sprite scaling and off-screen motion.  Had to do manual clipping to avoid what seems to be a DDraw bug.</LI>
+<LI>Added several display functions.  Use displayU instead of disp.</LI>
+<LI>Misc: replaced smaller/bigger by stretch; introduced turn3, move3, stretch3; added spin3 and spiral3D in Tutorial.hs.</LI>
+<LI>Improved robustness.  If DirectDraw takes away a drawing surface, Fran restores it instead of crashing!  When the DirectSound device cannot be opened, keep trying, using abort/retry/ignore dialog.</LI></UL>
+
 <H2><A HREF="http:Fran1.06.zip">1.06</A> Oct 14, 1997</H2>
 
 <UL>
-<LI>src\Color.hs: Changed hue in HSL from degrees to radians, for consistency with angles.  Fixed <B>colorHSL</B> to map hue properly to [0,2*pi)</LI>
+<LI>src\Color.hs: Changed hue in HSL from degrees to radians, for consistency with angles. Fixed <B>colorHSL</B> to map hue properly to [0,2*pi) </LI>
 <LI>Added <B>solidImage :: ImageB</B> </LI>
 <LI>Some preparation for GHC compatibility (VectorSpace.lhs and Behavior.lhs) </LI>
-<LI>demos\tutorial.hs: added moreKids.hs, which is a crazy animation!  In Tutorial, try "<B>displayU moreKids</B>".  Click deliberately and watch carefully.</LI>
-<LI>Sokoban3: new artwork -- need Pentium 5 to run this fast :-)</LI>
-<LI>UtilsB: added <B>toggle</B>, <B>leftButton</B>, <B>rightButton</B>, <B>importX</B>. Renamed <B>nextUser</B> to <B>nextUser</B>_, and added a new <B>nextUser</B>.</LI>
+<LI>demos\tutorial.hs: added moreKids.hs, which is a crazy animation! In Tutorial, try "<B>displayU moreKids</B>". Click deliberately and watch carefully. </LI>
+<LI>Sokoban3: new artwork -- need Pentium 5 to run this fast :-) </LI>
+<LI>UtilsB: added <B>toggle</B>, <B>leftButton</B>, <B>rightButton</B>, <B>importX</B>. Renamed <B>nextUser</B> to <B>nextUser</B>_, and added a new <B>nextUser</B>. </LI>
 <LI>Many import changes for GHC compatibility</LI></UL>
 
 <H2><A HREF="http:Fran1.05.zip">1.05</A> Oct 7, 1997</H2>
 
 <UL>
-<LI>Added sound and 3D, and "flipbook" 2D animation, all using DirectX. The implementation incorporates a "temporal sprite engine" for very smooth 2D motion and scaling (if you have DirectDraw hardware acceleration). The 3D support is "preliminary", and could use a lot more work. (<B>untilB</B> doesn't work quite yet.)</LI>
+<LI>Added sound and 3D, and "flipbook" 2D animation, all using DirectX. The implementation incorporates a "temporal sprite engine" for very smooth 2D motion and scaling (if you have DirectDraw hardware acceleration). The 3D support is "preliminary", and could use a lot more work. (<B>untilB</B> doesn't work quite yet.) </LI>
 <LI>Behaviors are represented by memoized functions from time streams to value streams. </LI>
 <LI>Added <B>demos</B> directory. Check out <B>Tutorial.hs</B>, <B>Mover.hs</B>, and <B>Sokoban3\SokoDemo.hs</B>.</LI></UL>
 

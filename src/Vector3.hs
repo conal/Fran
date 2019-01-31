@@ -1,8 +1,4 @@
 -- 3D Vectors (static)
---
--- Last modified Tue Oct 21 14:19:09 1997
---
--- To do: check formula for vector3Spherical
 
 module Vector3 
         (
@@ -64,13 +60,14 @@ instance  VectorSpace Vector3  where
 
 instance  Num Vector3  where
   (+)    = (^+^)
-  (*)	 = error "bad operator on Vector3: *"
-  abs	 = error "bad operation on Vector3: abs"
-  signum = error "bad operation on Vector3: signum"
+  (*)	 = badOp "*"
+  abs	 = badOp "abs"
+  signum = badOp "signum"
   negate = negateVector
   -- (-) follows from negate and +
-  fromInteger = error "Can't interpret integers as Vector3"
+  fromInteger = badOp "fromInteger"
 
+badOp opName = error ("bad operator on Vector3: " ++ opName)
 
 instance Forceable Vector3 where
   force v@(Vector3XYZ x y z) = force x `seq` force y `seq` force z `seq` v

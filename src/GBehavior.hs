@@ -30,13 +30,6 @@ instance GBehavior (Behavior a) where
   afterTimes	= afterTimesB
   timeTransform = timeTransformB
 
--- I thought this would be useful.  However, the event should really be a
--- function of bv, which breaks the mold.
-instance (GBehavior bv, GBehavior bv') => GBehavior (bv -> bv') where
- untilB f e = \ bv -> f bv `untilB` e `afterE` bv ==> uncurry ($)
- afterTimes = error "afterTimes for GBehavior (->) not available"
- timeTransform = error "timeTransform for GBehavior (->) not available"
-
 instance (GBehavior bv1, GBehavior bv2) => GBehavior (bv1,bv2) where
  (bv1, bv2) `untilB` e    =
    (bv1 `untilB` e ==> fst, bv2 `untilB` e ==> snd)
@@ -53,6 +46,19 @@ instance (GBehavior bv1, GBehavior bv2, GBehavior bv3)
  (bv1, bv2, bv3) `afterTimes` ts =
    zip3 (bv1 `afterTimes` ts) (bv2 `afterTimes` ts) (bv3 `afterTimes` ts)
  timeTransform = error "timeTransform for GBehavior (,,) not available"
+
+-- I thought this would be useful.  However, the event should really be a
+-- function of bv, which breaks the mold.
+instance (GBehavior bv, GBehavior bv') => GBehavior (bv -> bv') where
+ untilB f e = \ bv -> f bv `untilB` e `afterE` bv ==> uncurry ($)
+ afterTimes = error "afterTimes for GBehavior (->) not available"
+ timeTransform = error "timeTransform for GBehavior (->) not available"
+
+-- Instead, use this guy.  Should there be one version for GBehavior a
+-- that does the afterE and one for non-GBehavior a that doesn't??
+untilF :: (GBehavior bv, GBehavior a)
+       => (a -> bv) -> (a -> Event (a -> bv)) -> (a -> bv)
+untilF f e = \ a -> f a `untilB` e a `afterE` a ==> uncurry ($)
 
 instance (GBehavior bv) => GBehavior (Maybe bv) where
  -- There can't be an untilB, since there's no way to change between
@@ -72,12 +78,6 @@ instance GBehavior (Event a) where
 -- anything from modules Behavior and Event and/BehaviorEvent that
 -- involves GBehavior and/or TimeTransformable
 ------------------------------------------------------------------
-
--- Instead, use this guy.  Should there be one version for GBehavior a
--- that does the afterE and one for non-GBehavior a that doesn't??
-untilF :: (GBehavior bv, GBehavior a)
-       => (a -> bv) -> (a -> Event (a -> bv)) -> (a -> bv)
-untilF f e = \ a -> f a `untilB` e a `afterE` a ==> uncurry ($)
 
 afterE :: GBehavior bv => Event a -> bv -> Event (a, bv)
 Event possOccs `afterE` bv =

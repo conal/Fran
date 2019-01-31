@@ -1,7 +1,5 @@
-{- RBMH 2D (static) Vectors
+-- Fran 2D (static) Vectors
 
- Last modified Wed Nov 05 16:25:19 1997
--}
 module Vector2 
         (
           Vector2(..)
@@ -53,13 +51,14 @@ instance  VectorSpace Vector2  where
 
 instance  Num Vector2  where
   (+)    = (^+^)
-  (*)	 = error "bad operator on Vector2: *"
-  abs	 = error "bad operation on Vector2: abs"
-  signum = error "bad operation on Vector2: signum"
+  (*)	 = badOp "*"
+  abs	 = badOp "abs"
+  signum = badOp "signum"
   negate = negateVector
   -- (-) follows from negate and +
-  fromInteger = error "Can't interpret integers as Vector2"
+  fromInteger = badOp "fromInteger"
 
+badOp opName = error ("bad operator on Vector2: " ++ opName)
 
 instance Forceable Vector2 where
   force v@(Vector2XY x y) = force x `seq` force y `seq` v

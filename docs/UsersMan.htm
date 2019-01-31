@@ -247,12 +247,12 @@ atRate&nbsp;&nbsp;&nbsp;::&nbsp;(VectorSpace&nbsp;v)&nbsp;=&gt;&nbsp;Behavior&nb
 <P>The <TT>User</TT> argument supplies the integration start time and a sampling clock which determines the step size used by the underlying numerical method.</P>
 <P>This example uses integration to express the motion of a falling ball: </P>
 <FONT FACE="Courier New" SIZE=2><P>example7 u = withColor red (moveXY 0 pos (stretch 0.1 circle))<BR>
-  where<BR>
-   pos = p0 + integral vel u<BR>
-   vel = v0 + integral acc u<BR>
-   acc = -0.3<BR>
-   p0  = -1<BR>
-   v0  = 1</P>
+where<BR>
+pos = p0 + integral vel u<BR>
+vel = v0 + integral acc u<BR>
+acc = -0.3<BR>
+p0 = -1<BR>
+v0 = 1</P>
 </FONT><P>Integrals may be mutually recursive.</P>
 <P><A NAME="sect5_4"></A></P>
 <H3>Snapshots</H3>
@@ -279,19 +279,19 @@ example8&nbsp;u&nbsp;=&nbsp;withColor&nbsp;red&nbsp;<BR>
 <BR>
 predicate&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;Behavior&nbsp;Bool&nbsp;-&gt;&nbsp;User&nbsp;-&gt;&nbsp;Event&nbsp;(User)<BR>
 <BR>
-</TT>The <TT>User</TT> argument is used as a sampling clock. Care must be taken since sampling may miss occurrences of the boolean behavior. (Some previous versions of Fran were able to detect even equality events, and we hope that future ones will.)  </P>
-<P>The following example is of a bouncing ball. Again, it defines the position as the integral of velocity, and uses the integral of acceleration in defining the velocity.  This time, however, we also sum up instanteous velocity changes, or "impulses", due to collision.  The trick is to snapshot the velocity at each collision, and multiply the snapshot by nearly negative two to reverse the instantaneous velocity with a small energy loss.<TT><BR>
+</TT>The <TT>User</TT> argument is used as a sampling clock. Care must be taken since sampling may miss occurrences of the boolean behavior. (Some previous versions of Fran were able to detect even equality events, and we hope that future ones will.) </P>
+<P>The following example is of a bouncing ball. Again, it defines the position as the integral of velocity, and uses the integral of acceleration in defining the velocity. This time, however, we also sum up instanteous velocity changes, or "impulses", due to collision. The trick is to snapshot the velocity at each collision, and multiply the snapshot by nearly negative two to reverse the instantaneous velocity with a small energy loss.<TT><BR>
 <BR>
 </TT><FONT FACE="Courier New" SIZE=2>example9 u = withColor red (moveXY 0 pos (stretch 0.1 circle)) <BR>
- where<BR>
-   pos     = p0 + integral vel u<BR>
-   vel     = v0 + integral acc u + sumE impulse<BR>
-   impulse = collide `snapshot_` vel ==&gt; (* (-1.9))<BR>
-   collide = predicate (pos &lt;=* (-1) &amp;&amp;* vel &lt;* 0) u<BR>
-   acc     = -1<BR>
-   p0      = -1<BR>
-   v0      = 2</P>
-</FONT><P>The <TT>&lt;=*</TT> operator is a behavioral version of <TT>&lt;=</TT>, as explained in the next section. The predicate checks that the position is less or equal to the floor height rather than simply checking for equality since sampling may miss the instant at which the position is exactly at the floor.  The test for negative velocity (downward motion) is so that a ball is not considered to be colliding when it is trying to come back up out of the floor.</P>
+where<BR>
+pos = p0 + integral vel u<BR>
+vel = v0 + integral acc u + sumE impulse<BR>
+impulse = collide `snapshot_` vel ==&gt; (* (-1.9))<BR>
+collide = predicate (pos &lt;=* (-1) &amp;&amp;* vel &lt;* 0) u<BR>
+acc = -1<BR>
+p0 = -1<BR>
+v0 = 2</P>
+</FONT><P>The <TT>&lt;=*</TT> operator is a behavioral version of <TT>&lt;=</TT>, as explained in the next section. The predicate checks that the position is less or equal to the floor height rather than simply checking for equality since sampling may miss the instant at which the position is exactly at the floor. The test for negative velocity (downward motion) is so that a ball is not considered to be colliding when it is trying to come back up out of the floor.</P>
 <P><A NAME="sect5_6"></A></P>
 <H3>Time Transformation</H3>
 <P>A <I>time transform</I> alters the time frame within a behavior. <TT><BR>
@@ -355,7 +355,7 @@ traceE&nbsp;::&nbsp;Show&nbsp;a&nbsp;=&gt;&nbsp;String&nbsp;-&gt;&nbsp;TraceEFla
 <BR>
 <A NAME="lifting"></A></TT>Note that the function <TT>nextUser_</TT> is used to define <TT>lbpU</TT> and r<TT>bpU</TT>, which, as we mentioned is not a part of Fran, but just defined in this tutorial.</P>
 <FONT FACE="Courier New" SIZE=2><P><A NAME="sect6"></A>lbpU = nextUser_ lbp <BR>
-rbpU = nextUser_ rbp  </P>
+rbpU = nextUser_ rbp </P>
 </FONT><P>&nbsp;</P>
 <H2>Lifted Behaviors</H2>
 <P>We say a type or function which has been raised from the domain of ordinary Haskell values to behaviors is "lifted". For example, a function such as <TT><BR>
@@ -602,13 +602,13 @@ uscale2&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;RealB&nbsp;-&gt;&nbsp;Transform2B&nbsp;&n
 instance&nbsp;Transformable2B&nbsp;Point2B<BR>
 instance&nbsp;Transformable2B&nbsp;Vector2B<BR>
 <BR>
- <BR>
-</TT><FONT FACE="Courier New" SIZE=2>identity3  :: Transform3B<BR>
+<BR>
+</TT><FONT FACE="Courier New" SIZE=2>identity3 :: Transform3B<BR>
 translate3 :: Vector3B -&gt; Transform3B<BR>
-rotate3    :: Vector3B -&gt; RealB -&gt; Transform3B<BR>
-scale3     :: Vector3B -&gt; Transform3B<BR>
-compose3   :: Transform3B -&gt; Transform3B -&gt; Transform3B<BR>
-uscale3    :: RealB -&gt; Transform3B</FONT><TT><BR>
+rotate3 :: Vector3B -&gt; RealB -&gt; Transform3B<BR>
+scale3 :: Vector3B -&gt; Transform3B<BR>
+compose3 :: Transform3B -&gt; Transform3B -&gt; Transform3B<BR>
+uscale3 :: RealB -&gt; Transform3B</FONT><TT><BR>
 <BR>
 class&nbsp;Tranformable3B&nbsp;a&nbsp;where<BR>
 &nbsp;&nbsp;&nbsp;(**%)&nbsp;&nbsp;::&nbsp;Transform3B&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;a&nbsp;&nbsp;&nbsp;<BR>
@@ -691,11 +691,20 @@ flipBook :: HDDSurface -&gt; Pixels -&gt; Pixels -&gt; Pixels -&gt; Pixels<BR>
          -&gt; Int -&gt; Int -&gt; HFlipBook</P>
 </FONT><P>A "surface" is made by the following function, which takes the name of a .bmp file:</P>
 <FONT FACE="Courier New" SIZE=2><P>bitmapDDSurface :: String -&gt; HDDSurface</P>
-</FONT><P>Note that static imported bitmaps are a special case of flip-book animation:</P>
+</FONT><P>Note that static imported bitmaps are a degenerate case of flip-book animation:</P>
 <FONT FACE="Courier New" SIZE=2><P>importBitmap fileName = flipImage book 0<BR>
  where<BR>
   book = flipBook surf w h 0 0 1 1</P>
-</FONT><P>These are some simple utilities for 2-D images. The <TT>Transformable2B </TT>context denotes images as well as 2-D points and vectors.</P>
+</FONT><P>It is sometimes convenient to put more than one flipbook into a bitmap file, so Fran provides a convenience function for parsing a DDSurface into a bunch of flip books.  The DDSurface is assumed to be a vertical concatenation of flip books, each of which is rectangular arrays of images.  These arrays are all presumed to fill up the whole DDSurface width.  The given list of pairs specifies the number of columns and rows of each flip book, starting from the given vertical pixel number (with the top pixel being zero).  If some or all of your surface does not fit this format, you can still use the flipBook construction function directly.</P>
+<FONT FACE="Courier New" SIZE=2><P>parseFlipBooks :: [(Int, Int)] -&gt; Pixels -&gt; HDDSurface -&gt; [HFlipBook]</P>
+</FONT><P>For example, one could parse up the BMP file in Media\donuts.bmp (which came from the Microsoft DirectX SDK) as follows:</P>
+<FONT FACE="Courier New" SIZE=2><P>[ donutBook, pyramidBook, sphereBook, cubeBook, shipBook, shipShieldBook ] =<BR>
+ parseFlipBooks [(5,6), (10,4), (20,2), (20,2), (10,4), (10,4)] 0<BR>
+                donutsSurface<BR>
+ where<BR>
+   donutsSurface = bitmapDDSurface "..\\..\\Media\\donuts.bmp"</P>
+</FONT><P>(We are assuming here that the current directory is something like Fran1\demos\Roids.)</P>
+<P>These are some simple utilities for 2-D images. The <TT>Transformable2B </TT>context denotes images as well as 2-D points and vectors.</P>
 <TT><P>--&nbsp;Star&nbsp;figure.&nbsp;&nbsp;Arguments:&nbsp;skip&nbsp;and&nbsp;vertices.&nbsp;&nbsp;<BR>
 star&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;IntB&nbsp;-&gt;&nbsp;IntB&nbsp;-&gt;&nbsp;ImageB<BR>
 regularPolygon&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;IntB&nbsp;-&gt;&nbsp;ImageB<BR>
@@ -714,7 +723,7 @@ stretch&nbsp;sc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbs
 turnLeft,&nbsp;turnRight&nbsp;::&nbsp;Transformable2B&nbsp;a&nbsp;=&gt;&nbsp;FractionB&nbsp;-&gt;&nbsp;a&nbsp;-&gt;&nbsp;a<BR>
 turnLeft&nbsp;frac&nbsp;im&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;rotate2&nbsp;(frac&nbsp;*&nbsp;pi)&nbsp;*%&nbsp;im<BR>
 turnRight&nbsp;frac&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;turnLeft&nbsp;(-frac)<BR>
- <BR>
+<BR>
 stringBIm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::&nbsp;StringB&nbsp;-&gt;&nbsp;ImageB<BR>
 stringIm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;String&nbsp; -&gt;&nbsp;ImageB<BR>
 stringBIm&nbsp;str&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;textImage&nbsp;(simpleText&nbsp;str)<BR>
@@ -746,13 +755,13 @@ instance&nbsp;&nbsp;GBehavior&nbsp;GeometryB&nbsp;&nbsp;where<BR>
 instance&nbsp;&nbsp;Transformable3B&nbsp;GeometryB&nbsp;&nbsp;where</P>
 </TT><P><A NAME="sect8_5"></A></P>
 <H3>Sound</H3>
-<FONT FACE="Courier New" SIZE=2><P>importWave :: String -&gt; SoundB       -- import from .wav file<BR>
+<FONT FACE="Courier New" SIZE=2><P>importWave :: String -&gt; SoundB -- import from .wav file<BR>
 silence :: SoundB<BR>
 mix :: SoundB -&gt; SoundB -&gt; SoundB<BR>
-volume :: RealB -&gt; SoundB -&gt; SoundB  -- multiply intensity<BR>
-pitch :: RealB -&gt; SoundB -&gt; SoundB   -- multiply pitch<BR>
-pan :: RealB -&gt; SoundB -&gt; SoundB     -- Pan, in dB.  May change</P>
-<P>instance  GBehavior SoundB</P>
+volume :: RealB -&gt; SoundB -&gt; SoundB -- multiply intensity<BR>
+pitch :: RealB -&gt; SoundB -&gt; SoundB -- multiply pitch<BR>
+pan :: RealB -&gt; SoundB -&gt; SoundB -- Pan, in dB. May change</P>
+<P>instance GBehavior SoundB</P>
 </FONT><P><A NAME="sect9"></A></P>
 <H2>Fixities</H2>
 <P>Here are all fixities defined in Fran: <TT><BR>
@@ -785,6 +794,5 @@ infixr&nbsp;7&nbsp;`dot`,&nbsp;*^,&nbsp;^/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n
 infixr&nbsp;7&nbsp;*%,&nbsp;`compose2`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;2D&nbsp;transforms<BR>
 infixr&nbsp;7&nbsp;**%,&nbsp;`compose3`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;3D&nbsp;transforms<BR>
 <BR>
-infixr&nbsp;8&nbsp;&nbsp;^*,&nbsp;^^*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;lifted&nbsp;^,&nbsp;^^<BR>
-</P></TT></BODY>
+infixr&nbsp;8&nbsp;&nbsp;^*,&nbsp;^^*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;lifted&nbsp;^,&nbsp;^^</P></TT></BODY>
 </HTML>

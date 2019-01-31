@@ -1,10 +1,10 @@
 -- Examples used in the Fran tutorial, which may be found at:
 -- 
---   http://www.research.microsoft.com/~conal/fran/tutorial.hs
+--   http://www.research.microsoft.com/~conal/fran/tutorial.htm
 -- 
 -- Instructions:
 -- 
---   After installing Hugs, double-click on the file tutorial.hs in the
+--   After installing Hugs, double-click on the file Tutorial.hs in the
 --   subdirectory lib\Fran\demos. The examples will begin running
 --   automatically. Press space, "n", or right-arrow to advance to the
 --   next animation, and "p" or left-arrow to back up to the previous
@@ -23,19 +23,25 @@ import Fran
 import Win32Key
 import qualified StaticTypes as S
 
--- Controls white vs black background.  Use True with pasteUp below.
-whiteBackground = False
+-- Controls white vs black background, etc.  Use True with pasteUp in
+-- ReplayTut.hs.  I couldn't find a satisfactory way to set the background
+-- color here, because display, displayU, etc are defined elsewhere.
+forArticle = False
 
-(backColor, textColor, kidBacker)
-   | whiteBackground = (white, black, "")
-   | otherwise       = (black, white, " black background")
+(textColor, importKid)
+   | forArticle = (black, importKidHiRes)
+   | otherwise  = (white, importKidLoRes)
 
 main = displayU allAnims
 
-importKid name =
-  --stretch 1.3 $
-  importBitmap ("../Media/" ++ name ++ " head" ++ kidBacker ++ ".bmp")
+importKidHiRes name =
+  -- The small ones came from shrinking the big ones by 35% (without
+  -- smoothing, which messes up color-keying).
+  stretch 0.35 $
+  importBitmap ("../Media/" ++ name ++ "Big.bmp")
 
+importKidLoRes name =
+  importBitmap ("../Media/" ++ name ++ "Small.bmp")
 
 leftRightCharlotte = moveXY wiggle 0 charlotte
 
@@ -117,6 +123,7 @@ orbitAndLater = orbit `over` later 1 orbit
    orbit = moveXY wiggle waggle jake
 
 jake = importKid "jake"
+--jake = importBitmap "e:/conal/Pictures/jakeC.bmp"
 
 orbitAndFaster =
  orbit `over` faster 2 orbit
@@ -143,12 +150,8 @@ delayAnims dt anims =
 -- This one will be better when background transparency works
 
 kids u =
-  delayAnims 0.5 (map (move (mouseMotion u))
-                      [ jake
-                      , stretch 0.7  becky
-                      , stretch 0.65 charlotte
-                      , stretch 0.6  pat
-                      ])
+  delayAnims 0.5 (map (move (mouseMotion u) . stretch 0.7)
+                      [jake, becky, charlotte, pat] )
 
 trailWords motion str =
   delayAnims 1 (map moveWord (words str))
@@ -333,8 +336,7 @@ spiral3D () = --slower 3 $
    motion = vector3Spherical 1.5 (10*time) time
    n      = 20
    bColor i =
-     colorHSL (constantB (2 * pi * fromInt i / fromInt n))
-              0.5 0.5
+     colorHSL (constantB (2 * pi * fromInt i / fromInt n)) 0.5 0.5
 
 spiralTurn () = turn3 zVector3 (pi*time) (unionGs $ map ball [1 .. n])
  where
@@ -422,7 +424,7 @@ anims = [ talkTitle ] ++
         map (\ g -> \ u -> renderGeometry g defaultCamera )
             [ potAndLight (), potAndLights ()
             , spiral3D (), spiralTurn () ]
-        
+
 
 -- Interleave the animations and titles.  Note that there's an extra
 -- animation at the start and an extra title at the end.
@@ -447,10 +449,14 @@ animsAndTitles = interleave anims animTitles
 
   later' i u = later (constantB (userStartTime u)) i
 
-allAnims u = allRec 0 u
+
+-- Step through some User->ImageB functions using keys
+stepThrough :: [User -> ImageB] -> (User -> ImageB)
+
+stepThrough imFs u = allRec 0 u
  where
   allRec i u =
-     (animsAndTitles!!i) u `untilB`
+     (imFs!!i) u `untilB`
        newIndex u `afterE` u ==> uncurry allRec
     where
       newIndex u = --plusMinus u `suchThat` validIndex
@@ -461,9 +467,11 @@ allAnims u = allRec 0 u
       keyIn chars u =
         keyPressAny u `suchThat` (`elem` chars)
 
-  lenAnims = length animsAndTitles
+  lenAnims = length imFs
   nextKeys = [vK_SPACE,vK_RIGHT, charToVKey 'N']
   prevKeys = [vK_LEFT, charToVKey 'P']
+
+allAnims = stepThrough animsAndTitles
 
 charToVKey :: Char -> VKey
 charToVKey = fromInt . fromEnum
@@ -510,67 +518,3 @@ orbitT = moveXY (0.3*wiggle) (0.3*waggle)
 titleAnimators = [ a . a' | a  <- simples, a'  <- simples ]
  where
   simples = [id, rockT, growT, orbitT]
-
-
---                         Pasting up for print
---
--- Make a n-by-m array of still images.  For instance,
---
---   pasteUp 3 3 2.2 0 2 charlottePatDance
---
---   pasteUp 3 3 2.2 0.5 2.0 (kids $ possOccsE in1)
-
-
-pasteUp :: Int -> Int -> Double -> Time -> Time -> ImageB -> (User -> ImageB)
-
-pasteUp cols rows cellSize tStart tEnd imB u =
-  stretch ((vSize-0.2) / totSize) (
-    overs [ moveXY (- width /2 + (fromInt col + 0.5) * size )
-                   (  height/2 - (fromInt row + 0.5) * size) $
-            cell col row
-          | col <- [0 .. cols-1]
-          , row <- [0 .. rows-1]
-          ] )
-  `over` withColor backColor solidImage
- where
-   width  = size * fromInt cols
-   height = size * fromInt rows
-   size   = constantB cellSize
-
-   cell col row =
-     imB' `timeTransform`
-      constantB (tStart + fromInt (cols * row + col) * cellDur)
-
-   
-   imB' = withColor textColor (polyline ps) `over`
-          crop (rectLLUR (ps!!2) (ps!!0)) imB
-    where
-      ps = [ point2Polar cellRadius (constantB (angle + pi/4))
-           | angle <- [0, pi/2 .. 2 * pi + 0.001]
-           ]
-
-   dur = tEnd - tStart
-
-   cellRadius = size * sqrt 2 / 2
-
-   cellDur = dur / fromInt (cols * rows)
-
-   vSize = w `min` h where (w,h) = vector2XYCoords (viewSize u)
-
-   totSize = width `min` height
-
-
--- For automated demos
-
-showCursor imF u =
-  -- We want the upper-left corner at the user's mouse position, so shift
-  -- left and up by half the cursor image size.
-  move (mouseMotion u + vector2XY dx dy) cursor `over` imF u
- where
-   dx = constantB (  cursorW / 2)
-   dy = constantB (- cursorH / 2)
-
--- Cursor, with width and height.  Hack: surrounded by a one-pixel black
--- border, in order to get black to be transparent.  Should instead allow
--- explicit back color.
-(cursor, cursorW, cursorH) = importBitmapWithSize "../Media/cursor.bmp"

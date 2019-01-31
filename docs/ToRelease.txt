@@ -1,13 +1,15 @@
                       Notes on making a Fran Release
 
-             Last modified Fri Nov 14 12:56:47 1997 by conal
+             Last modified Fri Dec 05 14:07:16 1997 by conal
 
 
-- In SpriteLib, check out SpriteLib.mak, open the project the Visual C++,
-  go to the Project menu and select "Export Makefile".  Then edit
-  SpriteLib.mak, find the line that says "copy Debug\SpriteLib.dll
-  %windir%", and add another "%" on the end, (why?!), and check it in.
-  (Enables automated build of SpriteLib, which is usually unnecessary.)
+- If any any source files have been added to SpriteLib, or project
+  settings changed, then in SpriteLib, check out SpriteLib.mak, open the
+  project the Visual C++, go to the Project menu and select "Export
+  Makefile".  Then edit SpriteLib.mak, find the line that says "copy
+  Debug\SpriteLib.dll %windir%", and add another "%" on the end, (why?!),
+  and check it in.  (Enables automated build of SpriteLib, which is
+  usually unnecessary.)
 
 - Update newFran.htm.  Change the version number, date and download link.
   Save.

@@ -8,10 +8,9 @@ module Event where
 import BaseTypes
 
 import Concurrent                           -- for EventChannel
--- import IOExtensions (unsafeInterleaveIO) -- for getChanContents
+import IOExts ( trace )
 
 import Maybe (isJust)
-import Trace
 
 infixr 1 `untilBE`
 
@@ -210,7 +209,7 @@ Event possOccs1 `untilBE` Event possOccs2 = Event (loop possOccs1 possOccs2)
                          (te2,Nothing) : loop pos1 pos2'
    loop [] possOccs2  =  --trace "Event untilB: no more LHS occurrences\n" $
                          possOccsOf (joinEOne (Event possOccs2))
-   loop possOccs1 []  = possOccs1	-- GSL
+   loop possOccs1 []  = possOccs1
 
 -- Like scanl for lists.  Warning! Do not use for GBehavior a, since it
 -- will not get "aged".  See accumB.  Note: maybe the accumulator should
@@ -259,13 +258,13 @@ type EventChannel a = Chan (PossOcc a)
 
 -- Make a new channel event, with an initial no-op.  This no-op lets the
 -- user be queried for time t0 even when there isn't yet a thread doing
--- more putChan's.
+-- more writeChan's.
 
 newChannelEvent :: Time -> IO (Event a, EventChannel a)
 newChannelEvent t0 =
   do ch <- newChan
      -- The following entry is in case the event gets queried at time t0.
-     putChan ch (t0, Nothing)
+     writeChan ch (t0, Nothing)
      contents <- getChanContents ch
      return (possOccsE contents, ch)
 
@@ -311,6 +310,9 @@ withRestE_ e = e `handleE` \ te x e' -> e'
 
 withTimeE :: Event a -> Event (a, Time)
 withTimeE e = e `handleE` \ te x e' -> (x,te)
+
+withTimeE_ :: Event a -> Event Time
+withTimeE_ e = e `handleE` \ te x e' -> te
 
 -- A synonym for withRestE_
 nextE :: Event a -> Event (Event a)
@@ -384,7 +386,7 @@ e2 t0 = alarmE t0 0.1
 e3 t0 = withTimeE (e2 t0) ==> subtract t0 . snd
 
 -- On a half or third boundary.
-e4 t0 = alarmE t0 (1/2) -=> "left" .|. alarmE t0 (1/3) -=> "right"
+e4 t0 = (alarmE t0 (1/2) -=> "left") .|. (alarmE t0 (1/3) -=> "right")
 
 -- Go off every 0.1 second for a while and then every 0.2 second
 e5 t0 = alarmE t0 0.1 `untilBE` timeIs (2+t0) -=> alarmE (2+t0) 0.2

@@ -9,15 +9,22 @@ OBJS	= $(addsuffix .o,  $(basename $(HS)))
 
 GHC_FLAGS_EXTRA	+= -optl-u -optl_NoRunnableThreadsHook
 
-LIBS		= -L$(FRAN)/src -L$(FRAN)/SpriteLib -L$(WIN32DIR) \
-		  -lFran -lWin32 -lSpriteLib
-GUILIBS		=-luser32 -lgdi32 -lwinspool -lcomdlg32 -lcomctl32 -ladvapi32
+ifneq "$(way)" ""
+LIBS		+= $(FRAN)/src/libFran$(_way).a $(WIN32DIR)/libWin32$(_way).a
+else
+LIBS		+= -L$(FRAN)/src -L$(WIN32DIR) -lFran -lWin32  
+endif
+LIBS		+= -L$(FRAN)/SpriteLib -lSpriteLib
+GUILIBS		+= -luser32 -lgdi32
 
 
 FRANLIBS = $(FRAN)/SpriteLib/libSpriteLib.a $(FRAN)/src/libFran.a 
 
 depends	::  	$(HS)
-		$(GHCDIR)/mkdependHS -- $(GHC_FLAGS) -- $(HS)
+		$(GHC) -M $(GHC_FLAGS) $(HS)
+
+# synonym
+depend  :: depends
 
 clean		::
 		$(RM) *.exe *.o *.hi *.ps *.hp
@@ -42,6 +49,12 @@ clean		::
 
 # Make a heap profile.  Don't worry if the .exe went bad.  (Without the
 # ||, make would abort.)
+
+# Define intermediates as `precious', i.e., don't let
+# make remove them once the chain of rules that needed them
+# have completed.
+.PRECIOUS: .hp .prof .time .tps .see .tsee
+
 %.hp : %.exe
 	$(basename $<) +RTS $(PHEAP) -F2s -hC || echo "Error, but continuing"
 
@@ -66,3 +79,4 @@ clean		::
 # Something I don't understand: if I make a .see file, something in the
 # make process removes the .hp and the .ps afterwards.  The "rm" statement
 # is even echoed by make.
+# [see .PRECIOUS statement above -- sof]

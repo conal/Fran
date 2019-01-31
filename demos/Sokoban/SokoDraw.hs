@@ -26,9 +26,12 @@ toImageB b (locBs, finalB) = (moveables `over` board, finalB)
     board     = mkBoardImageB b finalB
     moveables = mkMoveables locBs
 
+squareW, squareH :: RealVal
+(S.Vector2XY squareW squareH) = flipBookSize floorFlipBook
+
 xx, yy :: Int -> S.RealVal
-xx x = 0.315 * (fromIntegral x - (fromIntegral maxX / 2.0) + 0.5)
-yy y = 0.312 * (fromIntegral y - (fromIntegral maxY / 2.0) + 0.5)
+xx x = squareSize * (fromIntegral x - (fromIntegral maxX / 2.0) + 0.5)
+yy y = squareSize * (fromIntegral y - (fromIntegral maxY / 2.0) + 0.5)
 
 mkBoardImageB :: Board -> BoolB -> ImageB
 mkBoardImageB b finalB = overs $ [ f x y | x <- [0 .. (maxX - 1)],

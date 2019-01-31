@@ -12,11 +12,13 @@ import Vector2
 import VectorSpace
 import Point2
 import qualified Win32
-import MutVar
+import IOExts
 import Monad (when)
-import Concurrent (putChan)
+import Concurrent (writeChan)
 import Event (EventChannel, newChannelEvent)
 import User
+import Word(word32ToInt)
+import Int(int32ToInt, Int32)
 import RenderImage (importPixelsPerLength, screenPixelsPerLength)
 
 type UserChannel = EventChannel UserAction
@@ -43,7 +45,7 @@ makeWindow createIO resizeIO updateIO closeIO
         t <- currentSpriteTime
         --putStrLn ("User event " ++ show (t, userEvent))
         --putStr ("ue " ++ show t ++ " ")
-        putChan userChan (t, Just userEvent)
+        writeChan userChan (t, Just userEvent)
 	return 0
 
       -- Map lParam mouse point to a Point2
@@ -60,8 +62,8 @@ makeWindow createIO resizeIO updateIO closeIO
 		 yRelWinCenter = yRelWinUL - winHeight `div` 2
 	     in
 		 -- Throw in scaling, recalling that window positive == down
-		 point2XY (fromInt xRelWinCenter / screenPixelsPerLength)
-			  (fromInt yRelWinCenter / -screenPixelsPerLength) )
+		 point2XY (fromInt32 xRelWinCenter / screenPixelsPerLength)
+			  (fromInt32 yRelWinCenter / -screenPixelsPerLength) )
 
       fireButtonEvent hwnd lParam isLeft isDown =
 	do p <- posn hwnd lParam
@@ -74,9 +76,10 @@ makeWindow createIO resizeIO updateIO closeIO
 
       wndProc2 hwnd msg wParam lParam
 
-	| msg == Win32.wM_DESTROY =
-	  do -- Win32.set_hugsQuitFlag True -- GSL
-	     send Quit
+	| msg == Win32.wM_DESTROY = do
+          -- Kill the update timer
+	  Win32.killTimer (Just hwnd) 1 
+	  send Quit
 
 	| msg == Win32.wM_LBUTTONDOWN || msg == Win32.wM_LBUTTONDBLCLK =
 	  fireButtonEvent hwnd lParam True True
@@ -90,9 +93,9 @@ makeWindow createIO resizeIO updateIO closeIO
 	| msg == Win32.wM_RBUTTONUP =
 	  fireButtonEvent hwnd lParam False False
 
-	| msg == Win32.wM_MOUSEMOVE =
-	  do p <- posn hwnd lParam
-	     send (MouseMove p)
+	| msg == Win32.wM_MOUSEMOVE = do
+	  p <- posn hwnd lParam
+	  send (MouseMove p)
 
 	| msg == Win32.wM_KEYDOWN =
 	  fireKeyEvent wParam True
@@ -101,12 +104,12 @@ makeWindow createIO resizeIO updateIO closeIO
 	  fireKeyEvent wParam False
 
 	| msg == Win32.wM_CHAR =
-	  send (CharKey (toEnum (Win32.wordToInt wParam)))
+	  send (CharKey (toEnum (word32ToInt wParam)))
 
 	| msg == Win32.wM_SIZE = do
           let (hPix,wPix) = lParam `divMod` 65536
-          send (Resize (vector2XY (fromInt wPix / screenPixelsPerLength)
-                                  (fromInt hPix / screenPixelsPerLength)))
+          send (Resize (vector2XY (fromInt32 wPix / screenPixelsPerLength)
+                                  (fromInt32 hPix / screenPixelsPerLength)))
           resizeIO
           return 0
 
@@ -122,11 +125,10 @@ makeWindow createIO resizeIO updateIO closeIO
 	  return 0
 
 	| otherwise
-	= return (-1)  -- Win32.defWindowProc (Just hwnd) msg wParam lParam
+	= Win32.defWindowProc (Just hwnd) msg wParam lParam
 
       demoClass = Win32.mkClassName "Fran"
 
-      -- this is to replace the old Win32.eventLoop; GSL
       eventLoop :: Win32.HWND -> IO ()
       eventLoop hwnd =
         (do lpmsg <- Win32.getMessage (Just hwnd)
@@ -149,13 +151,13 @@ makeWindow createIO resizeIO updateIO closeIO
 	      Nothing,
 	      demoClass)
 
-	-- putStrLn "In makeWindow"
+	--putStrLn "In makeWindow"
 	w <- makeWindowNormal demoClass mainInstance wndProc2
 	createIO w
 
-	-- Set the millisecond timer.
+	-- Set the (millisecond-based) update timer.
 	Win32.setWinTimer w 1 (round (1000 * updateInterval))
-	-- putStrLn ("Update rate set for " ++ show updateInterval ++ " ms")
+	--putStrLn ("Update rate set for " ++ show updateInterval ++ " ms")
 
 	Win32.showWindow w Win32.sW_SHOWNORMAL
 	Win32.bringWindowToTop w
@@ -164,7 +166,7 @@ makeWindow createIO resizeIO updateIO closeIO
 
 
 makeWindowNormal demoClass mainInstance wndProc2 = do
-  (sizeX,sizeY) <- map vector2XYCoords (readVar initialViewSizeVar)
+  (sizeX,sizeY) <- map vector2XYCoords (readIORef initialViewSizeVar)
   let sizePixX = round (sizeX * screenPixelsPerLength)
       sizePixY = round (sizeY * screenPixelsPerLength)
   Win32.createWindow demoClass
@@ -186,7 +188,6 @@ makeWindowNormal demoClass mainInstance wndProc2 = do
   extraW = 8
   extraH = extraW + 20
 
-
 -- Get the width and height of a window's client area, in pixels.
 
 getViewSize :: Win32.HWND -> IO (Win32.LONG,Win32.LONG)
@@ -195,29 +196,15 @@ getViewSize hwnd =
  Win32.getClientRect hwnd >>= \ (l',t',r',b') ->
  return (r' - l', b' - t')
 
-
-
 -- Misc
 
-updateRefStrict :: Eval a => MutVar a -> (a -> a) -> IO ()
+updateRefStrict :: Eval a => IORef a -> (a -> a) -> IO ()
 
 updateRefStrict var f =
-  readVar var >>= \ val ->
+  readIORef var >>= \ val ->
   -- Force evaluation of val, so computations don't pile up
   val `seq`
-  writeVar var (f val)
-
-{- GSL use MutVar instead
-
-updateRefStrict :: Eval a => Ref a -> (a -> a) -> IO ()
-
-updateRefStrict ref f =
-  getRef ref >>= \ val ->
-  -- Force evaluation of val, so computations don't pile up
-  val `seq`
-  setRef ref (f val)
-
--}
+  writeIORef var (f val)
 
 updatePeriodGoal :: SpriteTime
 updatePeriodGoal = 0.1
@@ -229,30 +216,30 @@ updatePeriodGoal = 0.1
 showSpriteTree :: HSpriteTree -> IO () -> UserChannel -> IO ()
 
 showSpriteTree spriteTree updateIO userChan =
- do spriteEngineVar <- newVar (error "spriteEngineVar not set")
-    updateCountVar  <- newVar (0::Int)
-    frameCountRef   <- newVar (error "frameCountRef not set")
-    windowVar	    <- newVar (error "windowVar not set")
+ do spriteEngineVar <- newIORef (error "spriteEngineVar not set")
+    updateCountVar  <- newIORef (0::Int)
+    frameCountRef   <- newIORef (error "frameCountRef not set")
+    windowVar	    <- newIORef (error "windowVar not set")
     
     t0 <- currentSpriteTime
     makeWindow
        -- Create IO
        (\ w ->
-	 do writeVar windowVar w
+	 do writeIORef windowVar w
 	    eng <- newSpriteEngine w spriteTree
-	    writeVar spriteEngineVar eng)
+	    writeIORef spriteEngineVar eng)
        -- Resize IO.  Recreates the back buffer and clippers.
-       (do eng <- readVar spriteEngineVar
+       (do eng <- readIORef spriteEngineVar
 	   onResizeSpriteEngine eng)
        -- Update IO
        (do -- garbageCollect
            updateIO
 	   updateRefStrict updateCountVar (+1))
        -- Close IO
-       (do eng   <- readVar spriteEngineVar
+       (do eng   <- readIORef spriteEngineVar
 	   count <- deleteSpriteEngine eng
-	   writeVar frameCountRef count
-	   win   <- readVar windowVar
+	   writeIORef frameCountRef count
+	   win   <- readIORef windowVar
 	   Win32.destroyWindow win)
        -- update interval in seconds
        updatePeriodGoal
@@ -261,8 +248,8 @@ showSpriteTree spriteTree updateIO userChan =
     -- Clean up
     deleteSpriteTree spriteTree
     -- Show performance stats
-    updateCount <- readVar updateCountVar
-    frameCount  <- readVar frameCountRef
+    updateCount <- readIORef updateCountVar
+    frameCount  <- readIORef frameCountRef
     showStats t0 frameCount updateCount
     return ()
 
@@ -296,11 +283,12 @@ showStats t0 frameCount updateCount =
 -- Given in Fran units, not pixels.  For instance, to exactly fit a unit
 -- circle, use vector2XY 2 2.  Below, we include some extra space.
 
-initialViewSizeVar :: MutVar Vector2
-initialViewSizeVar = Win32.unsafePerformIO $ newVar $
+initialViewSizeVar :: IORef Vector2
+initialViewSizeVar = Win32.unsafePerformIO $ newIORef $
                      (1 + extra) *^ vector2XY 2 2
  where
    extra = 0.1                          -- breathing space
 
 setViewSize :: RealVal -> RealVal -> IO ()
-setViewSize w h = writeVar initialViewSizeVar (vector2XY w h)
+setViewSize w h = writeIORef initialViewSizeVar (vector2XY w h)
+

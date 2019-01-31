@@ -1,7 +1,5 @@
 -- Integration.  Handles systems of mutually recursive integral behaviors
 -- (ODEs).
--- 
--- Last modified Mon Nov 03 13:17:38 1997
 --
 -- To do:
 --
@@ -10,25 +8,38 @@
 --
 -- + If I do keep the time stream interface, then replace the User
 --   argument with a t0 argument.  Better yet would be switching to local
---   zero start times, and eliminating the t0 argument.
-
+--   zero start times, and eliminating the t0 argument.  The problem
+--   with removing the user argument is that I need it for determining
+--   step size
 
 module Integral where
 
-import BaseTypes (Time)
+import BaseTypes -- (Time)
 import qualified VectorSpace as VS
 import VectorSpaceB
 import Behavior
 import Event
+--import BehaviorEvent
+--import Force
+import GBehavior
 import BehaviorEvent
-import Force
 
-import Trace
-import User (User, userStartTime, updateDone)
+import IOExts ( trace )
+import User
 
+integral :: VS.VectorSpace v => Behavior v -> User -> Behavior v
 
-integral :: VS.VectorSpace v => 
-	    Behavior v -> User -> Behavior v
+integral b u = bInt
+ where
+   bInt     = switcher zeroVector newPiece
+   newPiece = sample `snapshot` pairB b bInt ==> extrapolate
+   sample   = withTimeE_ (userTimeIs 0 u .|. updateDone u -=> ())
+   extrapolate (t0,(dy0, y0)) =
+     constantB y0 ^+^ (time - constantB t0) *^ constantB dy0
+
+{-
+
+-- An older version.
 
 integral b u = integralFrom b (userStartTime u)
 
@@ -46,6 +57,7 @@ integrateList ts xs =
   ys where ys  = VS.zeroVector : zipWith (VS.^+^) ys (zipWith (VS.*^) dts xs)
            dts = zipWith (-) (tail ts) ts
 
+-}
 
 {-
 
