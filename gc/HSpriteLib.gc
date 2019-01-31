@@ -1,11 +1,12 @@
--- This is the brand new Haskell/C interface file for Fran using
--- Green Card 2.0
--- Gary Shu Ling
+-- GreenCard 2.0 Haskell/C interface file for Fran.   Gary Shu Ling
 
 module HSpriteLib where
 
 import StdDIS
-import Win32 (HWND, HDC, DWORD, LONG, Word32, COLORREF, SIZE)
+import Win32 (HWND, HDC, DWORD, LONG, Word32, COLORREF, SIZE
+             -- The rest are due to definitions that should be in Win32.
+             , WindowMessage, LPCTSTR, WPARAM
+             )
 
 -- Open and Close SpriteLib
 
@@ -190,6 +191,8 @@ type HRMRenderer = Word32
 --%fail { h == 0 } { ErrorString("newRMRenderer") }
 --%result (hRMRenderer h)
 
+%fun hRendererSetScale :: HRMRenderer -> Double -> IO ()
+
 %fun doRMRenderer :: HRMRenderer -> IO HDDSurface
 
 %#include "Sprite.h"
@@ -348,3 +351,36 @@ instance AkoSpriteTree Word32 where
 
 {-
 -}
+
+-- This stuff really belongs in Win32.  Remove from here when added there.
+
+%const WindowMessage [ WM_USER ]
+
+%fun Sleep :: DWORD -> IO ()
+
+-- For setting the title bar text.  But inconvenient to make the LPCTSTR
+%fun SetWindowText :: HWND -> LPCTSTR -> IO ()
+%code BOOL success = SetWindowText(arg1,arg2)
+%fail {!success} {ErrorString("SetWindowText")}
+
+-- More convenient version hiding the marshalling and freeing.  It appears
+-- to be safe to free the cstring after SetWindowText.  Needs a name
+-- convention.  Here I'm using "A" for "takes care of its own allocation".
+
+setWindowTextA :: HWND -> String -> IO ()
+setWindowTextA hwnd str = do
+  cstring <- marshall_string_ str
+  setWindowText hwnd cstring
+  free cstring
+
+-- WM_SIZE message wParam values
+%const WPARAM [ SIZE_RESTORED
+%             , SIZE_MINIMIZED
+%             , SIZE_MAXIMIZED
+%             , SIZE_MAXSHOW
+%             , SIZE_MAXHIDE
+%             ]
+
+-- I'd like GetWindowRect, which has an out param, but my GC expertise
+-- isn't quite up to it.  What I'm really after is the ability to change a
+-- window's size for setViewSize in ShowImageB.hs.

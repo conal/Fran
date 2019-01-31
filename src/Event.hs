@@ -7,8 +7,9 @@ module Event where
 
 import BaseTypes
 
-import Concurrent                           -- for EventChannel
-import IOExts ( trace )
+import Concurrent                       -- for EventChannel
+import IOExts (trace)
+import List   (find)
 
 import Maybe (isJust)
 
@@ -191,25 +192,29 @@ joinEOne (Event possOccs) = Event (loop possOccs)
 
 ------------- Event as generalized behavior -------------
 
-Event possOccs1 `untilBE` Event possOccs2 = Event (loop possOccs1 possOccs2)
+Event possOccs1 `untilBE` Event possOccs2 =
+  Event (loop possOccs1 possOccs2)
  where
+   loop pos1 pos2 = --trace "untilBE loop\n" $
+                    loop' pos1 pos2
    -- No more in first event.  Just use what e2 gives
-   loop pos1@(po1@(te1,mb1) : pos1')
-        pos2@(po2@(te2,mb2) : pos2') =
+   loop' pos1@(po1@(te1,mb1) : pos1')
+         pos2@(po2@(te2,mb2) : pos2') =
      if te1 <= te2 then
        -- Still old event.  Emit first possible occurrence.
        --trace (show te1 ++ " <= " ++ show te2 ++ "\n")$
        po1 : loop pos1' pos2
      else --trace (show te1 ++ " > " ++ show te2 ++ " and ")$
           case mb2 of
-            Just e2' ->  -- Real first occurrence.  Switch.
-                         --trace "occurrence\n"$
-                         possOccsOf e2'
-            Nothing  ->  --trace "non-occurrence\n"$
-                         (te2,Nothing) : loop pos1 pos2'
-   loop [] possOccs2  =  --trace "Event untilB: no more LHS occurrences\n" $
-                         possOccsOf (joinEOne (Event possOccs2))
-   loop possOccs1 []  = possOccs1
+            Just e2' -> -- Real first occurrence.  Switch.
+                        --trace "occurrence\n"$
+                        possOccsOf e2'
+            Nothing  -> --trace "non-occurrence\n"$
+                        (te2,Nothing) : loop pos1 pos2'
+   loop' [] possOccs2 = --trace "Event untilB: no more LHS occurrences\n" $
+                        possOccsOf (joinEOne (Event possOccs2))
+   loop' possOccs1 [] = possOccs1
+
 
 -- Like scanl for lists.  Warning! Do not use for GBehavior a, since it
 -- will not get "aged".  See accumB.  Note: maybe the accumulator should
@@ -229,6 +234,10 @@ scanlE f x0 (Event possOccs) = Event (loop x0 possOccs)
      (mb', x0') = case mb of
                     Nothing -> (Nothing, x0)
                     Just x  -> (Just x1, x1) where x1 = f x0 x
+
+-- accumE should probably be the primitive, since it's simpler.
+accumE :: a -> Event (a -> a) -> Event a
+accumE x0 change = scanlE (flip ($)) x0 change
 
 
 -- Warning: untested. ##
@@ -293,7 +302,7 @@ constE :: Time -> a -> Event a
 constE te x = timeIs te -=> x
 
 -- An alarm clock going off at a regular interval.
-alarmE :: Time -> Time -> Event ()
+alarmE :: Time -> DTime -> Event ()
 alarmE t0 dt = occsE (map (`pair` ()) [t0+dt, t0+2*dt ..])
 
 -- The event that never happens.  Identity for .|.
@@ -322,7 +331,11 @@ nextE = withRestE_
 -- Event handler simplifications.  ## Maybe rename "-=>" to "==>-", and in
 -- general use a trailing "-" in operator names just as "_" in alphabetic
 -- names.
+
+(==>) :: Event a -> (a -> b) -> Event b
 ev ==> f  =  ev `handleE` \ te x e' -> f x
+
+(-=>) :: Event a -> b -> Event b
 ev -=> x  =  ev ==> const x
 
 
@@ -334,6 +347,14 @@ ev `suchThat` pred =
 
 suchThat_ :: Event a -> (a -> Bool) -> Event ()
 ev `suchThat_` pred = ev `suchThat` pred -=> ()
+
+assocE :: Eq key => Event key -> [(key,a)] -> Event a
+assocE e pairs = e `filterE` assoc pairs
+ where
+   -- Isn't this somewhere standard??
+   --assoc :: Eq key => [(key,a)] -> key -> Maybe a
+   assoc pairs key = map snd (find ((== key) . fst) pairs)
+
 
 -------------- Debugging support -------------
 

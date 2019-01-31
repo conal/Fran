@@ -1,15 +1,21 @@
 -- Rectangular region behaviors
 
-module RectB where
+module RectB (RectB, rectFromCorners, rectFromCenterSize
+             , intersectRect
+             ) where
 
 import qualified Rect as R
 import Behavior
 import Point2B (Point2B)
+import Vector2B (Vector2B)
 
 type RectB = Behavior R.Rect
 
-rectLLUR :: Point2B -> Point2B -> RectB
-intersectRect :: RectB -> RectB -> RectB
+rectFromCorners    :: Point2B -> Point2B  -> RectB
+rectFromCenterSize :: Point2B -> Vector2B -> RectB
 
-rectLLUR      = lift2 R.rectLLUR
-intersectRect = lift2 R.intersectRect
+intersectRect   :: RectB -> RectB -> RectB
+
+rectFromCorners    = lift2 R.rectFromCorners
+rectFromCenterSize = lift2 R.rectFromCenterSize
+intersectRect      = lift2 R.intersectRect

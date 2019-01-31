@@ -105,9 +105,13 @@ Event possOccs `afterE` bv =
 afterE_ :: GBehavior bv => Event a -> bv -> Event bv
 e `afterE_` b  = e `afterE` b ==> snd
 
+-- Map a function over a switching behavior
+mapSwitcher :: GBehavior b => (a -> b) -> a -> Event a -> b
+mapSwitcher f x0 e = switcher (f x0) (e ==> f)
+
 -- A switcher for piecewise-constant behaviors
 stepper :: a -> Event a -> Behavior a
-stepper x0 e = switcher (constantB x0) (e ==> constantB)
+stepper x0 e = mapSwitcher constantB x0 e
 
 -- Assemble a behavior piecewise from an initial one and an event
 switcher :: GBehavior bv => bv -> Event bv -> bv
@@ -118,9 +122,9 @@ repeatE e = withRestE e ==> uncurry switcher
 
 -- Accumulate using f, but age the accumulator
 accumB :: GBehavior bv => (bv -> b -> bv) -> bv -> Event b -> bv
-accumB f soFar e =
+accumB op soFar e =
   soFar `untilB` withRestE e `afterE` soFar ==> \ ((x,e'),soFar') ->
-  accumB f (f soFar' x) e'
+  accumB op (soFar' `op` x) e'
 
 -- Here's a much simpler accumB definition, but it has the problem that it
 -- does't "age" soFar.  See the comment in scanlE.
@@ -129,3 +133,16 @@ accumB f soFar e =
 --
 -- Look for a better way to define accumB.
 
+-- A similar operation but for piecewise-constant behaviors:
+
+stepAccum :: a -> Event (a -> a) -> Behavior a
+stepAccum x0 change = stepper x0 (accumE x0 change)
+
+-- Here's an almost equivalent alternative.  The only difference comes
+-- from simultaneous pushes.  In the second version, the "later" of two
+-- simultaneous pushes will snapshot b at the time of both occurrences,
+-- when neither has taken effect.
+
+-- stepAccum x0 change = b
+--  where
+--    b = stepper x0 (change `snapshot` b ==> uncurry ($))

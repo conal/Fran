@@ -14,6 +14,7 @@ import Event
 import Vector2B
 import Vector3B
 import Point2B
+import Point3B
 import ColorB
 import TextB
 import Transform2B
@@ -34,6 +35,10 @@ move dp thing = translate2 dp *% thing
 
 moveXY :: Transformable2B bv => RealB -> RealB -> bv -> bv
 moveXY dx dy thing = move (vector2XY dx dy) thing
+
+moveTo :: Transformable2B bv => Point2B -> bv -> bv
+moveTo p = move (p .-. origin2)
+
 
 -- Resize
 
@@ -151,6 +156,8 @@ stringIm      = stringBIm . constantB
 atRate :: (Forceable v, S.VectorSpace v) => Behavior v -> User -> Behavior v
 atRate = integral
 
+ifB :: BoolB -> Behavior a -> Behavior a -> Behavior a
+ifB = condB
 
 
 -- Mouse motion vector, i.e., where the mouse is relative to the origin
@@ -184,10 +191,12 @@ nextUser_ f u = nextUser f u ==> snd
 
 -- Count the number of event occurrences
 countE :: Event a -> Behavior Int
-countE e = stepper 0 (scanlE (\ c _ -> c + 1) 0 e)
+countE e = stepAccum 0 (e -=> (+ 1))
+-- Or:
+--countE e = stepper 0 (scanlE (\ c _ -> c + 1) 0 e)
 
--- Oh: here's a much simpler formulation, inspired by John P:
--- countE e = withElemE_ e [1 ..]
+-- Oh: here's another formulation, inspired by John P:
+-- countE e = stepper 0 (withElemE_ e [1 ..])
 
 -- Import an X mesh file to make a geometry.  Currently presumes that the
 -- X file is a simple mesh.
@@ -201,6 +210,9 @@ move3 dp = (translate3 dp **%)
 moveXYZ :: RealB -> RealB -> RealB -> GeometryB -> GeometryB
 moveXYZ dx dy dz = move3 (vector3XYZ dx dy dz)
 
+moveTo3 :: Point3B -> GeometryB -> GeometryB
+moveTo3 p = move3 (p .-.# origin3)
+
 stretch3 :: RealB -> GeometryB -> GeometryB
 stretch3 sc = (uscale3 sc **%)
 
@@ -210,15 +222,29 @@ turn3 axis angle = (rotate3 axis angle **%)
 
 -- Display-related
 
+displayU :: (User -> ImageB) -> IO ()
+displayU imF = displayUs [imF]
+
 userDelay :: GBehavior bv => bv -> User -> bv
 userDelay bv u = later (constantB (userStartTime u)) bv
 
+displays :: [ImageB] -> IO ()
+displays = displayUs . map userDelay
+
 display :: ImageB -> IO ()
-display imB = displayU (userDelay imB)
+display imB = displays [imB]
+
+displayGs :: [GeometryB] -> IO ()
+displayGs  = displayGUs . map const
 
 displayG :: GeometryB -> IO ()
-displayG g   = display (renderGeometry g defaultCamera)
+displayG g   = displayGs [g]
+
+displayGUs :: [User -> GeometryB] -> IO ()
+displayGUs = displayUs . map imF
+ where
+   imF gf = \ u -> renderGeometry (gf u) defaultCamera
 
 displayGU :: (User -> GeometryB) -> IO ()
-displayGU gf = displayU (\ u -> renderGeometry (gf u) defaultCamera)
+displayGU gf = displayGUs [gf]
 

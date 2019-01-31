@@ -25,20 +25,20 @@ roidImage i = flipImage book (time * pageRate)
 
 -- Radius for collision detection
 roidRadius :: Floating a => Int -> a
-roidRadius i = fromDouble (map bookRadius roidBooks !! i)
+roidRadius i = fromRealFrac (map bookRadius roidBooks !! i)
 
 shipRadius :: Floating a => a
 shipRadius = bookRadius shipBook
 
 bookRadius :: Floating a => HFlipBook -> a
-bookRadius book = fromDouble (w/2)
+bookRadius book = fromRealFrac (w/2)
  where
    S.Vector2XY w h = flipBookSize book
 
--- The fromDouble prevents the division from being carried out at each use
+-- The fromRealFrac prevents the division from being carried out at each use
 shipPagesPerRadian :: Floating a => a
 shipPagesPerRadian =
-  fromDouble (fromInt (flipBookPages shipBook) / (2*pi))
+  fromRealFrac (fromInt (flipBookPages shipBook) / (2*pi))
 
 
 

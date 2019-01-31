@@ -1,6 +1,4 @@
 -- Various routines to create and draw into surfaces.
---
--- Last modified Mon Nov 03 16:28:44 1997
 
 module RenderImage where
 
@@ -31,8 +29,14 @@ renderText (TextT (Font.Font fam bold italic) str) color
  -- HSurfaces are immutable, and there are no visible side-effects.
  -- ## BUT memory management is crucially important.  BUGGY!!
  unsafePerformIO $
+ -- createFont interprets fontHeight==0 as a request to choose a default
+ -- size.  Instead create a tiny surface.
+ if fontHeight == 0 then do
+   hSurface <- (withNewHDDSurfaceHDC 1 1 0 $ \ hdc -> return ())
+   return (SurfaceUL hSurface 0 0 0 0)
+ else
  --putStrLn ("renderText " ++ show xf)>>
- createFont fontWidth 0
+ createFont fontHeight 0
 	    escapement			-- escapement
 	    escapement                  -- orientation
 	    weight
@@ -69,7 +73,7 @@ renderText (TextT (Font.Font fam bold italic) str) color
 	   ", color " ++ show color ++
 	   ", stretch " ++ show stretch ++
 	   ", angle " ++ show angle ++
-	   ", fontWidth " ++ show fontWidth ++
+	   ", fontHeight " ++ show fontHeight ++
 	   ", horizSize " ++ show horizSize ++
 	   ", surfSize " ++ show (surfWidth,surfHeight) ++
 	   ", dul " ++ show (dulx,duly) ++
@@ -84,8 +88,8 @@ renderText (TextT (Font.Font fam bold italic) str) color
   backColor | color == black =  white
 	    | otherwise      =  black
   backColorREF = asColorRef backColor
-  -- The "20" was empirically determined
-  fontWidth  = round (screenPixelsPerLength * stretch / 5.0)
+  -- The "/ 5" was empirically determined
+  fontHeight = round (screenPixelsPerLength * stretch / 5.0)
   escapement = round (angle * 1800/pi)	-- hundredths of a degree
   weight  | bold      = fW_BOLD
           | otherwise = fW_NORMAL
@@ -185,7 +189,18 @@ renderPolyBezier :: [Point2] -> Color -> Transform2 -> SurfaceUL
 
 renderPolyline   = renderPoly polyline
 renderPolygon    = renderPoly polygon
-renderPolyBezier = renderPoly polyBezier
+renderPolyBezier = renderPoly (renderIfLength bezierOK polyBezier)
+
+-- Only render if there's an appropriate number of points.
+renderIfLength pred render hdc points =
+ if pred (length points) then
+   render hdc points
+ else do
+   --putStrLn "Warning: wrong number of points"
+   return ()
+
+bezierOK nPoints = nPoints > 1 && nPoints `mod` 3 == 1
+
 
 renderPoly :: (HDC -> [POINT] -> IO ()) -> [Point2] -> Color ->
 	      Transform2 -> SurfaceUL
@@ -278,7 +293,7 @@ importPixelsPerLength = 75 :: RealVal
 -- cancel out in the absence of explicit scaling, which makes for much
 -- faster display on video cards that don't do hardware scaling.
 
-screenPixelsPerLength = importPixelsPerLength :: RealVal
+screenPixelsPerLength = {-1.5 *-} importPixelsPerLength :: RealVal
 
 -- new utilities
 

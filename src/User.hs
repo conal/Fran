@@ -16,7 +16,7 @@ import Event
 import qualified StaticTypes as S
 import Vector2B
 import Point2B
-import Win32 (VKey)
+import Win32 (VKey, WindowMessage, LPARAM, WPARAM, wM_COMMAND)
 import IOExts ( trace )
 
 import Behavior
@@ -120,8 +120,8 @@ filterButton :: Bool -> Bool  -> Event UserAction -> Event ()
 
 filterButton wantLeft wantDown u = u `suchThat` f -=> ()
  where
-  f (Button isLeft isDown _) = wantLeft == isLeft && wantDown == isDown
-  f _                        = False
+  f (Button isLeft isDown) = wantLeft == isLeft && wantDown == isDown
+  f _                      = False
 
 
 lbp, rbp, lbr, rbr :: User -> Event ()
@@ -180,11 +180,45 @@ updateDone u = actions u `filterE` f
   f (UpdateDone dur) = Just dur
   f _                = Nothing
 
+-- Application-specific actions.  An application can further filter these
+-- extAction events and make their data more convenient.
+
+extAction :: User -> Event (WindowMessage, WPARAM, LPARAM)
+extAction u = actions u `filterE` f
+  where
+    f (ExtAction msg wparam lparam) = Just (msg, wparam, lparam)
+    f _           = Nothing
+
+extActionIs :: WindowMessage -> User -> Event (WPARAM, LPARAM)
+extActionIs target u = extAction u `filterE` f
+  where
+    f (msg, wparam, lparam) | msg == target = Just (wparam, lparam)
+    f _           = Nothing
+
+{-
+
+-- wM_COMMAND, especially menus.  Something is wrong here: WM_COMMAND is
+-- not >= WM_USER, so an ExtAction will not be generated.  But this
+-- approach doesn't seem right anyway.
+
+wmCommand :: User -> Event (WPARAM, LPARAM)
+wmCommand = extActionIs wM_COMMAND
+
+menu :: User -> Event Int
+menu u = wmCommand u `filterE` f
+ where
+   f (wparam, lparam) | hiWord == 0 = Just (toInt loWord)
+    where
+      (hiWord,loWord) = lparam `divMod` 65536
+   f _                              = Nothing
+
+-}
 
 quit :: User -> Event ()
 quit u = actions u `filterE` f
  where
-  f Quit = Just ()
+  f Quit = -- trace "found quit\n" $
+           Just ()
   f _    = Nothing
 
 
@@ -200,7 +234,6 @@ data UserAction
   | Button
       Bool      -- left(True) or right(False)?
       Bool      -- down(True) or up(False)?  (dbl click == down)
-      S.Point2
   | MouseMove
       S.Point2
   | Key
@@ -208,6 +241,10 @@ data UserAction
       VKey      -- what key (its ASCII code - a first approx.)
   | CharKey
       Char      -- the ASCII key press (no up/down)
+  | ExtAction   -- for application-specific extensions
+      WindowMessage
+      WPARAM
+      LPARAM
   | UpdateDone
       DTime     -- duration
   | Quit

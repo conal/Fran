@@ -1,20 +1,18 @@
 -- Simple color type.
 --
--- Last modified Fri Oct 24 08:49:50 1997
+-- Last modified Wed Feb 04 13:47:06 1998
 
-module Color(
-	Color(..),
-	colorRGB, colorHSL,
-	colorRGBCoords, colorHSLCoords,
-	-- rgb, hsl,			-- old names, phase out
-	asColorRef,
-	interpolateColorRGB, interpolateColorHSL,
-	grey,
-	white, black, red, green, blue,
-	lightBlue, royalBlue, yellow, brown,
-	transformHSL, stronger, duller, darker, brighter, shade
-        , colorToD3DColor
-	) where
+module Color( Color(..)
+            , colorRGB, colorRGB256, colorHSL
+            , colorRGBCoords, colorHSLCoords
+            , asColorRef
+            , interpolateColorRGB, interpolateColorHSL
+            , grey
+            , white, black, red, green, blue
+            , lightBlue, royalBlue, yellow, brown, purple
+            , transformHSL, stronger, duller, darker, brighter, shade
+            , colorToD3DColor
+            ) where
 
 import BaseTypes
 import qualified Win32 (COLORREF, rgb)
@@ -35,6 +33,15 @@ colorHSLCoords (ColorRGB r g b) =
 
 colorRGB :: Fraction -> Fraction -> Fraction -> Color
 colorRGB = ColorRGB
+
+-- It's easy to find color defs with 256-scaled rgb params, e.g., in
+-- etc/rgb.txt in the GNU Emacs distribution.
+colorRGB256 :: Int -> Int -> Int -> Color
+colorRGB256 r g b = ColorRGB (f r) (f g) (f b)
+ where
+   f x = fromInt x / 256
+
+
 
 colorHSL :: Fraction -> Fraction -> Fraction -> Color
 colorHSL h s l = colorRGB r g b
@@ -82,7 +89,7 @@ royalBlue = ColorRGB 0 0 0.5
 yellow    = ColorRGB 1 1 0
 brown     = ColorRGB 0.5 0 0
 
-
+purple    = colorRGB256 160  32 240
 
 {-
  From ColourmapImpl.lhs in Haggis distrib. (boxified version),

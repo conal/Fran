@@ -5,7 +5,7 @@ module Test where
 import Fran
 import qualified Win32
 import qualified StaticTypes as S
---import Trace
+import Trace
 
 
 -- The test cases
@@ -161,37 +161,48 @@ seqD1 u = b `untilB` (userTimeIs 2.1111 u `afterE_` b)
  where
    b = donut1 u
 
-lotsODonuts u = accumB over (donut6 u) another
+lotsODonuts u = accumB' over (donut6 u) another
  where
-  another = alarmUE 1.2 u ==> donut6
+  another = alarmUE 1.3 u ==> donut6
+
+-- Alternative to accumB that avoids the need for afterE.  Less
+-- polymorphic and slightly different semantics, agrees when the op is
+-- associative and ident is an identity.
+accumB' :: GBehavior bv => (bv -> bv -> bv) -> bv -> Event bv -> bv
+accumB' op ident = loop
+ where
+   loop e = ident `untilB` withRestE e ==> \ (b',e') ->
+            b' `op` loop e'
+
 
 alarmUE dt u = alarmE (userStartTime u) dt `afterE_` u
 
-typing u = stretch 3 $
+typing u = stretch 2 $
            stringBIm $
            stepper "start typing"
-                   (scanlE (\ s c -> s ++ [c])
-                           ""
-                           (charPressAny u))
-
+                   (scanlE snoc "" (charPressAny u))
+ where
+   snoc s c = s ++ [c]                  -- reverse cons
 
 -- From the tutorial
 
-importHead name =
-  importBitmap ("../Media/" ++ name ++ " head black background.bmp")
+importKidHiRes name =
+  -- The small ones came from shrinking the big ones by 35% (without
+  -- smoothing, which messes up color-keying).
+  stretch 0.35 (
+   importBitmap ("../Media/" ++ name ++ "Big.bmp"))
 
-{-
-importBMP name = flipImage book 0
- where
-  book = flipBook surf w h 0 0 1 1
-  surf = bitmapDDSurface ("../Media/" ++ name ++ " head black background.bmp")
-  (w,h) = getDDSurfaceSize surf
--}
+importKidLoRes name =
+  importBitmap ("../Media/" ++ name ++ "Small.bmp")
+
+-- Which to use?
+importKid = importKidHiRes
+
 
 leftRightCharlotte = moveXY wiggle 0 charlotte
 
-charlotte = importHead "charlotte"
-pat       = importHead "pat"
+charlotte = importKid "Charlotte"
+pat       = importKid "Pat"
 
 upDownPat = moveXY 0 wiggle pat
 
@@ -326,18 +337,21 @@ jumpPat u = buttonMonitor u `over`
             moveXY (bSign u) 0 pat
 
 growPat u = buttonMonitor u `over`
-            stretch (grow u 1) pat
+            stretch (grow u 1) patHiRes
 
 growExpPat u = buttonMonitor u `over`
                stretch (growExp u 1) pat
 
-
+patHiRes = stretch 0.35 $ importBitmap ("../Media/PatBig.bmp")
 
 buttonMonitor u =
-  moveXY 0 (-1) $
+  moveXY 0 (- height / 2 + 0.25) $
   withColor white $
   stretch 2       $
   stringBIm (selectLeftRight "(press a button)" "left" "right" u)
+ where
+   (width,height) = vector2XYCoords (viewSize u)
+
 
 -- Becky art
 
@@ -392,75 +406,154 @@ iMut3 u = d x1 0.5 `over` d x2 (-0.5)
 iMut4 u = d x1 0.5 `over` d x2 (-0.5)
  where
   d x y = moveXY x y (donut0 u)
-  x1 = m (-1) 1 (x2 <=*)
-  x2 = m 1 (-1) (x1 >=*)
+  x1 = m (-1) 0.5 (x2 <=*)
+  x2 = m 1 (-0.5) (x1 >=*)
   m x0 dx stop = x
    where x = x0 + atRate dx u `untilB`
               predicate (stop x0) u `snapshot_` x
                                      ==>        constantB 
 
 -- Try with collisions.  Works, but doesn't contain velocity part of
--- collision test.
-
+-- collision test, so shortly after a collision, there may be false
+-- collision.  The "right" fix is probably to detect the exact collision
+-- time.  Meanwhile, the behavior is very sensitive to the rebound number,
+-- which should be 2.0 for perfect elasticity.
 iMut5 u = ball r1 x1 red `over` ball r2 x2 blue
  where
    ball r x c = moveXY x 0 $ stretch r $ withColor c $ circle
-   x1 = linearBump (-1) 1 x2
-   x2 = linearBump 1 (-1) x1
+   x1 = linearBump (-1) 0.5 x2
+   x2 = linearBump 1 (-0.5) x1
    linearBump x0 dx0 obst = x
      where
        x  = x0  + atRate dx u
        dx = dx0 + sumE impulse
-       impulse = collide `snapshot_` dx ==> (* (-1.3))
+       impulse = collide `snapshot_` dx ==> (* (-2.0))
        collide = predicate (magnitude (x - obst) <* minDist) u
    r1 = 0.1; r2 = 0.2
    minDist = r1 + r2
 
--- Add velocity part.  Hey!!  The "~" is crucial!
-iMut6 u = ball r1 x1 red `over` ball r2 x2 blue
+-- Add velocity part.  Consolidate radius, position, and velocity
+-- into a single object.  Works, but the "~" is crucial!
+iMut6 u = ball o1 red `over` ball o2 blue
  where
-   ball r x c = moveXY x 0 $ stretch r $ withColor c $ circle
-   o1@(x1,_) = linearBump (-1,1) o2
-   o2@(x2,_) = linearBump (1,-1) o1
-   linearBump (x0, dx0) ~(x',dx') = (x,dx)
+   ball (r,x,dx) c = moveXY x 0 $ stretch r $ withColor c $ circle
+   o1 = linearBump (0.1,-1,0.5) o2
+   o2 = linearBump (0.2,1,-0.5) o1
+   linearBump (r,x0,dx0) ~(r',x',dx') = (r,x,dx)
      where
        x  = x0  + atRate dx u
        dx = dx0 + sumE impulse
-       relX  = x  -  x'
-       relX' = dx - dx'
+       relX  =  x -  x'
+       relDX = dx - dx'
        impulse = collide `snapshot_` dx ==> (* (-1.9))
-       collide = predicate (magnitude relX <* minDist &&*
-                            dot relX' relX <* 0) u
-   r1 = 0.1; r2 = 0.2
-   minDist = r1 + r2
+       collide = predicate (magnitude relX <* r+r' &&*
+                            dot relDX relX <* 0) u
 
 -- ## Note: the dot product test is wrong.  We shouldn't be using just
 -- relX, but rather something involving minDist as well.  Maybe we need to
 -- use "derivative (magnitude relX) >* 0", which means they are moving
 -- apart. ##
 
-
 sumE :: Num a => Event a -> Behavior a
 sumE ev = stepper 0 (scanlE (+) 0 ev)
 
--- Now let's throw in a reactive event, making the balls disappear when
--- they hit.  Add a disappearance event.  This one blows the control
--- stack :(.  I now understand what's going on here, but not how to fix
--- it.  The culprit is untilB on events.
-
-iMut7 u = ball r1 o1 red `over` ball r2 o2 blue
+-- Now let's throw in a reactive event, making the balls disappear
+-- when they hit.  Add a disappearance event.  This one blows the
+-- control stack :(.  I now understand what's going on here, but not
+-- how to fix it.  The culprit is untilB on events.  Both die events
+-- need to know a lower bound for the other before giving a lower
+-- bound for itself.
+iMut7 u = ball o1 red `over` ball o2 blue
  where
-   ball r ~(x,die) c = moveXY x 0 $ stretch r $ withColor c $ circle
-                        `untilB` die -=> emptyImage
-   o1 = linearBoom (-1,1) o2
-   o2 = linearBoom (1,-1) o1
-   linearBoom (x0,dx0) ~(x',die') = (x,die)
+   ball (r,x,die) c = (moveXY x 0 $ stretch r $ withColor c $ circle)
+                       `untilB` die -=> emptyImage
+   o1 = linearBoom (0.1,-1,0.5) o2
+   o2 = linearBoom (0.2,1,-0.5) o1
+   linearBoom (r,x0,dx0) ~(r',x',die') = (r,x,die)
     where
       x   = x0 + atRate dx0 u
-      die = predicate (magnitude (x-x') <* minDist) u
-             `untilB` die' -=> neverE
-   r1 = 0.1; r2 = 0.2
-   minDist = r1 + r2
+      die = predicate (magnitude (x-x') <* r+r') u
+             `untilB` die' -=> trace "died\n" neverE
+
+{-
+
+-- Experimenting with a fix.  Apply the following function to an event to
+-- make one that gets checked regularly.
+checkE :: Event a -> User -> Event a
+checkE (Event possOccs) u =
+  Event (loop possOccs Nothing updateTimes)
+ where
+   loop ((te,mb):pos') mbLast (t:ts')
+     | t > te  =  
+     
+   updateTimes = [ t | (t, mb) <- possOccsOf u, isJust mb ]
+
+-}
+ 
+
+-- This version avoids the problem by moving the until die' into the
+-- predicate.  I don't know how to extend this hack to the situation in
+-- Roids, in which one object can be replaced by a set of them.
+iMut8 u = ball o1 red `over` ball o2 blue
+ where
+   ball (r,x,die) c = (moveXY x 0 $ stretch r $ withColor c $ circle)
+                       `untilB` die -=> emptyImage
+   o1 = linearBoom (0.1,-1,0.5) o2
+   o2 = linearBoom (0.2,1,-0.5) o1
+   linearBoom (r,x0,dx0) ~(r',x',die') = (r,x,die)
+    where
+      x   = x0 + atRate dx0 u
+      die = predicate (alive' &&* magnitude (x-x') <* r+r') u
+      alive' = trueB `untilB` die' -=> falseB
+
+
+-- GHC type-chokes, thinking that the VectorSpaceB operations are on Scalar
+
+-- Mutual forces.  This one works and is fun to watch.
+iMut9 u = --stretch (1 / (1 + userTime u)) $
+          overs (map render os)
+ where
+   -- The objects
+   os = map go starts
+   go (mot0, vel0, r, col) = o
+    where
+      o = (mot, vel, r, col)
+      -- Each object is acted on by all objects.
+      (mot,vel) = newton mot0 vel0 r (sumVSB (map (force o) os))
+   force = springForce -- gravForce
+   -- Spring law, with drag
+   springForce (mot,vel,_,_) (mot',_,_,_) = k *^ (mot' - mot) ^-^ d *^ vel
+   -- Gravitational force
+   gravForce (mot, _, m, _) (mot', _, m', _) =
+      condB (distSquared ==* 0) zeroVector (fMag *^ fDir)
+     where
+       fDir = normalize (- relMot) 
+       fMag = (bigG * constantB(m*m')) / distSquared
+       distSquared = magnitudeSquared relMot
+       relMot = mot ^-^ mot'
+   -- F = m a
+   newton mot0 vel0 m f = (mot,vel)
+    where
+      mot = constantB mot0 ^+^ atRate vel u
+      vel = constantB vel0 ^+^ atRate acc u
+      acc = f ^/ constantB m
+   render (mot, _, r, col) =
+     move mot $ stretch (constantB r) $ withColor (constantB col) $ circle
+   -- Initial object configurations
+   starts = [ ( S.vector2Polar 0.4 ang0
+              , -- S.zeroVector
+                S.vector2Polar 0.25 (ang0 + pi/2)
+              , 0.2 / fromInt i
+              , S.colorHSL ang0 0.5 0.5)
+            | i <- [1 .. n], let ang0 = fromInt i * s ]
+   n = 4    -- # of bodies
+   k = 0.5  -- spring constant
+   d = 0.05 -- drag constant
+   s = 2 * pi / fromInt n  :: RealVal
+   bigG = 1
+
+sumVSB :: VectorSpace a => [Behavior a] -> Behavior a
+sumVSB = foldl (^+^) zeroVector
 
 
 
@@ -504,7 +597,7 @@ l2 u = polygon [point2XY 1 1, point2XY (- abs wiggle) 0,
 		      point2XY 1 wiggle]
 l3 u = line (point2XY 1 1) (point2XY wiggle wiggle)
 l4 u = slower 2 $ stretch (wiggleRange 2 4) $
-       stringBIm (lift0 text !!* roundB (wiggleRange 0 6))
+       stringBIm (constantB text !!* roundB (wiggleRange 0 6))
  where
    text = words "Where Do You Want To Go Today?"
    strs = map stringIm text
@@ -520,7 +613,7 @@ pause f u = f u `untilB`
 	    lbp u ==> const 1		-- const 1 is redundant
 	    `snapshot_` time 
 	    `afterE` u ==> \ (t, u') ->
-	    f u' `timeTransform` lift0 t `untilB` 
+	    f u' `timeTransform` constantB t `untilB` 
 	    lbp u' ==> const (f u') 
 	    `afterE_` u' ==>		-- const (...) is redundant too
 	    pause f
@@ -534,35 +627,34 @@ flower = stretch 0.4 (importBitmap "../Media/rose medium.bmp")
 
 cropFlower rect = crop rect (stretch 3 flower)
 
-crop1 u = cropFlower (rectLLUR ll ur)
+crop1 u = cropFlower (rectFromCorners ll ur)
  where
    ll = point2XY (-0.5) (-0.5) .+^ vector2Polar 0.2 (2*time)
    ur = point2XY ( 0.5) ( 0.5) .+^ vector2Polar 0.3 (3*time)
 
-crop2 u = cropFlower (rectLLUR (mousePos .-^ v) (mousePos .+^ v))
- where
-   v = vector2XY 0.5 0.5
-   mousePos = mouse u
+crop2 u = cropFlower (rectFromCenterSize (mouse u) (vector2XY 1 1))
 
 crop2' = cropMagnify 1 0.5 (stretch 3 flower)
 
 crop3 = cropFlower . rubberBandRect
 
-crop4 u = cropMagnify 3 1 imB u `over` imB
- where
-   imB = stretch 3 flower
+crop4 u = cropMagnify 3 1 flower u `over` flower
 
 crop5 u = cropMagnify 6 1 imB u `over` imB
  where
    imB = stretch 0.3 (stringIm str)
-   str = "Animation can be fun.  Just say what the animation is and let Fran take care of checking events and sampling behaviors."
+   -- ## If this string is too long, the DDraw CreateSurface call dies,
+   -- taking the process with it. Clipping synthetic images before
+   -- rendering should fix the problem. ##
+   str = "Animation can be fun."
+         --++ "  Just say what the animation is and let Fran do the rest."
 
 crop6 u = cropMagnify 3 1 imB u `over` imB
  where
    imB = donut4 u
 
 rubberBandRect :: User -> RectB
-rubberBandRect u = rectLLUR ll ur
+rubberBandRect u = rectFromCorners ll ur
  where
    mousePos = mouse u
    ll = stepper S.origin2 (lbp u `snapshot_` mousePos)
@@ -572,7 +664,7 @@ rubberBandRect u = rectLLUR ll ur
 cropMagnify :: RealB -> RealB -> ImageB -> User -> ImageB
 cropMagnify factor size imB u =
   frame  `over`
-  crop (rectLLUR (mousePos .-^ v) (mousePos .+^ v)) (
+  crop (rectFromCenterSize mousePos (vector2XY size size)) (
        stretchAtPoint factor mousePos imB
        -- Use solid black background, so that the transparent parts of the
        -- image are no longer transparent.
@@ -580,7 +672,6 @@ cropMagnify factor size imB u =
        )
  where
    mousePos = mouse u
-   v = vector2XY halfSize halfSize
    halfSize = size / 2
    frame' = withColor white $
             polyline [ mousePos .+^ halfSize *^ vector2XY x y
@@ -612,3 +703,44 @@ uscaleAtPoint2 factor point =
   translate2 (-motion)
  where
    motion = point .-. origin2
+
+
+-- Test the effects stuff.  Use tryEffects for these ones
+
+tryEffects imF = do
+  w <- displayEx imF
+  setWindowTextA w "Fran with effects"
+  eventLoop w
+
+effects1 u = (patMouse u,  const $
+                             lbp u -=> putStrLn "Hey!"
+                         .|. rbp u -=> putStrLn "Watch it!")
+
+effects2 u = (circle, changeTitle)
+  where
+    changeTitle w = press ==> ("Pressed " ++) ==> setWindowTextA w 
+    press = (lbp u -=> "left" .|. rbp u -=> "right") ==> (++ " button")
+        .|. charPressAny u ==> (: " key")
+
+
+-- setViewSize not working
+
+-- effects3 u = (star 5 9, changeSize)
+--   where
+--     changeSize w = newSize ==> setSize w
+--     size = stepper (S.vector2XY 2 2) newSize
+--     newSize = changeE `snapshot` size ==> uncurry ($)
+--     changeE = keyPressAny u `assocE`
+--                   [ (Win32.vK_LEFT , changeW (/2))
+--                   , (Win32.vK_RIGHT, changeW (*2))
+--                   , (Win32.vK_DOWN , changeH (/2))
+--                   , (Win32.vK_UP   , changeH (*2)) ]
+--     changeW f (S.Vector2XY w h) = (S.Vector2XY (f w) h)
+--     changeH f (S.Vector2XY w h) = (S.Vector2XY w (f h))
+
+--     setSize w size = do setViewSize w size
+--                         putStrLn ("New size: " ++ show size)
+
+-- Simultaneous windows.  Use displayUs to test
+
+imFs1 = [wordy2, patMouse, crop4]

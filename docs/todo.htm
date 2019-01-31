@@ -17,7 +17,9 @@
 </B></I></FONT><LI>The update rate of 3D examples with many <I>differently colored</I> objects decreases with time. In Tutorial, try <B>displayG (spiral3D ())</B>. </LI>
 <LI>GeometryB <B>untilB</B> doesn't remove the old geometry when it adds the new. I don't know what's going wrong. </LI>
 <LI>Text is not inverted when negatively scaled. </LI>
-<LI>Top-level behavior definitions (CAFs) create very nasty space leaks unless one uses <B>simpleSamplerB</B>, which defeats useful memoization and is non-declarative. Moreover, for some examples, e.g., spiral3D, there would have to be a lot of simpleSamplerB annotations. Proposed solution: get the Hugs and GHC garbage collectors fixed to understand some kind of weak pointer notion, and so automatically clear out our caches when appropriate during GC's, as suggested in John Hughes's "Lazy Memo Functions" paper. </LI></UL>
+<LI>Top-level behavior definitions (CAFs) create very nasty space leaks unless one uses <B>simpleSamplerB</B>, which defeats useful memoization and is non-declarative. Moreover, for some examples, e.g., spiral3D, there would have to be a lot of simpleSamplerB annotations. Proposed solution: get the Hugs and GHC garbage collectors fixed to understand some kind of weak pointer notion, and so automatically clear out our caches when appropriate during GC's, as suggested in John Hughes's "Lazy Memo Functions" paper. </LI>
+<li>If a rendered string is too long, the DirectDraw CreateSurface call dies, taking the process with it. Clipping synthetic images before rendering should fix the problem.  (I assume the same problem holds for very tall or wide synthetic images in general.)</li>
+</UL>
 
 <B><I><FONT FACE="Arial,Arial"><P>To Do</P>
 

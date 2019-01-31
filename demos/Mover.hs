@@ -237,7 +237,8 @@ inhabs2 = [ Inhabitant startLoc moveESWN (startIm startLoc)
 
 inhabs3 = tail (tail inhabs2)
 
--- Chop up a picture
+-- Chop up a picture.  For instance, try:
+--  demo (mousePicker updateDone) (cutUp rose) 
 
 cutUp pic = [ Inhabitant startLoc moveESWN (startIm startLoc)
             | startLoc <- tail (range locRange)

@@ -1,26 +1,20 @@
-# Hugs, GHC and Cygwin path dependencies.  Set INCLUDES before including.
+# Hugs, GHC and Cygwin path dependencies.  Set FRAN before including.
 # Also LIBOBJS, if making a .a
 
+# Note: I'm unsure whether to use c:/, //c/, or just / for these paths.
+# NT and Win95 seem to have different preferences.  Needs experimentation.
 
-HUGSDIR 	= C:/hugs
-GHCDIR		= /fptools/bin/i386-unknown-cygwin32/ghc-2.06
-GHCLIB		= /fptools/lib/i386-unknown-cygwin32/ghc-2.06
+HUGSDIR 	= /hugs
+GHCDIR		= /fptools/bin/i386-unknown-cygwin32/ghc-2.10
+GHCLIB		= /fptools/lib/i386-unknown-cygwin32/ghc-2.10
 
 GHC		= $(GHCDIR)/ghc 
 HP2PS		= $(GHCDIR)/hp2ps
 RM		= rm -f
 
-GCDIR		= C:/green-card
-GCLIBS		= C:/GCLibs
-#GC		= $(HUGSDIR)/runhugs $(GCDIR)/src/GreenCard.lhs
-#GC		= $(GCDIR)/green-card
+GCDIR		= /GreenCard
+WIN32DIR	= $(GHCLIB)/win32
 GC		= $(GCDIR)/green-card.exe -i$(WIN32DIR)
-# Note: when profiling, be sure to use the appropriate win32ghc bit.  I
-# don't know how to manage this well, so for now I maintain two
-# directories of .o, .a, and .hi files.
-#WIN32DIR	= $(GCDIR)/win32ghc
-#WIN32DIR	= /usr/fran/win32ghc
-WIN32DIR	= $(GCLIBS)/Win32
 
 AR     		= ar clqs
 RANLIB 		= ranlib
@@ -28,6 +22,8 @@ RANLIB 		= ranlib
 PS_VIEWER	= /gstools/gsview/gsview32
 
 # Include directories
+#  Hmm... without the src directory, lots of .hi files are not found.
+#  This situation seems wrong.
 INCLUDES	= -i$(FRAN)/src:$(FRAN)/src/GHC:$(FRAN)/gc/GHC:$(WIN32DIR)
 
 # GHC flags
@@ -37,8 +33,7 @@ GHC_FLAGS	+= -cpp $(INCLUDES)
 # For non-optimized compilation
 GHC_FLAGS_ONOT	:= $(GHC_FLAGS)
 
-#Uncomment this if you want it to be
-#the default.
+#Uncomment this if you want it to be the default.
 #GHC_FLAGS	+= -O
 
 #
@@ -50,7 +45,9 @@ GHC_FLAGS_ONOT	:= $(GHC_FLAGS)
 #way=pc
 
 # Generate dependencies both for conc and prof-conc
-MKDEPENDHS_FLAGS += -optdep-s -optdep$(way) -optdep-o -optdepo
+#  This doesn't work when $(way) is "".
+#  Should it go into the next conditional, or should it have pc wired in?
+#MKDEPENDHS_FLAGS += -optdep-s -optdep$(way) -optdep-o -optdepo
 
 ifneq "$(way)" ""
 GHC_FLAGS	  += -hisuf $(way)_hi -osuf o
@@ -62,6 +59,20 @@ endif
 ifeq "$(way)" "pc"
 GHC_FLAGS	  += -prof
 endif
+
+# The next two lines cause the dependencies to be written to and read from
+# a file called "_depend" in this directory.  Then I'll be distributing a
+# cleaner system.  Builds won't write into makefiles.
+
+MKDEPENDHS_FLAGS += -optdep-f -optdep_depend
+
+depends	:: $(HS)
+	$(GHC) -M $(MKDEPENDHS_FLAGS) $(GHC_FLAGS) $(HS)
+
+# synonym
+depend	:: depends
+
+
 ################################################################
 # Suffix rules taken from the GHC users guide
 ################################################################
@@ -86,8 +97,3 @@ endif
 		$(RM) $@
 		$(AR) $@ $(OBJS)
 		ranlib $@
-
-depends	:: $(HS)
-		 $(GHC) -M $(MKDEPENDHS_FLAGS) $(GHC_FLAGS) $(HS)
-
-depend	:: depends

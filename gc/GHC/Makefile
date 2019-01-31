@@ -17,10 +17,10 @@ LIBOBJS		= $(OBJS)
 # Copy from parent directory, so we don't write over the files
 # generated for Hugs
 HSpriteLib.gc	: ../HSpriteLib.gc
-	cp $< $@
+	$(RM) $@ ; cp $< $@
 
 ../errors.obj	: ../errors.c ../errors.h
-	cd ..;make errors.obj
+	cd .. ; make errors.obj
 
 # These specify the input files and some of the intermediate files
 
@@ -58,8 +58,11 @@ GHC_FLAGS	+= -optc-Wp,-lang-c
 # GCPP_FLAGS	= -DTARGET_HUGS
 # INCLUDES	= -I $(HUGSDIR)/src
 
-# No need for include dir - I just copied StdDIS.gc over
-GC_FLAGS	= --target ghc --include-dir $(GCDIR)/win32ghc
+GC_FLAGS	= --target ghc
+# Oh dear, what's the difference between -i and --include-dir ?
+#GC_FLAGS       += --include-dir $(WIN32DIR)
+# Verbosity, for debugging
+#GC_FLAGS += -v
 GCPP_FLAGS	= -DTARGET_GHC
 
 ################################################################
@@ -90,13 +93,5 @@ GCPP_FLAGS	= -DTARGET_GHC
 clean		:
 		rm -f *.o *.hs *.hi *.a
 
-################################################################
-# End of Makefile
-################################################################
-# DO NOT DELETE: Beginning of Haskell dependencies
-HSpriteLib.o HSpriteLib.pc_o : HSpriteLib.hs
-HSpriteLib.o : $(WIN32DIR)/StdDIS.hi
-HSpriteLib.pc_o : $(WIN32DIR)/StdDIS.pc_hi
-HSpriteLib.o : $(WIN32DIR)/Win32.hi
-HSpriteLib.pc_o : $(WIN32DIR)/Win32.pc_hi
-# DO NOT DELETE: End of Haskell dependencies
+
+include _depend

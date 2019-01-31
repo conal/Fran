@@ -1,7 +1,7 @@
 -- Event combinators that involve events.  Separated out from Event.hs to
 -- avoid a mutual module recursion.
 --
--- Last modified Thu Dec 04 17:13:42 1997
+-- Last modified Fri Jan 30 12:24:50 1998
 
 module BehaviorEvent where
 
@@ -86,6 +86,16 @@ predicate b u = check `whenE` b
   -- adapting to changes in update rate, which can lead to exponential
   -- degradation of the update rate.
   -- check = alarmE (userStartTime u) 0.05
+
+-- How much time has passed since an event occurrence
+
+-- Too specialized.
+
+-- timeSinceE :: Event a -> Event (a, TimeB)
+-- timeSinceE e = withTimeE_ e ==> constantB ==> (time -)
+
+-- timeSinceE_ :: Event a -> Event TimeB
+-- timeSinceE_ = (==> snd) . timeSinceE
 
 -------- Testing.  Use tstE from Event.hs
 

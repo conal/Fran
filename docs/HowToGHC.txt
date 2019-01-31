@@ -2,13 +2,10 @@
 
                               Conal Elliott
 
-                  Last modified Fri Dec 05 14:08:41 1997
+                  Last modified Tue Feb 24 09:21:12 1998
 
 
 Introduction
-
-[These notes are were for GHC 2.06.  I think things are somewhat simpler
-with 2.09 and later versions, but I haven't yet tried it.]
 
 While Fran programs are convenient to develop under Hugs, they have much
 better performance under GHC.  At this point, GHC is also harder to
@@ -17,13 +14,7 @@ situation to improve in the future.  Meanwhile, this note provides
 step-by-step instructions to help a would-be GHC user get started.
 
 The first step is to be sure you have enough disk space.  You'll need
-about 60MB.
-
-There is a quite unfortunate and mysterious problem you'll need to be
-aware of.  The source code you compile with must reside on the same drive
-letter as GHC and cygwin.  If not, you'll get an error like the following:
-
-    mv /tmp/ghc1022_o.s: Invalid argument
+lots (>100M).
 
 
 ** Cygwin
@@ -34,118 +25,90 @@ Get cygwin version 18 beta (14Mb) from the following site:
 
 Download and run cdk.exe, which is a self-extracting executable, and step
 through the questions asked by the install wizard.  Use the default disk
-location.  Consult the README.txt and make the four environment changes as
-directed (GCC_EXEC_PREFIX, PATH, TCL_LIBRARY, GDBTK_LIBRARY).  As directed
-in the README.txt in the same Cygnus directory as cdk.exe, make a \bin and
-copy sh.exe there, and make a \tmp.
+location (c:\gnu2in32).  Consult the README.txt in the same Cygnus
+directory as cdk.exe and make the four environment changes as directed
+(GCC_EXEC_PREFIX, PATH, TCL_LIBRARY, GDBTK_LIBRARY).  If you're using
+Win95, put the following in your autoexec.bat:
 
-You'll have to start a new shell (and a new emacs, if you run your shell
-from within emacs) to get the changed environment.
+set GCC_EXEC_PREFIX=C:\gnuwin32\b18\H-i386-cygwin32\lib\gcc-lib\
+PATH=%PATH%;C:\gnuwin32\b18\H-i386-cygwin32\bin;C:\gnuwin32\b18\tcl\bin
+set TCL_LIBRARY=C:/gnuwin32/b18/tcl/lib/tcl7.6
+set GDBTK_LIBRARY=C:/gnuwin32/b18/share/gdbtcl
+
+If you're using NT, open up the System applet in Control Panel, and pick
+the "Environment" tab.  (Be sure to hit the "set" button after each
+change.)
+
+As directed in the README.txt, make a \bin and copy sh.exe there, and make
+a \tmp.
+
+If you're in Win95, reboot NT to get the changed environment.  In NT start
+a new shell (and a new emacs, if you run your shell from within emacs)
 
 Fran uses the Win32 function "timeGetTime", which doesn't not work with
 Cygwin b18 out of the box.  So, copy the file cygwin.patch to
 c:/gnuwin32/b18/H-i386-cygwin32/i386-cygwin32/include/Windows32/ and then
-in that directory say "patch < cygwin.patch".  Then go to your Win32GHC
-directory, remove Win32Misc.o, and do a make.
+in that directory say "patch < cygwin.patch".
 
 [GHC folks: is there another solution?]
 
 
 ** Grab GHC
 
-Get the latest Win32 GHC binary release with concurrency from ???  (I used
-ftp://laysan.dcs.gla.ac.uk/fran/ghc-2.06-win32.tar.gz).  (8.5Mb)
+Get the latest Win32 GHC binary release with at least concurrency.  (I
+used ghc-2.10-i386-unknown-cygwin32.tar.gz (12.2 Mb) from
+ftp://www.dcs.gla.ac.uk/pub/haskell/glasgow/2.10/.
 
 Unzip and untar the .tar.gz file to get a directory tree structure
 (41.5Mb) called "fptools" under c:/.  (WinZip95 can do both steps.)
 
 [Get Perl.  I already had a version to go with a previous GHC.  The
-particular version is important.  See fptools/INSTALL.]
+particular version is important.  See fptools/INSTALL.  N.B. from Sigbjorn
+Finne: "I've just had a report from a user who put the Perl binary inside
+the bin/ directory of the cygwin32 tree, and did not have much luck with
+it. Reason being that the path that follows #! in scripts have to be < 32
+chars. Putting perl.exe in /bin solves this problem."]
+
 
 ** Configure GHC
 
 In "c:\fptools", start up bash (sh.exe from cygwin), and type
-"./configure".  I got a message of concern about perl:
+"./configure".  You'll get lots of output.  Look for error messages.
 
-    checking for perl... /Tools/perl5/bin/perl
-    checking if `#!/Tools/perl5/bin/perl' works in shell scripts
-    It does!
-    I think your perl library is misinstalled.
-    The following script did not work:
-          do "getopts.pl" || exit(1); exit(0);
-    But do not worry, we'll manage..
+Check out the generated Makefile, as indicated in c:/fptools/INSTALL.  I
+had make three changes. First, replace "INSTALL = /HUGS/install -c" by
 
-Everything seemed okay.  The script itself makes config.log.  My
-config.log was the following.
+  INSTALL	    = /gnuwin32/b18/H-i386-cygwin32/bin/install -c
 
-    This file contains any messages produced by compilers while
-    running configure, to aid debugging if configure makes a mistake.
+Next, to enable GHC to compile source files on a different drive from the
+one on which it is installed, change the TMPDIR line to the following.
 
-    configure:575: checking host system type
-    configure:596: checking target system type
-    configure:614: checking build system type
-    configure:696: checking for perl
-    configure:753: checking how to run the C preprocessor
-    configure:774: cc -E  conftest.c >/dev/null 2>conftest.out
-    ./configure: cc: command not found
-    configure: failed program was:
-    #line 768 "configure"
-    #include "confdefs.h"
-    #include <assert.h>
-    Syntax Error
-    configure:791: cc -E -traditional-cpp  conftest.c >/dev/null 2>conftest.out
-    ./configure: cc: command not found
-    configure: failed program was:
-    #line 785 "configure"
-    #include "confdefs.h"
-    #include <assert.h>
-    Syntax Error
-    configure:839: checking for a BSD compatible install
-    configure:889: checking whether ln -s works
+  TMPDIR	    = .
 
-Check out the generated Makefile, as indicated in c:/fptools/INSTALL.
-Mine had "version = 2.04", which I had to change to 2.06.
+Finally, find the definition of RAWCPP, which should look something like
+the following:
 
-In bash, do "make in-place".  I save the resulting messages in in-place.out.
+    RAWCPP=c:/gnuwin32/b18/H-i386-cygwin32/lib/gcc-lib/i386-cygwin32/cygnus-2.7.2-970404/cpp -traditional
 
-It will tell you to c:\fptools\bin\i386-unknown-cygwin32\ghc-2.06 to your
-%PATH%.  Do it.  Again, you'll have to start a new shell before continuing.
+Under NT, you're fine, but under Win95, the long path (or something in it)
+seems to be a problem, so copy cpp.exe into c:/bin, and use the following
+line instead:
 
-Next, edit c:/fptools/bin/i386-unknown-cygwin32/ghc-2.06/mkdependHS.
-You'll see a line near the top that says "$RAWCPP='';":
+    RAWCPP=/bin/cpp -traditional
 
-Replace that line with something like the following:
+In bash, do "make in-place".
 
-    $RAWCPP='c:/gnuwin32/b18/H-i386-cygwin32/lib/gcc-lib/i386-cygwin32/cygnus-2.7.2-970404/cpp -traditional';
-    $SED='sed';
+It will tell you to add c:\fptools\bin\i386-unknown-cygwin32\ghc-2.10 (or
+something similar) to your %PATH%.  Do it.  Again, before continuing,
+you'll have to start a new shell under NT or reboot under Win95.
 
-I got the RAWCPP path by doing a "Find..." for cpp.exe in Windows
-Explorer, starting at c:\gnuwin32.
-
-How did I know to do this??  I looked at what Gary had done.  [GHC folks:
-How should I have known?  This step is probably the most baffling to a
-would-be GHC user.]
-
-Next, fix hscpp to be callable when ghc is invoked with "-cpp".
-
-    bash$ /fptools/lib/i386-unknown-cygwin32/ghc-2.06
-    bash$ ln -s hscpp.prl hscpp
-
-Also, look at hscpp.prl and fix incorrect paths at the beginning.  For me,
-this changing "/usr/fptools" to "/fptools" and "/usr/H-i386-cygwin32" to
-"/gnuwin32/b18/H-i386-cygwin32".
-
-It would be great also to fix hstags.prl.  I haven't yet.
-
-[Again, install bugs.]
-
-Finally, for Fran, edit the file
-
-    c:/fptools/lib/i386-unknown-cygwin32/ghc-2.06/imports/GHC.hi
-
-and add the following line to the exports section
-
-    reallyUnsafePtrEquality#
+[Note: if you have to re-do "make in-place", first delete in
+c:\fptools\bin\i386-unknown-cygwin32\ghc-2.10\ghc, which is a symlink.
+Otherwise, it will turn ghc-2.10 into a symlink to itself.  The error
+message you get will be something like "sh.exe:
+/FPTOOLS/BIN/I386-UNKNOWN-CYGWIN32/GHC-2.10/ghc: (null)".  GHC folks: can
+this problem be fixed?  I had to learn the hard way.  BTW, this problem
+existed with GHC 2.09, but I don't know about 2.10.]
 
 
  ** Try GHC
@@ -155,21 +118,18 @@ line:
 
     main = putStrLn "Hello, world!"
 
-In bash, do "ghc tst.hs".  I got the following in reply.
+(In this example and the ones below, remove the indentation in your copy.)
+In bash, do "ghc tst.hs".  You'll get:
 
-    bash$ ghc tst.hs
-    ghc: module version changed to 1; reason: no old .hi file
-    Panic: no such executable: a.out.exe
+  Output file not specified, defaulting to "main.exe"
+  Panic: no such executable: main.exe
 
-But there's really not a problem:
+but don't worry, because the result went into a.exe.  You can run your
+program by saying "./a"
 
-    bash$ ls -RC
-    a.exe	tst.hi	tst.hs	tst.o
-    bash$ ./a
-    Hello, world!
 
-Better, do "ghc tst.hs -o tst.exe".  Then there's no error message, and
-you get tst.exe, which runs fine.
+Better, do "ghc tst.hs -o tst.exe", to get tst.exe, which runs fine as
+"./tst".
 
 Now let's make a GHC-style makefile.  First, to make it interesting,
 change tst.hs to
@@ -205,7 +165,7 @@ Then make a file called "makefile", with the following lines:
     .SUFFIXES	: .lhs .hs .hi .o
 
     depend :: $(SRC)
-            mkdependHS $(SRC)
+            $(GHC) -M $(SRC)
 
     clean ::
             $(RM) *.o *.hi *.exe
@@ -220,6 +180,8 @@ Then make a file called "makefile", with the following lines:
     %.o		: %.hs
                     $(RM) $@
                     $(GHC) $(GHC_FLAGS) -c $<
+
+Be sure to have at least one newline at the end of the makefile.
 
 For more info on makefiles, see the GHC user guide's section "Separate
 Compilation".
@@ -246,7 +208,7 @@ Next you should be able to build an executable again:
     ghc: module version changed to 1; reason: no old .hi file
     rm -f tst.o
     ghc  -c tst.hs
-    ghc: module version changed to 1; reason: no old .hi file
+    ghc: module version changed to 2; reason: usages changed
     ghc -o tst.exe tst.o Fiddle.o
 
 And, run it:
@@ -258,44 +220,57 @@ And, run it:
 ** Build Win32 interfaces
 
 This section describes building the Win32 interface from its GreenCard
-specification.  I'm assuming it to be in \Haskell\green-card\Win32GHC.
+specification.  I'm assuming it to be installed in
+c:/fptools/lib/i386-unknown-cygwin32/ghc-2.10/win32/.
+
+[Where should it really get installed?]
 
 If the Win32 interfaces are already built for you, you can skip this
 section. 
 
 In the Makefile, find the "Configuration" section, and replace it with the
-following lines:
+following lines, assuming you have the compiled green-card in /GreenCard:
 
-    GHCDIR		= /fptools/bin/i386-unknown-cygwin32/ghc-2.06
-    GCDIR		= /Haskell/green-card
-    HERE		= /Haskell/win32ghc
+    GHCDIR		= /fptools/bin/i386-unknown-cygwin32/ghc-2.10
+    GCDIR		= /green-card
+    HERE		= /fptools/lib/i386-unknown-cygwin32/ghc-2.10/win32
 
-Next find the definition of "GC" ("# Use GreenCard compiled..."), and
-replace it with the following:
+Also change the definition of GC to the following, assuming the GreenCard
+executable is /GreenCard/green-card.exe:
 
     GC	    	= $(GCDIR)/green-card
 
-[These makefile sections should be merged.]
-
-[Oops -- green-card.exe is not really distributed, so this section is not
-helpful.]
-
 Then do "make".  It should go okay.
+
+[Well, it doesn't work for me.  Many modules go okay, but then:
+
+    /fptools/bin/i386-unknown-cygwin32/ghc-2.10/ghc  -H10M -cpp -fglasgow-exts -concurrent -fno-prune-tydecls -optc-D__GHC__ Win32Pen.hs -c -o Win32Pen.o -ohi Win32Pen.hi
+    ghc: module version changed to 1; reason: no old .hi file
+    ghc1609.hc:1324: `PS_JOIN_MASK' undeclared (first use this function)
+    ghc1609.hc:1324: (Each undeclared identifier is reported only once
+    ghc1609.hc:1324: for each function it appears in.)
+    gcc: Internal compiler error: program cc1 got fatal signal 33
+    make: *** [Win32Pen.o] Error 1
+    bash$ 
+]
 
 
 ** Building Fran
 
 If Fran is are already built for you, you can skip this section.
-Otherwise, just cd to "Fran1/" and type "make depends all".  There are
+Otherwise, just cd to "Fran/" and type "make depends default".  There are
 several sub-directories with makefiles in them, and the top-level makefile
 just delegates to each of the others in proper order.  Here's what
-happens, in case you care:
+happens in the making of "default", in case you care:
 
 1. Sprite library (in SpriteLib).  I assume you have Microsoft Visual C
-   installed.  First the sprite library is compiled and SpriteLib.dll is copied
-   into your windows system directory (which is presumably on your
-   %PATH%).  [##Fran binary installation note: must copy this DLL to that
-   same location.]  Then a GHC-compatible library (libSpriteLib.a) is
+   installed.  First the sprite library is compiled and SpriteLib.dll is
+   copied into your windows system directory (which is presumably on your
+   %PATH%).  If you have Hugs 1.4 installed, there will be a SpriteLib.dll
+   in the hugs directory.  If that directory is on your path, then rename
+   its SpriteLib.dll to avoid getting it by mistake.  (Is this really the
+   best policy?)  [##Fran binary installation note: must copy this DLL to
+   that same location.]  Then a GHC-compatible library (libSpriteLib.a) is
    built.
 
 2. GreenCard interface to SpriteLib (in gc/GHC).  This step will

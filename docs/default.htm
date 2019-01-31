@@ -1,57 +1,122 @@
-<HTML>
-<HEAD>
-<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1252">
-<META NAME="Generator" CONTENT="Microsoft Word 97">
-<TITLE>Functional Reactive Animation (Fran)</TITLE>
-<META NAME="Template" CONTENT="C:\Program Files\Microsoft Office\Office\html.dot">
-</HEAD>
-<BODY LINK="#0000ff" VLINK="#800080">
+<html>
 
-<P><!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN"></P>
-<H1 ALIGN="CENTER">Fran version 1.09</H1>
-<H2 ALIGN="CENTER">(Functional Reactive Animation)</H2>
-<P ALIGN="CENTER"><IMG SRC="patOrbitsCharBigT.gif" WIDTH=220 HEIGHT=224></P>
-<H2 ALIGN="CENTER"><A HREF="http://www.research.microsoft.com/~conal/">Conal Elliott</A></H2>
-<EM><P ALIGN="CENTER">Updated December 5, 1997</P>
-</EM><P>Fran is a Haskell library (or "embedded language") for interactive animations with 2D and 3D graphics and sound. It runs on <A HREF="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs version 1.4</A>, and recently <A HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC 2.09</A>, under Windows 95 and Windows NT, using DirectX. </P>
-<P>See <A HREF="news.htm">news</A> for details on changes from one version to another.</P>
-<H3>Notes</H3>
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1252">
+<meta NAME="GENERATOR" CONTENT="Microsoft FrontPage 3.0">
+<title>Functional Reactive Animation (Fran)</title>
+</head>
 
-<UL>
-<LI>Fran works with Windows only. You'll need <A HREF="http://www.microsoft.com/directx">DirectX</A> version 3 or better. For NT, this means you need NT 4.0 with <A HREF="http://support.microsoft.com/download/support/mslfiles/NT4SP3_I.EXE">Service pack 3</A>. My plan for Unix, etc., is to wait until DirectX is running there (which is in the works). </LI>
-<LI>Check out the <A HREF="http://www.research.microsoft.com/~conal/fran/tutorial.htm">tutorial</A> and <A HREF="http:UsersMan.htm">User's Manual</A>. (The tutorial has lots of animated GIFs totalling 2.7Mb. Please be patient. You might want to download the <A HREF="http://www.research.microsoft.com/~conal/fran/tutorialArticle.zip">zip file</A> and view it locally.) </LI>
-<LI>For Fran, Hugs needs a bigger heap than the default of 100K. Say ":set -h1Mb" once and then ":q" to quit. Hugs will start using the bigger heap size thereafter. </LI>
-<LI>The <B>demos</B> directory has -- guess what? -- demos! See <A HREF="demos/ReadMe.txt"><B>demos\ReadMe.txt</B></A> </LI>
-<LI>The garbage collector interferes with smooth performance. After Hugs and <A HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</A> are merged, this problem should not be noticeable. </LI>
-<LI>As of very recently, Fran works with <A HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</A>. Performance is <B>much</B> better. If you're feeling brave, see <A HREF="docs/HowToGHC.txt"><B>docs\HowToGHC.txt</B></A>. </LI>
-<LI>Try examples of your own. If you send me ones you've built, I'll consider them for inclusion (with credit to you) in future releases. </LI>
-<LI>In any case, please <A HREF="mailto:conal@microsoft.com">let me know</A> about your experience.</LI></UL>
+<body>
 
-<H3>Bugs / To do</H3>
+<h1 ALIGN="CENTER">Fran version 1.1</h1>
 
-<UL>
-<LI><A HREF="todo.htm">Small items</A> </LI>
-<LI><A HREF="projects.htm">Non-trivial projects</A> </LI></UL>
+<h2 ALIGN="CENTER">(Functional Reactive Animation)</h2>
 
-<H3>&nbsp;Credits</H3>
+<p ALIGN="CENTER"><img src="patOrbitsCharlotte.gif" width="248" height="248"
+alt="patOrbitsCharlotte.gif (81661 bytes)"></p>
 
-<UL>
-<LI>Greg Schechter, Ricky Yeung, Salim AbiEzzi, and I collaborated at Sun Microsystems on <A HREF="http://www.research.microsoft.com/research/graphics/elliott/tbag/index.htm">TBAG</A>, a system for constraint-based, semi-declarative modeling of 3D animation. Some of the Fran ideas were initially explored there. </LI>
-<LI><A HREF="http://www.research.microsoft.com/research/graphics/knoblock/">Todd Knoblock</A> and Jim Kajiya helped to explore the basic ideas of behaviors and events. </LI>
-<LI><A HREF="http://www.dcs.gla.ac.uk/~sof">Sigbjorn Finne</A> helped a lot with the implementation during his summer '96 internship. Since then, he has been <B><I>very</B></I> helpful with getting getting Fran and GHC ready for each other. </LI>
-<LI><A HREF="http://www.cs.nott.ac.uk/~acd/">Tony Daniels</A> has been pushing the limits of physics-oriented reactive behavior, uncovering some limitations in the implementation. He also collaborated on some ideas for efficient behavior representation. </LI>
-<LI><A HREF="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/hudak-paul.html">Paul Hudak</A> has been collaborating on the ideas and, in particular, how to embed them in Haskell. </LI>
-<LI><A HREF="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/reid-alastair.html">Alastair Reid</A> answered lots of my naive questions about Haskell and its implementation, and provided some emergency Hugs hacking. He also made very helpful pass through version 0.8, updating it to a newer Hugs version, and making various improvements, and rewriting interaction code to be much simpler. </LI>
-<LI><A HREF="http://www.cs.yale.edu/homes/peterson-john.html">John Peterson</A> wrote another implementation that provided an interesting comparison. Many interesting discussions. With Gary Shu Ling and me, wrote the Fran User's guide. </LI>
-<LI><A HREF="http://www.cs.yale.edu/users/ling/">Gary Shu Ling</A> found misc bugs and sources of incompleteness. He also helped out quite a lot with the Fran 1.05 during a Fall '97 internship, and developed the Sokoban demo. </LI>
-<LI><A HREF="http://www.dcs.gla.ac.uk/~simonpj/">Simon Peyton Jones</A> is helping me understand <A HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</A> (the Glasgow Haskell compiler) and how to use it effectively to compiler animation programs, as well as how to better implement Fran. </LI>
-<LI><A HREF="http://www.cs.nott.ac.uk/Department/Staff/mpj/">Mark Jones</A> has been helping me understand Haskell type classes and how to use them well in Fran. </LI>
-<LI><A HREF="http://www.dcs.gla.ac.uk/~wadler/">Philip Wadler</A> had provided interesting and insightful feedback on the semantics of behaviors and events. </LI>
-<LI><A HREF="http://www.oz.net/~conal/Jake.html">Jake Elliott</A> did the artwork for Sokoban. </LI></UL>
+<h2 ALIGN="CENTER"><a HREF="http://www.research.microsoft.com/~conal/">Conal Elliott</a></h2>
+<em>
 
-<H3>Contact</H3>
-<BLOCKQUOTE><A HREF="http://www.research.microsoft.com/~conal">Conal Elliott</A> <BR>
-Graphics Research Group <BR>
-Microsoft Research <BR>
-<A HREF="mailto:conal@microsoft.com">conal@microsoft.com</A> </BLOCKQUOTE></BODY>
-</HTML>
+<p ALIGN="CENTER">Updated <!--webbot bot="Timestamp" startspan S-Type="EDITED"
+S-Format="%B %d, %Y" -->February 24, 1998<!--webbot bot="Timestamp" i-checksum="43108" endspan --></p>
+</em>
+
+<p>Fran is a Haskell library (or &quot;embedded language&quot;) for interactive animations
+with 2D and 3D graphics and sound. It runs on <a
+HREF="http://haskell.systemsz.cs.yale.edu/hugs/">Hugs version 1.4</a>, which is very easy
+to install.&nbsp; In fact Fran 1.09 is built into Hugs 1.4.&nbsp; Fran 1.1 is a minor
+release and may be found <a href="Zips/Fran1.1.zip">here</a>.</p>
+
+<p>See <a HREF="news.htm">news</a> for details on changes from one version to another, and
+links zip files for all released versions.</p>
+
+<h3>Notes</h3>
+
+<ul>
+  <li>Fran works with Windows only. You'll need <a HREF="http://www.microsoft.com/directx">DirectX</a>
+    version 3 or better. For NT, this means you need NT 4.0 with <a
+    HREF="http://support.microsoft.com/download/support/mslfiles/NT4SP3_I.EXE">Service pack 3</a>.
+    My plan for Unix, etc., is to wait until DirectX is running there (which is in the works).
+  </li>
+  <li>Check out the <a HREF="http://www.research.microsoft.com/~conal/fran/tutorial.htm">tutorial</a>
+    and <a HREF="http:UsersMan.htm">User's Manual</a>. (The tutorial has lots of animated GIFs
+    totalling 2Mb. Please be patient. You might want to download the <a
+    HREF="http://www.research.microsoft.com/~conal/fran/tutorialArticle.zip">zip file</a> and
+    view it locally.) </li>
+  <li>The <b>demos</b> directory has -- guess what? -- demos! See <a HREF="demos.txt">demos.txt</a>.
+  </li>
+  <li>The garbage collector interferes with smooth performance. After Hugs and <a
+    HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</a> are merged, this problem should
+    not be noticeable. </li>
+  <li>As of very recently, Fran works with <a HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</a>.
+    Performance is <b>much</b> better. Installation is somewhat painful, but that situation is
+    improving. If you're interested, see <a HREF="HowToGHC.txt">HowToGHC.txt</a>. Well, there
+    are a few missing pieces, related to GreenCard, so you'd better wait.</li>
+  <li>Try examples of your own. If you send me ones you've built, I'll consider them for
+    inclusion (with credit to you) in future releases.</li>
+  <li>If you're installing from a zip file, rename your Hugs/lib/Fran to &quot;FranWas&quot;
+    (for instance), and unzip into Hugs/lib.&nbsp; Then rename Hugs/SpriteLib.dll to
+    SpriteLibWas.dll, and manually copy the new Hugs/lib/Fran/SpriteLib.dll into Hugs/.
+    &nbsp; Then try it out.</li>
+  <li>In any case, please <a HREF="mailto:conal@microsoft.com">let me know</a> about your
+    experience.</li>
+</ul>
+
+<h3>Bugs / To do</h3>
+
+<ul>
+  <li><a HREF="todo.htm">Small items</a> </li>
+  <li><a HREF="projects.htm">Non-trivial projects</a> </li>
+</ul>
+
+<h3>&nbsp;Credits</h3>
+
+<ul>
+  <li>Greg Schechter, Ricky Yeung, Salim AbiEzzi, and I collaborated at Sun Microsystems on <a
+    HREF="http://www.research.microsoft.com/research/graphics/elliott/tbag/index.htm">TBAG</a>,
+    a system for constraint-based, semi-declarative modeling of 3D animation. Some of the Fran
+    ideas were initially explored there. </li>
+  <li><a HREF="http://www.research.microsoft.com/research/graphics/knoblock/">Todd Knoblock</a>
+    and Jim Kajiya helped to explore the basic ideas of behaviors and events. </li>
+  <li><a HREF="http://www.dcs.gla.ac.uk/~sof">Sigbjorn Finne</a> helped a lot with the
+    implementation during his summer '96 internship. Since then, he has been <i><b>very</b></i>
+    helpful with getting getting Fran and GHC ready for each other. </li>
+  <li><a HREF="http://www.cs.nott.ac.uk/~acd/">Tony Daniels</a> has been pushing the limits of
+    physics-oriented reactive behavior, uncovering some limitations in the implementation. He
+    also collaborated on some ideas for efficient behavior representation. </li>
+  <li><a HREF="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/hudak-paul.html">Paul Hudak</a> has
+    been collaborating on the ideas and, in particular, how to embed them in Haskell. </li>
+  <li><a HREF="http://www.cs.yale.edu/HTML/YALE/CS/HyPlans/reid-alastair.html">Alastair Reid</a>
+    answered lots of my naive questions about Haskell and its implementation, and provided
+    some emergency Hugs hacking. He also made very helpful pass through version 0.8, updating
+    it to a newer Hugs version, and making various improvements, and rewriting interaction
+    code to be much simpler. </li>
+  <li><a HREF="http://www.cs.yale.edu/homes/peterson-john.html">John Peterson</a> wrote
+    another implementation that provided an interesting comparison. Many interesting
+    discussions. With Gary Shu Ling and me, wrote the Fran User's guide. </li>
+  <li><a HREF="http://www.cs.yale.edu/users/ling/">Gary Shu Ling</a> found misc bugs and
+    sources of incompleteness. He also helped out quite a lot with the Fran 1.05 during a Fall
+    '97 internship, and developed the Sokoban demo. </li>
+  <li><a HREF="http://www.dcs.gla.ac.uk/~simonpj/">Simon Peyton Jones</a> is helping me
+    understand <a HREF="http://www.dcs.gla.ac.uk/fp/software/ghc/">GHC</a> (the Glasgow
+    Haskell compiler) and how to use it effectively to compiler animation programs, as well as
+    how to better implement Fran. </li>
+  <li><a HREF="http://www.cs.nott.ac.uk/Department/Staff/mpj/">Mark Jones</a> has been helping
+    me understand Haskell type classes and how to use them well in Fran. </li>
+  <li><a HREF="http://www.dcs.gla.ac.uk/~wadler/">Philip Wadler</a> had provided interesting
+    and insightful feedback on the semantics of behaviors and events. </li>
+  <li><a HREF="http://www.oz.net/~conal/Jake.html">Jake Elliott</a> did the artwork for
+    Sokoban. </li>
+</ul>
+
+<h3>Contact</h3>
+
+<blockquote>
+  <a HREF="http://www.research.microsoft.com/~conal"><p>Conal Elliott</a> <br>
+  Graphics Research Group <br>
+  Microsoft Research <br>
+  <a HREF="mailto:conal@microsoft.com">conal@microsoft.com</a> </p>
+</blockquote>
+</body>
+</html>

@@ -1,39 +1,47 @@
                       Notes on making a Fran Release
 
-             Last modified Fri Dec 05 14:07:16 1997 by conal
+             Last modified Tue Feb 24 12:26:35 1998 by conal
 
+
+- In ../, do "make staticTest", and make sure there are no errors.  Then
+  run a few tests.  Tutorial is a good general one.
+
+- Update news.htm, if it's fallen behind.  My practice is to make comments
+  when I check in files, and then, just before a release, get a history
+  since the last release, and organize the results into a new news.htm
+  entry.
 
 - If any any source files have been added to SpriteLib, or project
   settings changed, then in SpriteLib, check out SpriteLib.mak, open the
   project the Visual C++, go to the Project menu and select "Export
-  Makefile".  Then edit SpriteLib.mak, find the line that says "copy
-  Debug\SpriteLib.dll %windir%", and add another "%" on the end, (why?!),
-  and check it in.  (Enables automated build of SpriteLib, which is
-  usually unnecessary.)
+  Makefile".  (Enables automated build of SpriteLib, which is seldom
+  necessary.)
 
-- Update newFran.htm.  Change the version number, date and download link.
+- Update default.htm.  Change the version number, date and download link.
   Save.
 
-- Do a recursive SourceSafe check-in at the Fran1 level.
+- Do a recursive SourceSafe check-in at the Fran level.
 
-- Do a recursive SourceSafe "get" to a directory ToZip\Fran1, selecting
+- Do a recursive SourceSafe "get" to a directory ToZip\Fran, selecting
   "writable", and setting the file dates to "modified", in the advanced
   controls for "get".
 
-- Delete any files from ToZip\Fran1 that should not go into the release.
+- Delete any files from ToZip\Fran that should not go into the release.
   Currently none.
 
-- Copy Fran1\SpriteLib\Debug\SpriteLib.dll to Fran1, and gc\HSpriteLib.dll
-  and gc\HSpriteLib.hs to ToZip\Fran1\gc.
+- Copy Fran\SpriteLib\Debug\SpriteLib.dll to ToZip\Fran, and src\HSpriteLib.dll
+  and src\HSpriteLib.hs to ToZip\Fran\src.
 
-- Make a new file, like "Fran1.04.zip" in ToZip; open it; and do a
+- Make a new file, like "Fran1.1.zip" in ToZip; open it; and do a
   recursive wildcard add.
 
-- Copy the new zip file and ToZip\Fran1\*.htm and *.gif to my fran web
-  directory.
+- Move the new zip file to my fran/Zips web directory, and delete the
+  ToZip/Fran subtree.
+
+- Do a SourceSafe "get" on docs to my fran web directory.
 
 - Verify that it works, by following the link from my external web page:
-  http://www.research.microsoft.com/~conal/fran. 
+  http://www.research.microsoft.com/~conal/fran/docs.
 
 - Assuming it works, do a SourceSafe "label" to the Fran project.
 

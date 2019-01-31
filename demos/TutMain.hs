@@ -1,6 +1,9 @@
 -- "main" for Tutorial
 
-import Fran (displayU)
-import qualified Tutorial
+import Fran (display, displayU)
+import qualified Tutorial as T
+import Concurrent (forkIO)
 
-main = Tutorial.main
+main = T.main
+
+--main = do { forkIO (display T.upDownPat) ; display T.leftRightCharlotte }

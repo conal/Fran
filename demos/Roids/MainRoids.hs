@@ -10,12 +10,11 @@ import Collide
 -- Fly a ship around with the arrow keys.  Look out for the star missile.
 -- Shooter disabled (sorry) because of an infinite recursion problem I'm
 -- working on.  Hit escape to return to start position.
-main = testGen gen3
+main = testGen gen1
 
 -- Test out flipbook display
 tryBook :: HFlipBook -> User -> ImageB
-tryBook book u = flipImage book (30 * (time - constantB t0))
- where t0 = userStartTime u
+tryBook book u = flipImage book (30 * userTime u)
 
 -- And track the mouse
 fly0 :: HFlipBook -> User -> ImageB
@@ -30,8 +29,7 @@ test2 u = moveXY (-1.5 + dt) 0 $ missileImage radius
          `untilB` predicate (radius <=* 0) u -=> emptyImage
  where
    radius    = max - (max-min) * dt / dur
-   dt        = time - constantB t0
-   t0        = userStartTime u
+   dt        = userTime u
    max = 0.4; min = 0; dur = 2.5
 
 -- From flyShip.  Turns and makes thrust sound, but doesn't move
@@ -61,28 +59,29 @@ testGen gen = displayU $ \ u -> render (restarting gen (u, emptySS))
 -- Wedges with "control stack overflow" when you shoot :-(
 gen1 = flyShip
 
-gen2 = colliderGen (pos0, vel0, acc, Missile radius, shooter)
+gen2 = colliderGen (pos0, vel0, zeroVector, Missile radius, neverE)
   where
     pos0 = S.vector2XY (-1) (-1)
     vel0 = S.vector2XY 0.5  0.5
-    acc  = zeroVector
-    shooter = neverE
     radius = wiggleRange 0.01 0.3
 
--- These ones wedge if colliderGen in Collide.hs test for explosion.  But
--- now I know why!  See iMut7 in ../Test.hs for a more explicit test case
--- that tickles the same problem.
-gen3 = gen1 `unionGen` gen2
-gen4 = gen2 `unionGen` gen1
+gen3 = colliderGen (pos0, vel0, zeroVector, Roid 0, neverE)
+  where
+    pos0 = S.vector2XY (-1) 1
+    vel0 = S.vector2XY 0 0 --0.3 (-0.3)
+
+gen4 = colliderGen (pos0, vel0, zeroVector, Roid 1, neverE)
+  where
+    pos0 = S.vector2XY 1 (-1)
+    vel0 = S.vector2XY (-0.2) 0.2
+
+dgen4 = gen1 `unionGen` gen2
+dgen5 = gen1 `unionGen` gen3
+dgen6 = gen3 `unionGen` gen4
+dgen7 = gen3 `unionGen` gen4 `unionGen` gen1
 
 -- Should be equivalent to "tryGen gen3".  Wedges
 test5 u = render (stuff1 `unionSS` stuff2)
  where
    stuff1 = gen1 (u,stuff2)
    stuff2 = gen1 (u,stuff1)
-
-
-sumE :: Num a => Event a -> Behavior a
-sumE ev = stepper 0 (scanlE (+) 0 ev)
-
-          

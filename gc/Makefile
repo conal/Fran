@@ -2,6 +2,11 @@
 # Makefile for Green Card examples
 #
 # For now, use the GHC-compiled version, green-card.exe.
+#
+# Note: To compile the automatically-generated HSpriteLib.c, we
+# need options.h config.h and GreenCard.h from the Hugs source,
+# although these files are not part of the Hugs binary release.
+# So, you'll have to get these files somehow.
 ################################################################
 
 default ::
@@ -20,9 +25,9 @@ $(FRANSRC)/HSpriteLib.dll : HSpriteLib.dll
 $(FRANSRC)/HSpriteLib.hs : HSpriteLib.hs
 	cp $< $@
 
-HUGSDIR 	= C:/hugs
 GC	    	+= --target Hugs
-GC_INCLUDES 	= --include-dir $(GCDIR)/lib/hugs --include-dir C:/GCLibs/win32
+# obsolete
+#GC_INCLUDES 	= --include-dir $(GCDIR)/lib/hugs --include-dir //c/GCLibs/win32
 
 .SUFFIXES	:
 .SUFFIXES	: .gc .dll .c .obj
@@ -34,7 +39,7 @@ INCLUDES	= -I$(HUGSDIR)/src -I../SpriteLib
 # green-card.exe wants to append to them!!
 .gc.c	:
 	$(RM) $*.hs $*.c
-	$(GC) $(GC_INCLUDES) $*.gc
+	$(GC) $(GC_INCLUDES) $*
 #	cp $*.hs $*.hs.hugs
 
 HSpriteLib.obj : HSpriteLib.c errors.h
@@ -43,9 +48,20 @@ HSpriteLib.obj : HSpriteLib.c errors.h
 errors.obj : errors.c errors.h
 	cl /nologo -c errors.c
 
+# This one is only here because HSpriteLib.gc contains some stuff at the
+# end that should really be in Win32.  Remove later
+WIN32LIBS = user32.lib
+
 HSpriteLib.dll	: HSpriteLib.obj errors.obj ../SpriteLib/Debug/SpriteLib.lib
 	cl /nologo /LD $(INCLUDES) -o HSpriteLib.dll HSpriteLib.obj \
-	errors.obj ../SpriteLib/Debug/SpriteLib.lib
+	errors.obj $(WIN32LIBS) ../SpriteLib/Debug/SpriteLib.lib
+
+# Experimenting with a statically linked SpriteLib.
+#SPRITELIB = ../SpriteLib/Debug/SpriteLibStatic.lib
+#SYSLIBS = ddraw.lib dsound.lib d3drm.lib winmm.lib
+
+#HSpriteLib.dll : HSpriteLib.obj errors.obj $(SPRITELIB)
+#	link /nologo /debug /DLL $(SYSLIBS) /NODEFAULTLIB /out:$@ HSpriteLib.obj errors.obj $(SPRITELIB) $(SYSLIBS)
 
 clean	:
 	$(RM) HSpriteLib.c HSpriteLib.hs

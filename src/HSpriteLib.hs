@@ -1,9 +1,10 @@
--- This is the brand new Haskell/C interface file for Fran using
--- Green Card 2.0
--- Gary Shu Ling
+-- GreenCard 2.0 Haskell/C interface file for Fran.   Gary Shu Ling
 module HSpriteLib where
 import StdDIS
-import Win32 (HWND, HDC, DWORD, LONG, Word32, COLORREF, SIZE)
+import Win32 (HWND, HDC, DWORD, LONG, Word32, COLORREF, SIZE
+             -- The rest are due to definitions that should be in Win32.
+             , WindowMessage, LPCTSTR, WPARAM
+             )
 -- Open and Close SpriteLib
 -- Argument: how many screen pixels correspond to one length unit
 -- For improving the resolution of timeGetTime under NT.  Minimum of 5.
@@ -110,6 +111,17 @@ instance AkoSpriteTree Word32 where
   toSpriteTree = wordToSpriteTree
 {-
 -}
+-- This stuff really belongs in Win32.  Remove from here when added there.
+-- For setting the title bar text.  But inconvenient to make the LPCTSTR
+-- More convenient version hiding the marshalling and freeing.  It appears
+-- to be safe to free the cstring after SetWindowText.  Needs a name
+-- convention.  Here I'm using "A" for "takes care of its own allocation".
+setWindowTextA :: HWND -> String -> IO ()
+setWindowTextA hwnd str = do
+  cstring <- marshall_string_ str
+  setWindowText hwnd cstring
+  free cstring
+-- WM_SIZE message wParam values
 needPrims_hugs 2
 openSpriteLib :: Double -> IO ()
 openSpriteLib arg1 =
@@ -291,6 +303,10 @@ newRMRenderer arg1 arg2 arg3 =
   prim_newRMRenderer arg1 arg2 arg3 >>= \ (res1) ->
   (return (res1))
 primitive prim_newRMRenderer :: Word32 -> Word32 -> Double -> IO (Word32)
+hRendererSetScale :: HRMRenderer -> Double -> IO ()
+hRendererSetScale arg1 arg2 =
+  prim_hRendererSetScale arg1 arg2
+primitive prim_hRendererSetScale :: Word32 -> Double -> IO ()
 doRMRenderer :: HRMRenderer -> IO HDDSurface
 doRMRenderer arg1 =
   prim_doRMRenderer arg1 >>= \ (res1) ->
@@ -430,6 +446,17 @@ wordToSpriteTree arg1 =
     prim_wordToSpriteTree arg1 >>= \ (res1) ->
     (return (res1)))
 primitive prim_wordToSpriteTree :: Word32 -> IO (Word32)
+sleep :: DWORD -> IO ()
+sleep arg1 =
+  prim_sleep arg1
+primitive prim_sleep :: Word32 -> IO ()
+setWindowText :: HWND -> LPCTSTR -> IO ()
+setWindowText arg1 arg2 =
+  prim_setWindowText arg1 arg2 >>= \ (gc_failed,gc_failstring) ->
+  if ( gc_failed /= 0)
+  then unmarshall_string_ gc_failstring >>= fail . userError
+  else (return (()))
+primitive prim_setWindowText :: Addr -> Addr -> IO (Int,Addr)
 threadPriorityIdle :: ThreadPriority
 threadPriorityIdle =
   unsafePerformIO(
@@ -514,3 +541,39 @@ emptySpriteTreeChain =
     prim_emptySpriteTreeChain >>= \ (res1) ->
     (return (res1)))
 primitive prim_emptySpriteTreeChain :: IO (Word32)
+wM_USER :: WindowMessage
+wM_USER =
+  unsafePerformIO(
+    prim_wM_USER >>= \ (res1) ->
+    (return (res1)))
+primitive prim_wM_USER :: IO (Word32)
+sIZE_RESTORED :: WPARAM
+sIZE_RESTORED =
+  unsafePerformIO(
+    prim_sIZE_RESTORED >>= \ (res1) ->
+    (return (res1)))
+primitive prim_sIZE_RESTORED :: IO (Word32)
+sIZE_MINIMIZED :: WPARAM
+sIZE_MINIMIZED =
+  unsafePerformIO(
+    prim_sIZE_MINIMIZED >>= \ (res1) ->
+    (return (res1)))
+primitive prim_sIZE_MINIMIZED :: IO (Word32)
+sIZE_MAXIMIZED :: WPARAM
+sIZE_MAXIMIZED =
+  unsafePerformIO(
+    prim_sIZE_MAXIMIZED >>= \ (res1) ->
+    (return (res1)))
+primitive prim_sIZE_MAXIMIZED :: IO (Word32)
+sIZE_MAXSHOW :: WPARAM
+sIZE_MAXSHOW =
+  unsafePerformIO(
+    prim_sIZE_MAXSHOW >>= \ (res1) ->
+    (return (res1)))
+primitive prim_sIZE_MAXSHOW :: IO (Word32)
+sIZE_MAXHIDE :: WPARAM
+sIZE_MAXHIDE =
+  unsafePerformIO(
+    prim_sIZE_MAXHIDE >>= \ (res1) ->
+    (return (res1)))
+primitive prim_sIZE_MAXHIDE :: IO (Word32)

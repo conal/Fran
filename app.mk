@@ -20,12 +20,6 @@ GUILIBS		+= -luser32 -lgdi32
 
 FRANLIBS = $(FRAN)/SpriteLib/libSpriteLib.a $(FRAN)/src/libFran.a 
 
-depends	::  	$(HS)
-		$(GHC) -M $(GHC_FLAGS) $(HS)
-
-# synonym
-depend  :: depends
-
 clean		::
 		$(RM) *.exe *.o *.hi *.ps *.hp
 

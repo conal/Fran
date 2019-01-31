@@ -30,15 +30,15 @@ forArticle = False
 
 (textColor, importKid)
    | forArticle = (black, importKidHiRes)
-   | otherwise  = (white, importKidLoRes)
+   | otherwise  = (white, importKidHiRes)   -- what should it be?
 
 main = displayU allAnims
 
 importKidHiRes name =
   -- The small ones came from shrinking the big ones by 35% (without
   -- smoothing, which messes up color-keying).
-  stretch 0.35 $
-  importBitmap ("../Media/" ++ name ++ "Big.bmp")
+  stretch 0.35 (
+   importBitmap ("../Media/" ++ name ++ "Big.bmp"))
 
 importKidLoRes name =
   importBitmap ("../Media/" ++ name ++ "Small.bmp")
@@ -95,7 +95,8 @@ accelBecky u = moveXY x 0 becky
 
 mouseVelBecky u = move offset becky
   where
-   offset = atRate (mouseMotion u) u
+   offset = atRate vel u
+   vel    = mouseMotion u
 
 beckyChaseMouse u = move offset becky
   where
@@ -203,22 +204,13 @@ bSign :: User -> RealB
 bSign = selectLeftRight 0 (-1) 1
 
 selectLeftRight :: a -> a -> a -> User -> Behavior a
-
 selectLeftRight none left right u =
   condB (leftButton  u) (constantB left ) (
     condB (rightButton u) (constantB right) (
       constantB none ))
- 
-buttonMonitor u =
-  moveXY 0 (- height / 2 + 0.25) (
-   withColor textColor (
-    stretch 2 (
-    stringBIm (selectLeftRight "(press a button)" "left" "right" u))))
- where
-   (width,height) = vector2XYCoords (viewSize u)
-
 
 {-
+-- Old, nearly equivalent definition.
 selectLeftRight none left right u = notPressed u
  where
   notPressed u =
@@ -229,6 +221,15 @@ selectLeftRight none left right u = notPressed u
   pressed x stop u =
    constantB x `untilB` nextUser_ stop u ==> notPressed
 -}
+ 
+buttonMonitor u =
+  moveXY 0 (- height / 2 + 0.25) (
+   withColor textColor (
+    stretch 2 (
+    stringBIm (selectLeftRight "(press a button)" "left" "right" u))))
+ where
+   (width,height) = vector2XYCoords (viewSize u)
+
 
 growFlower u = buttonMonitor u `over`
                stretch (grow 1 u) flower
@@ -258,7 +259,7 @@ godzilla = moveXY 0 (-0.4) (
 sphere = stretch3 0.8 (importX "../Media/sphere2.x")
 teapot = stretch3 1.5 (importX "../Media/tpot2.x")
 
-redSpinningPot =
+redSpinningPot () =
   turn3 zVector3 (time * pi) (
    withColorG red teapot)
 
@@ -338,10 +339,10 @@ spiral3D () = --slower 3 $
    bColor i =
      colorHSL (constantB (2 * pi * fromInt i / fromInt n)) 0.5 0.5
 
-spiralTurn () = turn3 zVector3 (pi*time) (unionGs $ map ball [1 .. n])
+spiralTurn () = turn3 zVector3 (pi*time) (unionGs (map ball [1 .. n]))
  where
    n = 40
-   ball i  = withColorG color $ move3 motion $ stretch3 0.1 sphereLowRes
+   ball i  = withColorG color (move3 motion (stretch3 0.1 sphereLowRes))
     where
       motion = vector3Spherical 1.5 (10*phi) phi
       phi    = pi * fromInt i / fromInt n
@@ -353,7 +354,7 @@ tst0 () = (constantB (putStrLn "hey!!") `ats` [0]) !! 5
 tst1 () = turn3 zVector3 (pi*time) (unionGs $ map ball [1 .. n])
  where
    n = 40
-   ball i  = withColorG color $ move3 motion $ stretch3 0.1 sphereLowRes
+   ball i  = withColorG color (move3 motion (stretch3 0.1 sphereLowRes))
     where
       motion = vector3Spherical 1.5 (10*phi) phi
       phi    = pi * fromInt i / fromInt n
@@ -361,7 +362,7 @@ tst1 () = turn3 zVector3 (pi*time) (unionGs $ map ball [1 .. n])
       hue    = 2*phi
 
 -- Make some static stuff explicit.
-tst2 () = turn3 zVector3 (pi*time) (unionGs $ map ball [1 .. n])
+tst2 () = turn3 zVector3 (pi*time) (unionGs (map ball [1 .. n]))
  where
    n = 40
    ball i  = withColorG (constantB color) $
@@ -416,7 +417,7 @@ anims = [ talkTitle ] ++
         ]
         ++
         map (\ gf -> \ u -> renderGeometry (gf u) defaultCamera )
-            [ const sphere, const teapot, const redSpinningPot
+            [ const sphere, const teapot, const (redSpinningPot ())
               , mouseSpinningPot ]
         ++
         [ spin1, spin2 ]

@@ -1,6 +1,4 @@
 -- "Geometry behavior" type.
--- 
--- Last modified Tue Nov 18 14:15:58 1997
 
 -- To do:
 --
@@ -165,12 +163,18 @@ renderGeometry geom cameraXfB = renderImage renderIO
           -- Update D3D RM geometry
           putMVar geomRequestV continue
           if continue then do
-            -- Set the camera frame
-            S.hFrameSetTransform cameraFrame cameraXf
             -- Sync with the geometry update threads
             -- ## Why can't I say "True <- ..." here?  I get a complaint
             -- that IO isn't in MonadZero.
             _ <- takeMVar geomReplyV
+            -- Factor the 2D scale into the camera transform.
+            let cameraXfAdjust = S.rotate3 S.yVector3 rotate
+            -- Set the camera frame
+            S.hFrameSetTransform cameraFrame
+                                 (cameraXfAdjust `S.compose3` cameraXf)
+            SL.hRendererSetScale renderer (abs scale)
+            -- If the scale is negative
+            let scaleSign = signum scale
             -- Do the rendering and return the surface
             newSurface <- SL.doRMRenderer renderer
             --putStrLn "renderer produced new surface"
@@ -178,7 +182,7 @@ renderGeometry geom cameraXfB = renderImage renderIO
             -- renderer does for now.
 	    SL.updateSimpleSprite hSimpleSprite t newSurface ulX ulY
                                   llx lly urx ury 
-                                  dx dy 1 1
+                                  dx dy scaleSign scaleSign
             putMVar replyV True
             update ts' rects' cameraXfs' xfs'
            else do
@@ -270,8 +274,8 @@ fillFrameRec parentFrame mbColorB@(Just _) (ColorG colB geom) tt =
   fillFrameRec parentFrame mbColorB geom tt
 
 fillFrameRec parentFrame Nothing (ColorG colorB geom) tt =
-  -- No color from the outside.  Just pass down the color
-  fillFrameRec parentFrame (Just colorB) geom tt
+  -- No color from the outside.  Just pass down time-transformed color
+  fillFrameRec parentFrame (Just (timeTransform colorB tt)) geom tt
 
 fillFrameRec parentFrame mbColorB (TransformG xfB geomB) tt =
   \ t0 ts requestV replyV -> do
@@ -309,8 +313,6 @@ fillFrameRec parentFrame mbColorB (geomB `UnionG` geomB') tt =
   fillFrameRec parentFrame mbColorB geomB' tt t0 ts syncV    replyV
 
 
--- I don't think the handling of time transformation is right yet.
--- Compare with spritify.
 fillFrameRec parentFrame mbColorB (TimeTransG geomB ttInner) tt =
   fillFrameRec parentFrame mbColorB geomB (timeTransform ttInner tt)
 

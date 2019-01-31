@@ -30,8 +30,8 @@ squareW, squareH :: RealVal
 (S.Vector2XY squareW squareH) = flipBookSize floorFlipBook
 
 xx, yy :: Int -> S.RealVal
-xx x = squareSize * (fromIntegral x - (fromIntegral maxX / 2.0) + 0.5)
-yy y = squareSize * (fromIntegral y - (fromIntegral maxY / 2.0) + 0.5)
+xx x = squareW * (fromIntegral x - (fromIntegral maxX / 2.0) + 0.5)
+yy y = squareH * (fromIntegral y - (fromIntegral maxY / 2.0) + 0.5)
 
 mkBoardImageB :: Board -> BoolB -> ImageB
 mkBoardImageB b finalB = overs $ [ f x y | x <- [0 .. (maxX - 1)],

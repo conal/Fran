@@ -56,7 +56,8 @@ instance  Num Vector2  where
   signum = badOp "signum"
   negate = negateVector
   -- (-) follows from negate and +
-  fromInteger = badOp "fromInteger"
+  fromInteger n = error ("fromInteger: cannot convert " ++ show n
+                         ++ " to Vector2")
 
 badOp opName = error ("bad operator on Vector2: " ++ opName)
 

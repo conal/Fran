@@ -103,9 +103,7 @@ motionToLoc pos = (col, row)
 locCrop :: Loc -> ImageB -> ImageB
 locCrop loc = move (constantB (- motion)) . crop (constantB rect)
  where
-   rect   = S.rectLLUR ll ur
-   ll     = center S..-^ pieceHalfSize
-   ur     = center S..+^ pieceHalfSize
+   rect   = S.rectFromCenterSize center pieceSize
    center = S.origin2 S..+^ motion
    motion = locToMotion loc
 

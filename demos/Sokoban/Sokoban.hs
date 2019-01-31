@@ -22,7 +22,7 @@ sokoban board initLocs outside = (locBs, finalB)
     lazyZipWith f [] _ = []
     lazyZipWith f (a:as) ~(b:bs) = f a b : lazyZipWith f as bs
 
-    behOfList = liftL id locBs
+    behOfList = bListToListB locBs
 
     moveInhabEs :: [Event Direction]
     moveInhabEs = map (\ locB -> whenSnap moveLocsE locB

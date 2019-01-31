@@ -33,12 +33,15 @@ integral b u = bInt
  where
    bInt     = switcher zeroVector newPiece
    newPiece = sample `snapshot` pairB b bInt ==> extrapolate
-   sample   = withTimeE_ (userTimeIs 0 u .|. updateDone u -=> ())
+   sample   = withTimeE_ (userTimeIs 0 u .|. makeStep)
+   makeStep = updateDone u -=> ()
+              -- alarmE (userStartTime u) 0.1  -- For ..\demo\ReplayTut.hs
    extrapolate (t0,(dy0, y0)) =
      constantB y0 ^+^ (time - constantB t0) *^ constantB dy0
+     -- The following may be faster
+     -- lift1 (\t -> y0 VS.^+^ (t - t0) VS.*^ dy0) time
 
 {-
-
 -- An older version.
 
 integral b u = integralFrom b (userStartTime u)

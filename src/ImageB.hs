@@ -60,28 +60,31 @@ renderImage = RenderImage
 
 -- Embed a sound
 soundImage :: SoundB -> ImageB
-soundImage = SoundI
+soundImage SilentS = EmptyImage
+soundImage s       = SoundI s
 
 -- overlay
 over :: ImageB -> ImageB -> ImageB
-
--- colored image
-withColor :: ColorB -> ImageB -> ImageB
-withColor = WithColorI
-
--- crop image
-crop :: RectB -> ImageB -> ImageB
-crop = CropI
-
-instance Transformable2B ImageB where (*%) = TransformI
-
--- Here's an example of an optimization.  More are possible.
--- ## Why don't these guys kick in more often, e.g., in lotsODonuts?
 EmptyImage `over` imb2 = --trace "(EmptyImage `over`) optimization\n" $
                          imb2
 imb1 `over` EmptyImage = --trace "(`over` EmptyImage) optimization\n" $
                          imb1
 imb1 `over` imb2       = imb1 `Over` imb2
+
+-- colored image
+withColor :: ColorB -> ImageB -> ImageB
+withColor _ EmptyImage = EmptyImage
+withColor c im         = WithColorI c im
+
+-- crop image
+crop :: RectB -> ImageB -> ImageB
+crop _ EmptyImage = EmptyImage
+crop r im         = CropI r im
+
+-- transform image
+instance Transformable2B ImageB where
+  _  *% EmptyImage = EmptyImage
+  xf *% im         = xf `TransformI` im
 
 
 -- Perhaps move this SyncVar stuff elsewhere.
@@ -175,19 +178,23 @@ im@(RenderImage f) `afterTimesI` ts =
   repeat im
   -- error "afterTimesI not yet supported for RenderImage, sorry."
 
-SoundI snd `afterTimesI` ts = map SoundI (snd `afterTimes` ts)
+-- Crucial efficiency note: use "soundImage", "*%", etc, rather than
+-- the constructors, so that optimizations like (EmptyImage `over`) can
+-- kick in.
+
+SoundI snd `afterTimesI` ts = map soundImage (snd `afterTimes` ts)
 
 (imb `Over` imb') `afterTimesI` ts =
-  zipWith Over (imb `afterTimesI` ts) (imb' `afterTimesI` ts)
+  zipWith over (imb `afterTimesI` ts) (imb' `afterTimesI` ts)
 
 TransformI xfb imb `afterTimesI` ts =
-  zipWith TransformI (xfb `afterTimes` ts) (imb `afterTimesI` ts)
+  zipWith (*%) (xfb `afterTimes` ts) (imb `afterTimesI` ts)
 
 WithColorI c imb `afterTimesI` ts =
-  zipWith WithColorI (c `afterTimes` ts) (imb `afterTimesI` ts)
+  zipWith withColor (c `afterTimes` ts) (imb `afterTimesI` ts)
 
 CropI rectb imb `afterTimesI` ts =
-  zipWith CropI (rectb `afterTimes` ts) (imb `afterTimesI` ts)
+  zipWith crop (rectb `afterTimes` ts) (imb `afterTimesI` ts)
 
 -- ## This one is essentially copied from Behavior.hs, and is almost
 -- identical to the GeometryB and SoundB versions.  Figure out how to
@@ -241,9 +248,9 @@ polygonSurface    :: [Point2B] -> Maybe ColorB -> Transform2B -> TimeB -> Surfac
 polylineSurface   :: [Point2B] -> Maybe ColorB -> Transform2B -> TimeB -> SurfaceULB
 polyBezierSurface :: [Point2B] -> Maybe ColorB -> Transform2B -> TimeB -> SurfaceULB
 
-polygonSurface    pts = polySurface R.renderPolygon    (liftL id pts)
-polylineSurface   pts = polySurface R.renderPolyline   (liftL id pts)
-polyBezierSurface pts = polySurface R.renderPolyBezier (liftL id pts)
+polygonSurface    pts = polySurface R.renderPolygon    (bListToListB pts)
+polylineSurface   pts = polySurface R.renderPolyline   (bListToListB pts)
+polyBezierSurface pts = polySurface R.renderPolyBezier (bListToListB pts)
 
 polySurface :: ([S.Point2] -> S.Color -> S.Transform2 -> R.SurfaceUL)
 	    -> Behavior [S.Point2] -> Maybe ColorB -> Transform2B
@@ -306,8 +313,13 @@ lineSurface p0 p1 mbColorB stretchB tt =
                      (timeTransform p1 tt)
                      (fromMaybe defaultColor mbColorB) stretchB
 
-line :: Point2B -> Point2B -> ImageB
+line, lineSegment :: Point2B -> Point2B -> ImageB
 line p0 p1 = syntheticImage (lineSurface p0 p1)
+
+-- The "line" primitive should be renamed "lineSegment", and there should
+-- really be an infinite "line", which`` exploits cropping.
+
+lineSegment = line
 
 -- textB, colorB, stretchB
 

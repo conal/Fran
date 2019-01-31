@@ -27,6 +27,7 @@ import IOExts
 import Compatibility
 
 infixr 8  ^*, ^^*
+infixr 5  ++*
 infix  4  ==*, <*, <=* , >=*, >*
 infixr 3  &&*
 infixr 2  ||*
@@ -47,9 +48,13 @@ type CacheVar a = IORef (BCache a)
 doCaching :: Bool
 doCaching = True
 
-newCache :: IO (Maybe (CacheVar a))
-newCache | doCaching = map Just (newIORef [])
-         | otherwise = return Nothing
+-- This guy has to be a function, to prevent floating by the optimizer in
+-- conjunction with unsafePerformIO below.
+newCache :: b -> IO (Maybe (CacheVar a))
+newCache = const $
+ if doCaching then
+     map Just (newIORef [])
+ else return Nothing
 
 -- A behavior contains structure and possibly a sampler cache.  The
 -- structure is used for $*/constantB and $*/untilB optimizations.
@@ -136,7 +141,7 @@ atsS (b `UntilB` e) = \ ts -> loop ts (b `ats` ts) (e `occs` ts)
 
 untilBB :: Behavior a -> Event (Behavior a) -> Behavior a
 b `untilBB` e = Behavior (b `UntilB` e)
-                         (unsafePerformIO newCache)
+                         (unsafePerformIO (newCache b))
 
 -- the following type signature is very very important: try
 -- deleting it and see what happens :-)! GSL
@@ -231,7 +236,7 @@ cacheLookup sampler cacheVar ts = unsafePerformIO $ do
 -- Utility.  Make the initially empty cache.
 samplerB :: SamplerB a -> Behavior a
 samplerB sampler =
-  Behavior bstruct (unsafePerformIO newCache)
+  Behavior bstruct (unsafePerformIO (newCache bstruct))
  where
    bstruct = SamplerB sampler afterer
    afterer = map (const bstruct)
@@ -425,6 +430,7 @@ instance  Ord a => Ord (Behavior a)  where
 
 instance  Num a => Num (Behavior a)  where
   (+)          =  lift2 (+)
+  (-)          =  lift2 (-)
   (*)          =  lift2 (*)
   negate       =  lift1 negate
   abs          =  lift1 abs
@@ -623,16 +629,32 @@ nilB  :: Behavior [a]
 consB :: Behavior a -> Behavior [a] -> Behavior [a]
 headB :: Behavior [a] -> Behavior a
 tailB :: Behavior [a] -> Behavior [a]
+nullB :: Behavior [a] -> BoolB
 (!!*) :: Behavior [a] -> IntB -> Behavior a
 
 nilB  = constantB []
 consB = lift2 (:)
 headB = lift1 head
 tailB = lift1 tail
+nullB = lift1 null
 (!!*) = lift2 (!!)
 
+-- Turn a list of behaviors into a behavior over list
+bListToListB :: [Behavior a] -> Behavior [a]
+bListToListB = foldr consB nilB
+
+-- Lift a function over lists into a function over behavior lists
 liftL :: ([a] -> b) -> ([Behavior a] -> Behavior b)
-liftL f bs = lift1 f (foldr consB nilB bs)
+liftL f bs = lift1 f (bListToListB bs)
+
+
+-- Monads
+
+-- To do: see if it makes sense to lift monads to monads and monadPlus's
+-- to monadPlus's.
+
+(++*) :: MonadPlus m => Behavior (m a) -> Behavior (m a) -> Behavior (m a)
+(++*) = lift2 (++)
 
 -- Other
 
